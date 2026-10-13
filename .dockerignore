@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+
+# Environment
+.env
+
+# Documentation
+Howtouse.md
+README.md
+
+# Node (frontend installs fresh in Docker)
+frontend/node_modules
+frontend/dist
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.venv
+venv
+
+# Docker volumes (local dev)
+pgdata
+
+# Uploads (mounted as volume)
+uploads
+
+# IDE
+.vscode
+.idea
+.windsurf
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups
+*.bak
+*.sql.bak
+server.py.bak

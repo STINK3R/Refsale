@@ -1,0 +1,20 @@
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# psycopg2-binary ships prebuilt — no gcc/libpq-dev needed
+COPY requirements-backend.txt .
+RUN pip install --no-cache-dir -r requirements-backend.txt
+
+# Copy application code
+COPY server.py .
+COPY app/ ./app/
+COPY admin.html .
+
+RUN mkdir -p uploads
+
+EXPOSE 5000
+
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--timeout", "120", "server:app"]

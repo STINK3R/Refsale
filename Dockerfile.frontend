@@ -1,0 +1,32 @@
+# Build stage
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+COPY frontend/ .
+
+# Create empty .env in parent dir so envDir: '..' doesn't break
+RUN mkdir -p /app/.. && touch /app/../.env 2>/dev/null || true
+
+# Build - VITE_API_URL empty means same-origin (proxied via nginx)
+ENV VITE_API_URL=""
+ARG VITE_DADATA_TOKEN=""
+ENV VITE_DADATA_TOKEN=${VITE_DADATA_TOKEN}
+RUN npm run build
+
+# Production stage
+FROM nginx:alpine
+
+# Copy built frontend
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Copy nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+EXPOSE 443
+
+CMD ["nginx", "-g", "daemon off;"]

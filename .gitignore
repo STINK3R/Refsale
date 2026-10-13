@@ -1,0 +1,45 @@
+# Environment secrets (.env.example is tracked on purpose)
+.env
+.env.local
+.env.*.local
+
+# Private docs
+Howtouse.md
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Uploads (local file storage)
+uploads/
+
+# Backup files
+*.bak
+*.sql.bak
+backup.sql
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+.windsurf/
+.claude/
+
+# Docker volumes
+pgdata/
+
+# Logs
+*.log
+
+# Duplicate files
+logo VIP.png

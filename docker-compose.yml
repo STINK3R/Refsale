@@ -1,0 +1,108 @@
+# Fixed project name: container names (refsale-frontend-1, …) stay the same
+# whatever directory the repo is cloned into, so scripts can find them.
+name: refsale
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: coop
+      POSTGRES_USER: coop
+      # Only applied when the volume is first created. On an existing database
+      # the password is whatever ALTER USER set — keep this in sync with it.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Run once, when the volume is first created, in file-name order.
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./db/migrate_all.sql:/docker-entrypoint-initdb.d/02-migrate_all.sql
+      - ./db/migrate_v8.sql:/docker-entrypoint-initdb.d/03-migrate_v8.sql
+      - ./db/migrate_v9.sql:/docker-entrypoint-initdb.d/04-migrate_v9.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coop -d coop"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Full URL from .env — special characters in the password must be
+      # percent-encoded there (@ → %40, : → %3A, / → %2F, # → %23).
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+      PORT: "5000"
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      ADMIN_NOTIFY_EMAIL: ${ADMIN_NOTIFY_EMAIL:-}
+      # No default on purpose — compose must fail loudly rather than boot the
+      # API with a signing key that is public in this repo.
+      # Generate one with:  openssl rand -hex 32
+      SERVER_SECRET: '${SERVER_SECRET:?set SERVER_SECRET in .env, see .env.example}'
+      WEBSITE_URL: ${WEBSITE_URL:-http://localhost}
+      SITE_DOMAIN: ${SITE_DOMAIN:-http://localhost}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    volumes:
+      - uploads:/app/uploads
+    ports:
+      # Loopback only. nginx reaches the backend over the compose network
+      # (http://backend:5000), so publishing this port publicly only served to
+      # expose the API and /admin.html over plain HTTP, bypassing TLS, the nginx
+      # rate limits and the /admin block.
+      - "127.0.0.1:${BACKEND_PORT:-5000}:5000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_DADATA_TOKEN: ${VITE_DADATA_TOKEN:-}
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      # certbot (on the host) writes ACME challenges here; nginx serves them
+      # on port 80 so certs renew without stopping the container
+      - /var/www/certbot:/var/www/certbot:ro
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ADMIN_CHAT_IDS: ${TELEGRAM_ADMIN_CHAT_IDS:-}
+      WEBSITE_URL: ${WEBSITE_URL:-http://localhost}
+
+  adminer:
+    image: adminer:latest
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - "127.0.0.1:${ADMINER_PORT:-8080}:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DESIGN: nette
+
+volumes:
+  pgdata:
+  uploads:
