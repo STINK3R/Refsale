@@ -44,7 +44,7 @@ export default function ProfileModal() {
   return (
     <Modal open={profileModalOpen} onClose={closeProfile}>
       <div className="flex items-center gap-4 mb-6 pr-8">
-        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary-light to-primary-dark text-ink font-extrabold flex items-center justify-center text-lg">
+        <div className="w-14 h-14 rounded-full bg-ivory text-ink font-extrabold flex items-center justify-center text-lg">
           {getInitials(user.full_name)}
         </div>
         <div className="min-w-0">
@@ -54,9 +54,9 @@ export default function ProfileModal() {
       </div>
 
       <div className="grid grid-cols-2 gap-2 mb-6">
-        <Link to="/orders" onClick={closeProfile} className="btn-ghost rounded-2xl h-11 text-[13px]"><Package size={15} /> Мои заказы</Link>
+        <Link to="/orders" onClick={closeProfile} className="btn-outline h-11 text-[13px]"><Package size={15} /> Мои заказы</Link>
         {user.is_leader ? (
-          <Link to="/cabinet" onClick={closeProfile} className="btn-gold rounded-2xl h-11 text-[13px]"><Crown size={15} /> Кабинет</Link>
+          <Link to="/cabinet" onClick={closeProfile} className="btn-primary h-11 text-[13px]"><Crown size={15} /> Кабинет</Link>
         ) : <span />}
       </div>
 
@@ -69,7 +69,7 @@ export default function ProfileModal() {
         <Labeled label="Email"><input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="field" /></Labeled>
         <Labeled label="Новый пароль (оставьте пустым, чтобы не менять)"><input value={password} onChange={(e) => setPassword(e.target.value)} type="password" autoComplete="new-password" className="field" /></Labeled>
       </div>
-      <button onClick={save} disabled={saving} className="btn-gold w-full h-12 rounded-full text-[15px] mt-6">
+      <button onClick={save} disabled={saving} className="btn-primary w-full h-12 text-[15px] mt-6">
         {saving ? <Loader2 size={18} className="animate-spin" /> : 'Сохранить'}
       </button>
     </Modal>

@@ -24,7 +24,8 @@ export default function Modal({ open, onClose, children, title, subtitle, maxWid
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/65 backdrop-blur-sm p-0 sm:p-5"
+          transition={{ duration: 0.3 }}
+          className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-6"
           onMouseDown={(e) => { mouseDownTarget.current = e.target; }}
           onMouseUp={(e) => {
             if (e.target === e.currentTarget && mouseDownTarget.current === e.currentTarget) {
@@ -34,22 +35,22 @@ export default function Modal({ open, onClose, children, title, subtitle, maxWid
           }}
         >
           <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
-            className={`glass-strong rounded-t-[28px] sm:rounded-[28px] p-6 sm:p-8 w-full ${maxWidth} max-h-[92vh] sm:max-h-[90vh] overflow-y-auto relative`}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 18 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            className={`bg-bg border border-line p-7 sm:p-10 w-full ${maxWidth} max-h-[94vh] overflow-y-auto relative`}
             style={{ overscrollBehavior: 'contain' }}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="w-10 h-1 bg-border rounded-full mx-auto mb-5 sm:hidden" />
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 w-9 h-9 bg-white/5 border border-white/10 rounded-full flex items-center justify-center text-muted hover:bg-danger/10 hover:text-danger transition-colors cursor-pointer z-10"
+              className="absolute top-5 right-5 text-muted hover:text-text transition-colors cursor-pointer z-10"
+              aria-label="Закрыть"
             >
-              <X size={16} />
+              <X size={20} strokeWidth={1.3} />
             </button>
-            {title && <h2 className="text-xl sm:text-2xl font-extrabold text-text mb-1">{title}</h2>}
+            {title && <h2 className="font-display text-[30px] leading-tight text-text mb-2 pr-8">{title}</h2>}
             {subtitle && <p className="text-sm text-muted mb-6">{subtitle}</p>}
             {children}
           </motion.div>

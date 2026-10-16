@@ -53,7 +53,7 @@ export function StatusTrack({ status }: { status: string }) {
     <div className="flex items-center gap-1.5">
       {STATUS_STEPS.map((s, i) => (
         <div key={s} className="flex-1 min-w-0">
-          <div className={`h-1.5 rounded-full ${i <= reached ? 'bg-gradient-to-r from-primary-light to-primary-dark' : 'bg-white/10'}`} />
+          <div className={`h-1.5 rounded-full ${i <= reached ? 'bg-primary' : 'bg-white/10'}`} />
           <div className={`mt-1.5 text-[10.5px] truncate ${i <= reached ? 'text-primary-light font-semibold' : 'text-light'}`}>{STATUS_LABEL[s]}</div>
         </div>
       ))}
@@ -102,25 +102,25 @@ export default function OrdersPage() {
 
   if (!user) {
     return (
-      <div className="max-w-lg mx-auto px-5 pt-36 pb-24 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/25 flex items-center justify-center mx-auto mb-5">
+      <div className="max-w-lg mx-auto px-5 pt-[170px] max-lg:pt-[120px] pb-24 text-center">
+        <div className="w-16 h-16 bg-primary/10 border border-primary/25 flex items-center justify-center mx-auto mb-5">
           <Package size={28} className="text-primary" />
         </div>
         <h1 className="font-display text-[38px] leading-none text-text mb-3">Статусы заказов</h1>
         <p className="text-sm text-muted mb-7">Войдите, чтобы видеть свои заказы, их статусы и чат с менеджером.</p>
-        <button onClick={() => openAuth('login')} className="btn-gold rounded-full px-8 h-12 text-[15px]"><LogIn size={17} /> Войти</button>
+        <button onClick={() => openAuth('login')} className="btn-primary px-8 h-12 text-[15px]"><LogIn size={17} /> Войти</button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-[1180px] mx-auto px-3 sm:px-5 pt-28 max-sm:pt-24 pb-16">
+    <div className="max-w-[1180px] mx-auto px-3 sm:px-5 pt-[150px] max-lg:pt-[104px] pb-16">
       <div className="mb-5 px-1">
-        <div className="eyebrow mb-2">Мои заказы</div>
+        <div className="label mb-2">Мои заказы</div>
         <h1 className="font-display text-[40px] leading-none text-text max-sm:text-[32px]">Статусы и чаты</h1>
       </div>
 
-      <div className="glass rounded-[28px] overflow-hidden flex h-[calc(100dvh-220px)] min-h-[480px] max-h-[760px]">
+      <div className="bg-card border border-line overflow-hidden flex h-[calc(100dvh-220px)] min-h-[480px] max-h-[760px]">
         <aside className={`w-full sm:w-[340px] sm:min-w-[340px] sm:border-r border-white/[0.07] flex-col ${selected ? 'hidden sm:flex' : 'flex'}`}>
           <div className="flex-1 min-h-0 overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
             {loading ? (
@@ -148,7 +148,7 @@ export default function OrdersPage() {
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-1">
                     <span className={`text-[12px] truncate ${c.unread ? 'text-text font-semibold' : 'text-muted'}`}>{preview}</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${statusTone(c.status)}`}>{STATUS_LABEL[c.status] || c.status}</span>
+                    <span className={`text-[10px] font-medium uppercase tracking-[0.08em] px-2 py-0.5 border shrink-0 ${statusTone(c.status)}`}>{STATUS_LABEL[c.status] || c.status}</span>
                   </div>
                 </button>
               );
@@ -234,7 +234,7 @@ function OrderThread({ chat, userId, userName, onBack }: { chat: OrderChatSummar
             <div className="font-display text-[24px] leading-none text-text">Заказ #{chat.order_id}</div>
             <div className="text-[12px] text-muted mt-1">{formatPrice(chat.total)} · чат с менеджером</div>
           </div>
-          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border shrink-0 ${statusTone(status)}`}>{STATUS_LABEL[status] || status}</span>
+          <span className={`text-[11px] font-medium uppercase tracking-[0.08em] px-2.5 py-1 border shrink-0 ${statusTone(status)}`}>{STATUS_LABEL[status] || status}</span>
         </div>
         <StatusTrack status={status} />
         <div className="flex items-center gap-3">
@@ -275,9 +275,9 @@ function OrderThread({ chat, userId, userName, onBack }: { chat: OrderChatSummar
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
               placeholder="Написать менеджеру…"
-              className="field !rounded-full !py-2.5"
+              className="field !py-2.5"
             />
-            <button onClick={send} disabled={(!text.trim() && !images.length) || sending} className="btn-gold w-11 h-11 rounded-full shrink-0" aria-label="Отправить">
+            <button onClick={send} disabled={(!text.trim() && !images.length) || sending} className="btn-primary w-11 h-11 !p-0 shrink-0" aria-label="Отправить">
               {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             </button>
           </div>
@@ -313,8 +313,8 @@ export function Bubble({ msg, mineType = 'user' }: { msg: OrderChatMessage; mine
     : msg.sender_name || 'Покупатель';
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-[13.5px] leading-relaxed ${
-        mine ? 'bg-gradient-to-br from-primary/25 to-primary-dark/20 border border-primary/30 text-text rounded-br-md'
+      <div className={`max-w-[80%] px-3.5 py-2.5 text-[13.5px] leading-relaxed ${
+        mine ? 'bg-white/[0.06] border border-line text-text rounded-br-md'
           : 'bg-white/[0.05] border border-white/[0.08] text-text rounded-bl-md'
       }`}>
         {!mine && <div className="text-[10.5px] font-bold mb-0.5 text-primary">{who}</div>}

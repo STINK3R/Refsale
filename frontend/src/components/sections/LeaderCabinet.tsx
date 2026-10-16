@@ -54,18 +54,18 @@ export default function LeaderCabinet() {
 
   if (!user) {
     return (
-      <div className="max-w-lg mx-auto px-5 pt-36 pb-24 text-center">
+      <div className="max-w-lg mx-auto px-5 pt-[170px] max-lg:pt-[120px] pb-24 text-center">
         <Crown size={34} className="mx-auto text-primary mb-4" />
         <h1 className="font-display text-[38px] leading-none text-text mb-3">Кабинет лидера мнений</h1>
         <p className="text-sm text-muted mb-7">Войдите в аккаунт, к которому администратор привязал ваши промокоды.</p>
-        <button onClick={() => openAuth('login')} className="btn-gold rounded-full px-8 h-12 text-[15px]"><LogIn size={17} /> Войти</button>
+        <button onClick={() => openAuth('login')} className="btn-primary px-8 h-12 text-[15px]"><LogIn size={17} /> Войти</button>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-lg mx-auto px-5 pt-36 pb-24 text-center">
+      <div className="max-w-lg mx-auto px-5 pt-[170px] max-lg:pt-[120px] pb-24 text-center">
         <Crown size={34} className="mx-auto text-primary/60 mb-4" />
         <h1 className="font-display text-[34px] leading-none text-text mb-3">Кабинет недоступен</h1>
         <p className="text-sm text-muted">{error}. Если вы договорились о сотрудничестве — напишите администратору, он откроет доступ.</p>
@@ -84,13 +84,13 @@ export default function LeaderCabinet() {
   };
 
   return (
-    <div className="max-w-[1240px] mx-auto px-5 pt-28 max-sm:pt-24 pb-16">
+    <div className="max-w-[1240px] mx-auto px-5 pt-[150px] max-lg:pt-[104px] pb-16">
       <div className="flex items-end justify-between gap-4 flex-wrap mb-8">
         <div>
-          <div className="eyebrow mb-2 flex items-center gap-2"><Crown size={13} /> Кабинет лидера мнений</div>
+          <div className="label mb-2 flex items-center gap-2"><Crown size={13} /> Кабинет лидера мнений</div>
           <h1 className="font-display text-[44px] leading-none text-text max-sm:text-[34px]">{overview.leader.name}</h1>
         </div>
-        <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-[12px] font-semibold border ${overview.leader.can_write ? 'border-primary/40 text-primary-light bg-primary/10' : 'border-white/10 text-muted bg-white/[0.04]'}`}>
+        <span className={`inline-flex items-center gap-2 px-4 py-2 text-[12px] border ${overview.leader.can_write ? 'border-primary/40 text-primary-light bg-primary/10' : 'border-white/10 text-muted bg-white/[0.04]'}`}>
           {overview.leader.can_write ? <><MessageCircle size={14} /> Можно писать покупателям и вести заказы</> : <><Eye size={14} /> Режим просмотра</>}
         </span>
       </div>
@@ -107,14 +107,14 @@ export default function LeaderCabinet() {
       <div className="mt-8">
         <h2 className="font-display text-[28px] text-text mb-4">Ваши промокоды</h2>
         {overview.promos.length === 0 ? (
-          <div className="card-luxe rounded-3xl p-6 text-sm text-muted">Промокоды ещё не выданы — администратор создаст их и привяжет к вашему аккаунту.</div>
+          <div className="bg-card border border-line p-6 text-sm text-muted">Промокоды ещё не выданы — администратор создаст их и привяжет к вашему аккаунту.</div>
         ) : (
           <div className="grid grid-cols-3 gap-4 max-lg:grid-cols-2 max-sm:grid-cols-1">
             {overview.promos.map((p) => (
-              <div key={p.code} className="card-luxe rounded-3xl p-5">
+              <div key={p.code} className="bg-card border border-line p-5">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="font-display text-[30px] leading-none tracking-[0.08em] text-gold-gradient">{p.code}</div>
-                  <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${p.is_active ? 'text-success border-success/30 bg-success/10' : 'text-muted border-white/10'}`}>
+                  <div className="font-display text-[30px] leading-none tracking-[0.08em] text-text">{p.code}</div>
+                  <span className={`text-[10px] font-medium uppercase tracking-[0.08em] px-2 py-1 border ${p.is_active ? 'text-success border-success/30 bg-success/10' : 'text-muted border-white/10'}`}>
                     {p.is_active ? 'Активен' : 'Выключен'}
                   </span>
                 </div>
@@ -125,8 +125,8 @@ export default function LeaderCabinet() {
                   <Mini label="За заказ" value={formatPrice(p.reward_amount)} />
                 </div>
                 <div className="flex gap-2 mt-4">
-                  <button onClick={() => copy(p.code, 'Промокод')} className="btn-ghost flex-1 h-9 rounded-full text-[12px]"><Copy size={13} /> Код</button>
-                  <button onClick={() => copy(`${origin}/?promo=${encodeURIComponent(p.code)}`, 'Ссылка')} className="btn-gold flex-1 h-9 rounded-full text-[12px]"><Link2 size={13} /> Ссылка</button>
+                  <button onClick={() => copy(p.code, 'Промокод')} className="btn-outline flex-1 h-9 text-[12px]"><Copy size={13} /> Код</button>
+                  <button onClick={() => copy(`${origin}/?promo=${encodeURIComponent(p.code)}`, 'Ссылка')} className="btn-primary flex-1 h-9 text-[12px]"><Link2 size={13} /> Ссылка</button>
                 </div>
               </div>
             ))}
@@ -140,7 +140,7 @@ export default function LeaderCabinet() {
           <TabBtn active={tab === 'orders'} onClick={() => setTab('orders')}><Package size={15} /> Заказы ({orders.length})</TabBtn>
           <TabBtn active={tab === 'tickets'} onClick={() => setTab('tickets')}><MessageCircle size={15} /> Вопросы покупателей ({tickets.length})</TabBtn>
           {tab === 'orders' && (
-            <select value={filter} onChange={(e) => setFilter(e.target.value)} className="field !w-auto !py-2 !rounded-full ml-auto text-[13px]" aria-label="Фильтр по статусу">
+            <select value={filter} onChange={(e) => setFilter(e.target.value)} className="field !w-auto !py-2 ml-auto text-[13px]" aria-label="Фильтр по статусу">
               <option value="all">Все статусы</option>
               <option value="new">Ожидают подтверждения</option>
               <option value="active">В работе</option>
@@ -152,9 +152,9 @@ export default function LeaderCabinet() {
 
         {tab === 'orders' ? (
           shown.length === 0 ? (
-            <div className="card-luxe rounded-3xl p-10 text-center text-sm text-muted">Заказов по вашим промокодам пока нет.</div>
+            <div className="bg-card border border-line p-10 text-center text-sm text-muted">Заказов по вашим промокодам пока нет.</div>
           ) : (
-            <div className="glass rounded-[24px] overflow-hidden">
+            <div className="bg-card border border-line overflow-hidden">
               <div className="grid grid-cols-[80px_1.2fr_1fr_1fr_1fr_1.2fr] gap-3 px-5 py-3 text-[11px] uppercase tracking-[0.15em] text-light border-b border-white/[0.06] max-md:hidden">
                 <span>Заказ</span><span>Покупатель</span><span>Дата</span><span>Сумма</span><span>Ваше вознагр.</span><span>Статус</span>
               </div>
@@ -169,17 +169,17 @@ export default function LeaderCabinet() {
                   <span className="text-muted">{formatDate(o.created_at)}</span>
                   <span className="text-text">{formatPrice(o.total)}</span>
                   <span className={o.status === 'done' ? 'text-primary-light font-semibold' : o.status === 'cancelled' ? 'text-light line-through' : 'text-muted'}>{formatPrice(o.leader_reward)}</span>
-                  <span><span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${statusTone(o.status)}`}>{STATUS_LABEL[o.status]}</span></span>
+                  <span><span className={`text-[11px] font-medium uppercase tracking-[0.08em] px-2.5 py-1 border ${statusTone(o.status)}`}>{STATUS_LABEL[o.status]}</span></span>
                 </button>
               ))}
             </div>
           )
         ) : tickets.length === 0 ? (
-          <div className="card-luxe rounded-3xl p-10 text-center text-sm text-muted">Вопросов от вашей аудитории пока нет.</div>
+          <div className="bg-card border border-line p-10 text-center text-sm text-muted">Вопросов от вашей аудитории пока нет.</div>
         ) : (
           <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1">
             {tickets.map((t) => (
-              <button key={t.id} onClick={() => setOpenTicket(t)} className="card-luxe rounded-2xl p-4 text-left cursor-pointer">
+              <button key={t.id} onClick={() => setOpenTicket(t)} className="bg-card border border-line p-4 text-left cursor-pointer">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[14px] font-semibold text-text truncate">{unescapeHtml(t.subject)}</span>
                   <span className="text-[11px] text-light shrink-0">{formatDate(t.updated_at)}</span>
@@ -203,9 +203,9 @@ export default function LeaderCabinet() {
 
 function Stat({ icon, label, value, hint, accent }: { icon: React.ReactNode; label: string; value: string; hint: string; accent?: boolean }) {
   return (
-    <div className={`card-luxe rounded-3xl p-5 ${accent ? 'border-primary/30' : ''}`}>
+    <div className={`bg-card border border-line p-5 ${accent ? 'border-primary/30' : ''}`}>
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] text-muted"><span className="text-primary">{icon}</span>{label}</div>
-      <div className={`font-display text-[34px] leading-none mt-3 max-sm:text-[26px] ${accent ? 'text-gold-gradient' : 'text-text'}`}>{value}</div>
+      <div className={`font-display text-[34px] leading-none mt-3 max-sm:text-[26px] ${accent ? 'text-text' : 'text-text'}`}>{value}</div>
       <div className="text-[11.5px] text-light mt-2">{hint}</div>
     </div>
   );
@@ -213,7 +213,7 @@ function Stat({ icon, label, value, hint, accent }: { icon: React.ReactNode; lab
 
 function Mini({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] py-2">
+    <div className=" bg-white/[0.03] border border-white/[0.06] py-2">
       <div className="text-[14px] font-semibold text-text">{value}</div>
       <div className="text-[10px] text-light uppercase tracking-wider mt-0.5">{label}</div>
     </div>
@@ -222,7 +222,7 @@ function Mini({ label, value }: { label: string; value: string }) {
 
 function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} className={`inline-flex items-center gap-2 h-10 px-4 rounded-full text-[13px] font-semibold border transition-colors cursor-pointer ${active ? 'bg-primary/15 border-primary/45 text-primary-light' : 'border-white/10 text-muted hover:text-text'}`}>
+    <button onClick={onClick} className={`inline-flex items-center gap-2 h-10 px-4 text-[12px] uppercase tracking-[0.1em] border transition-colors cursor-pointer ${active ? 'bg-primary/15 border-primary/45 text-primary-light' : 'border-white/10 text-muted hover:text-text'}`}>
       {children}
     </button>
   );
@@ -235,7 +235,7 @@ function Drawer({ title, subtitle, onClose, children, footer }: { title: string;
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[2400] bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <motion.aside
         initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-        className="fixed top-0 right-0 bottom-0 z-[2500] w-[520px] max-w-full glass-strong flex flex-col"
+        className="fixed top-0 right-0 bottom-0 z-[2500] w-[520px] max-w-full bg-bg border border-line flex flex-col"
       >
         <div className="flex items-start justify-between gap-3 px-6 py-5 border-b border-white/[0.07]">
           <div className="min-w-0">
@@ -303,8 +303,8 @@ function OrderDrawer({ order, onClose, onChanged }: { order: LeaderOrder; onClos
       footer={canWrite && !closed ? (
         <div className="px-4 py-3 border-t border-white/[0.07]">
           <div className="flex gap-2">
-            <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void send(); } }} placeholder="Написать покупателю…" className="field !rounded-full !py-2.5" />
-            <button onClick={send} disabled={!text.trim() || sending} className="btn-gold w-11 h-11 rounded-full shrink-0" aria-label="Отправить">{sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
+            <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void send(); } }} placeholder="Написать покупателю…" className="field !py-2.5" />
+            <button onClick={send} disabled={!text.trim() || sending} className="btn-primary w-11 h-11 !p-0 shrink-0" aria-label="Отправить">{sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
           </div>
         </div>
       ) : (
@@ -315,7 +315,7 @@ function OrderDrawer({ order, onClose, onChanged }: { order: LeaderOrder; onClos
     >
       <div className="px-6 py-4 border-b border-white/[0.07] space-y-4">
         <div className="flex items-center gap-3">
-          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${statusTone(status)}`}>{STATUS_LABEL[status]}</span>
+          <span className={`text-[11px] font-medium uppercase tracking-[0.08em] px-2.5 py-1 border ${statusTone(status)}`}>{STATUS_LABEL[status]}</span>
           <span className="text-[12px] text-muted">Ваше вознаграждение: <b className="text-primary-light">{formatPrice(order.leader_reward)}</b>{status !== 'done' && status !== 'cancelled' ? ' (после выдачи)' : ''}</span>
         </div>
         <StatusTrack status={status} />
@@ -367,8 +367,8 @@ function TicketDrawer({ ticket, onClose }: { ticket: LeaderTicket; onClose: () =
       onClose={onClose}
       footer={canWrite && ticket.status !== 'closed' ? (
         <div className="px-4 py-3 border-t border-white/[0.07] flex gap-2">
-          <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void send(); } }} placeholder="Ответить…" className="field !rounded-full !py-2.5" />
-          <button onClick={send} disabled={!text.trim()} className="btn-gold w-11 h-11 rounded-full shrink-0" aria-label="Отправить"><Send size={16} /></button>
+          <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void send(); } }} placeholder="Ответить…" className="field !py-2.5" />
+          <button onClick={send} disabled={!text.trim()} className="btn-primary w-11 h-11 !p-0 shrink-0" aria-label="Отправить"><Send size={16} /></button>
         </div>
       ) : (
         <div className="px-6 py-3.5 border-t border-white/[0.07] text-[12px] text-muted flex items-center gap-2"><Eye size={14} className="text-primary" /> Только просмотр</div>

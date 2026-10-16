@@ -1,49 +1,44 @@
 import { useState } from 'react';
-import { ArrowRight, BadgePercent, Check, Loader2, X } from 'lucide-react';
+import { ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useNotificationStore, usePromoStore } from '../../store';
 
 /**
- * Promo word input. Used in the hero ("плашка в центре") and in the floating
- * bar that follows the visitor down the page. Once a code works, every price
- * on the site switches to было/стало.
+ * Promo word input. "line" sits in the hero as an underlined field; "box" is
+ * the compact framed version for the floating bar and the cart. Once a code
+ * works, every price on the site switches to было/стало.
  */
-export default function PromoForm({ size = 'lg', onApplied }: { size?: 'lg' | 'sm'; onApplied?: () => void }) {
+export default function PromoForm({ variant = 'box', onApplied }: { variant?: 'line' | 'box'; onApplied?: () => void }) {
   const { code, leaderName, label, checking, apply, clear } = usePromoStore();
   const show = useNotificationStore((s) => s.show);
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
-  const lg = size === 'lg';
+  const line = variant === 'line';
 
   const submit = async () => {
     setError('');
     const res = await apply(value);
     if (!res.ok) { setError(res.error || 'Промокод не найден'); return; }
     setValue('');
-    show('Промокод применён — цены обновлены', 'success');
+    show('Промокод применён — цены обновлены');
     onApplied?.();
   };
 
   if (code) {
+    const from = label || (leaderName ? `от ${leaderName}` : '');
     return (
-      <div className={`flex items-center gap-3 ${lg ? 'p-2 pl-4' : 'p-1.5 pl-3'} rounded-full bg-primary/10 border border-primary/35`}>
-        <span className={`shrink-0 rounded-full bg-gradient-to-br from-primary-light to-primary-dark text-ink flex items-center justify-center ${lg ? 'w-9 h-9' : 'w-7 h-7'}`}>
-          <Check size={lg ? 18 : 14} strokeWidth={3} />
-        </span>
-        <div className="min-w-0 flex-1 leading-tight">
-          <div className={`${lg ? 'text-[15px]' : 'text-[13px]'} font-bold text-text truncate`}>
-            Промокод <span className="text-primary-light tracking-wide">{code}</span> активен
+      <div className={`flex items-center gap-4 ${line ? 'py-4 border-b border-line' : 'h-12 px-4 border border-line'}`}>
+        <Check size={line ? 18 : 15} strokeWidth={1.6} className="text-primary shrink-0" />
+        <div className="min-w-0 flex-1 leading-snug">
+          <div className={`${line ? 'text-[15px]' : 'text-[13px]'} text-text truncate`}>
+            Промокод <span className="tracking-[0.12em] text-primary">{code}</span> применён
           </div>
-          <div className={`${lg ? 'text-[12px]' : 'text-[11px]'} text-muted truncate`}>
-            {label ? `${label} · ` : leaderName ? `от ${leaderName} · ` : ''}цены со скидкой на всём сайте
-          </div>
+          {line && <div className="text-[13px] text-muted truncate">{from ? `${from} · ` : ''}цены со скидкой на всём сайте</div>}
         </div>
         <button
           onClick={() => { clear(); show('Промокод сброшен'); }}
-          className={`shrink-0 rounded-full text-muted hover:text-text hover:bg-white/10 flex items-center justify-center cursor-pointer ${lg ? 'w-9 h-9' : 'w-7 h-7'}`}
-          title="Убрать промокод"
-          aria-label="Убрать промокод"
+          className="label !text-[10px] hover:!text-text transition-colors cursor-pointer shrink-0"
         >
-          <X size={lg ? 16 : 14} />
+          Убрать
         </button>
       </div>
     );
@@ -53,27 +48,28 @@ export default function PromoForm({ size = 'lg', onApplied }: { size?: 'lg' | 's
     <div>
       <form
         onSubmit={(e) => { e.preventDefault(); void submit(); }}
-        className={`flex items-center gap-2 rounded-full bg-black/35 border ${error ? 'border-danger/60' : 'border-white/12'} focus-within:border-primary/60 transition-colors ${lg ? 'p-1.5 pl-5' : 'p-1 pl-3.5'}`}
+        className={`flex items-center gap-4 transition-colors ${line
+          ? `border-b ${error ? 'border-danger/70' : 'border-line focus-within:border-text'}`
+          : `h-12 pl-4 pr-1 border ${error ? 'border-danger/70' : 'border-line focus-within:border-text'}`}`}
       >
-        <BadgePercent size={lg ? 20 : 16} className="text-primary shrink-0" />
         <input
           value={value}
           onChange={(e) => { setValue(e.target.value.toUpperCase()); setError(''); }}
-          placeholder={lg ? 'Промокод от блогера' : 'Промокод'}
+          placeholder={line ? 'Введите промокод' : 'Промокод'}
           aria-label="Промокод"
           autoCapitalize="characters"
           spellCheck={false}
-          className={`flex-1 min-w-0 bg-transparent border-none focus:!shadow-none outline-none text-text uppercase tracking-[0.12em] font-semibold placeholder:normal-case placeholder:tracking-normal placeholder:font-normal ${lg ? 'text-[16px] py-2' : 'text-[14px] py-1.5'}`}
+          className={`flex-1 min-w-0 bg-transparent border-none text-text uppercase tracking-[0.14em] placeholder:normal-case placeholder:tracking-normal placeholder:text-light ${line ? 'text-[17px] py-4' : 'text-[14px] py-2'}`}
         />
         <button
           type="submit"
           disabled={checking || !value.trim()}
-          className={`btn-gold rounded-full shrink-0 ${lg ? 'h-11 px-6 text-[14px]' : 'h-8 px-3.5 text-[12px]'}`}
+          className={`flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.16em] text-text disabled:text-light transition-colors cursor-pointer disabled:cursor-default ${line ? '' : 'h-10 px-3'}`}
         >
-          {checking ? <Loader2 size={16} className="animate-spin" /> : lg ? <>Применить <ArrowRight size={16} /></> : <ArrowRight size={15} />}
+          {checking ? <Loader2 size={15} className="animate-spin" /> : <>Применить <ArrowRight size={14} strokeWidth={1.5} /></>}
         </button>
       </form>
-      {error && <div className={`mt-2 ${lg ? 'text-[13px] pl-5' : 'text-[11px] pl-3.5'} text-danger`}>{error}</div>}
+      {error && <div className={`mt-2 text-[12px] text-danger ${line ? '' : 'pl-1'}`}>{error}</div>}
     </div>
   );
 }

@@ -197,7 +197,7 @@ export default function SupportChatModal() {
             className="fixed inset-0 z-[3100] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none"
           >
             <div
-              className="pointer-events-auto w-full max-w-lg glass-strong rounded-t-[28px] sm:rounded-[28px] overflow-hidden flex flex-col"
+              className="pointer-events-auto w-full max-w-lg bg-bg border border-line overflow-hidden flex flex-col"
               style={{ height: '100dvh', maxHeight: 'min(640px, 100dvh)' }}
               onClick={e => e.stopPropagation()}
             >
@@ -238,7 +238,7 @@ export default function SupportChatModal() {
                     ) : (
                       messages.map(msg => (
                         <div key={msg.id} className={`flex ${msg.sender_type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[80%] px-3.5 py-2 rounded-2xl text-[13px] leading-relaxed ${
+                          <div className={`max-w-[80%] px-3.5 py-2 text-[13px] leading-relaxed ${
                             msg.sender_type === 'user'
                               ? 'bg-primary text-ink rounded-br-sm'
                               : 'bg-surface text-text rounded-bl-sm'
@@ -270,7 +270,7 @@ export default function SupportChatModal() {
                           value={guestName}
                           onChange={e => setGuestName(e.target.value)}
                           maxLength={30}
-                          className="w-full px-3.5 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:border-primary"
+                          className="field"
                         />
                       </div>
                     )}
@@ -289,8 +289,8 @@ export default function SupportChatModal() {
                       </div>
 
                       {selectedProduct ? (
-                        <div className="mb-2 flex items-center gap-2.5 p-2 pr-2.5 rounded-lg border border-primary/30 bg-primary/5">
-                          <div className="w-10 h-10 rounded-md overflow-hidden bg-card border border-border flex-shrink-0">
+                        <div className="mb-2 flex items-center gap-2.5 p-2 pr-2.5 border border-primary/30 bg-primary/5">
+                          <div className="w-10 h-10 overflow-hidden bg-card border border-border flex-shrink-0">
                             {selectedProduct.image_url ? (
                               <img src={selectedProduct.image_url} alt="" className="w-full h-full object-cover" />
                             ) : (
@@ -315,13 +315,13 @@ export default function SupportChatModal() {
                           </button>
                         </div>
                       ) : pickerOpen && (
-                        <div className="mb-2 rounded-lg border border-border bg-surface/40 p-2.5">
+                        <div className="mb-2 border border-border bg-surface/40 p-2.5">
                           <input
                             type="text"
                             placeholder="Поиск товара..."
                             value={pickerQuery}
                             onChange={e => setPickerQuery(e.target.value)}
-                            className="w-full px-3 py-2 mb-2 border border-border rounded-md text-[13px] bg-card focus:outline-none focus:border-primary"
+                            className="w-full px-3 py-2 mb-2 border border-border text-[13px] bg-card focus:outline-none focus:border-primary"
                           />
                           <div className="flex gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5 [scrollbar-width:thin]">
                             {/* "Иная тема" as first card in product list */}
@@ -331,9 +331,9 @@ export default function SupportChatModal() {
                                 setSubject('Иная тема');
                                 setPickerOpen(false);
                               }}
-                              className="flex-shrink-0 w-[108px] bg-primary/5 rounded-lg border-2 border-primary/25 hover:border-primary/50 hover:shadow-md transition p-1.5 text-left cursor-pointer"
+                              className="flex-shrink-0 w-[108px] bg-primary/5 border-2 border-primary/25 hover:border-primary/50 hover:shadow-md transition p-1.5 text-left cursor-pointer"
                             >
-                              <div className="w-full h-16 rounded-md bg-primary/10 flex items-center justify-center mb-1">
+                              <div className="w-full h-16 bg-primary/10 flex items-center justify-center mb-1">
                                 <HelpCircle size={24} className="text-primary" />
                               </div>
                               <div className="text-[11px] font-bold text-text leading-tight line-clamp-2">Иная тема</div>
@@ -356,9 +356,9 @@ export default function SupportChatModal() {
                                     setPickerOpen(false);
                                     setPickerQuery('');
                                   }}
-                                  className="flex-shrink-0 w-[108px] bg-card rounded-lg border border-border hover:border-primary hover:shadow-md transition p-1.5 text-left cursor-pointer"
+                                  className="flex-shrink-0 w-[108px] bg-card border border-border hover:border-primary hover:shadow-md transition p-1.5 text-left cursor-pointer"
                                 >
-                                  <div className="w-full h-16 rounded-md overflow-hidden bg-surface mb-1">
+                                  <div className="w-full h-16 overflow-hidden bg-surface mb-1">
                                     {p.image_url ? (
                                       <img src={p.image_url} alt="" className="w-full h-full object-cover" />
                                     ) : (
@@ -392,7 +392,7 @@ export default function SupportChatModal() {
                         placeholder="Коротко: что у вас случилось"
                         value={subject}
                         onChange={e => setSubject(e.target.value)}
-                        className="w-full px-3.5 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:border-primary"
+                        className="field"
                       />
                     </div>
                     <div>
@@ -402,7 +402,7 @@ export default function SupportChatModal() {
                         value={text}
                         onChange={e => setText(e.target.value)}
                         rows={4}
-                        className="w-full px-3.5 py-2.5 border border-border rounded-lg text-sm resize-none focus:outline-none focus:border-primary"
+                        className="field resize-none"
                       />
                     </div>
                     {/* Photos need an authenticated upload, so guests don't get
@@ -419,14 +419,14 @@ export default function SupportChatModal() {
                       <button
                         onClick={handleCreateTicket}
                         disabled={loading || !subject.trim() || !text.trim() || (!user && !guestName.trim())}
-                        className="flex-1 py-2.5 bg-primary text-ink rounded-lg text-sm font-semibold cursor-pointer hover:bg-primary-dark transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="btn-primary flex-1"
                       >
                         {loading ? 'Отправка...' : 'Отправить'}
                       </button>
                       {user && (
                         <button
                           onClick={() => setShowNew(false)}
-                          className="px-4 py-2.5 bg-surface text-muted rounded-lg text-sm font-semibold cursor-pointer hover:bg-border/50 transition"
+                          className="btn-outline"
                         >
                           Назад
                         </button>
@@ -437,7 +437,7 @@ export default function SupportChatModal() {
                   <div className="p-4">
                     <button
                       onClick={() => setShowNew(true)}
-                      className="w-full flex items-center justify-center gap-2 py-3 mb-3 bg-primary/10 text-primary border border-primary/25 rounded-xl text-sm font-semibold cursor-pointer hover:bg-primary/15 transition"
+                      className="w-full flex items-center justify-center gap-2 py-3 mb-3 bg-primary/10 text-primary border border-primary/25 text-sm font-semibold cursor-pointer hover:bg-primary/15 transition"
                     >
                       <Plus size={16} /> Новое обращение
                     </button>
@@ -454,11 +454,11 @@ export default function SupportChatModal() {
                             <button
                               key={t.id}
                               onClick={() => openTicket(t)}
-                              className="w-full text-left p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition cursor-pointer"
+                              className="w-full text-left p-3 border border-border hover:border-primary/30 hover:bg-primary/5 transition cursor-pointer"
                             >
                               <div className="flex items-center justify-between gap-2 mb-1">
                                 <span className="text-[13px] font-semibold text-text truncate">{unescapeHtml(t.subject)}</span>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${st.color}`}>{st.text}</span>
+                                <span className={`text-[10px] font-medium uppercase tracking-[0.08em] px-2 py-0.5 shrink-0 ${st.color}`}>{st.text}</span>
                               </div>
                               <div className="text-[11px] text-muted">
                                 {new Date(t.updated_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
@@ -490,12 +490,12 @@ export default function SupportChatModal() {
                     onChange={e => setMsgText(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
                     placeholder="Сообщение..."
-                    className="flex-1 px-3.5 py-2 border border-border rounded-full text-sm focus:outline-none focus:border-primary"
+                    className="field !h-11"
                   />
                   <button
                     onClick={handleSendMessage}
                     disabled={!msgText.trim() && !msgImages.length}
-                    className="w-9 h-9 rounded-full bg-primary text-ink flex items-center justify-center cursor-pointer hover:bg-primary-dark transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                    className="btn-primary !w-11 !h-11 !p-0 shrink-0"
                   >
                     <Send size={16} />
                   </button>

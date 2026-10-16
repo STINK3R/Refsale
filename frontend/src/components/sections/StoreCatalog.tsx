@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ShoppingBag, Check, MessageCircle, X, ChevronLeft, ChevronRight, Maximize2, BadgePercent, ChevronDown, Sparkles } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, MessageCircle, Plus, Check, Maximize2 } from 'lucide-react';
 import { useAppStore, useCartStore, useNotificationStore, usePromoStore, priceFor } from '../../store';
 import { formatPrice } from '../../utils/format';
 import { askSeller } from '../../utils/askSeller';
@@ -9,9 +9,10 @@ import useScrollLock from '../../hooks/useScrollLock';
 import type { Product } from '../../types';
 
 const PAGE = 12;
+const EASE = [0.22, 1, 0.36, 1] as const;
 
 const BADGES: Record<string, string> = {
-  new: 'Новинка', hit: 'Хит', sale: 'Скидка', rare: 'Редкое', custom: 'Под заказ', vip: 'Premium',
+  new: 'Новинка', hit: 'Бестселлер', sale: 'Выгодно', rare: 'Редкое', custom: 'Под заказ', vip: 'Premium',
 };
 
 export default function StoreCatalog() {
@@ -46,91 +47,86 @@ export default function StoreCatalog() {
       if (category) list = list.filter((p) => p.category_id === category);
       if (subcategory) list = list.filter((p) => p.subcategory_id === subcategory);
     }
-    // Available first; keep admin order otherwise
     return [...list].sort((a, b) => Number(b.is_available !== false) - Number(a.is_available !== false));
   }, [products, category, subcategory, debounced]);
 
   const visible = filtered.slice(0, shown);
   const promoCount = useMemo(() => products.filter((p) => prices[String(p.id)] != null).length, [products, prices]);
-
   const pickCategory = (id: number | null) => { setCategory(id); setSubcategory(null); setShown(PAGE); };
 
   return (
-    <section id="catalog" className="py-16 max-sm:py-10">
-      <div className="max-w-[1240px] mx-auto px-5">
-        <div className="flex items-end justify-between gap-6 mb-8 max-md:flex-col max-md:items-start">
+    <section id="catalog" className="py-28 max-md:py-16">
+      <div className="max-w-[1440px] mx-auto px-8 max-sm:px-5">
+        <div className="flex items-end justify-between gap-10 pb-8 border-b border-line max-md:flex-col max-md:items-stretch max-md:gap-6">
           <div>
-            <div className="eyebrow mb-3">Каталог</div>
-            <h2 className="font-display text-[48px] leading-none text-text max-sm:text-[36px]">Парфюмерия и уход</h2>
-            {promoCode ? (
-              <p className="mt-3 text-[14px] text-primary-light flex items-center gap-1.5">
-                <BadgePercent size={15} /> Промокод {promoCode}: цена со скидкой на {promoCount} {plural(promoCount, 'товар', 'товара', 'товаров')}
-              </p>
-            ) : (
-              <p className="mt-3 text-[14px] text-muted">Цены указаны без промокода — с ним будет дешевле</p>
-            )}
+            <div className="label mb-5">Каталог</div>
+            <h2 className="font-display text-[clamp(38px,4.4vw,64px)] leading-[1.02] text-text">Парфюмерия и уход</h2>
           </div>
-          <div className="relative w-[360px] max-md:w-full">
-            <Search size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+          <label className="relative w-[340px] max-md:w-full block">
+            <Search size={16} strokeWidth={1.4} className="absolute left-0 top-1/2 -translate-y-1/2 text-muted" />
             <input
               value={query}
               onChange={(e) => onSearch(e.target.value)}
-              placeholder="Поиск: бренд, аромат, средство…"
-              className="field !rounded-full !pl-11"
+              placeholder="Бренд, аромат или средство"
+              className="field-line !pl-7"
               aria-label="Поиск товаров"
             />
-          </div>
+          </label>
         </div>
 
-        {/* Categories */}
-        {!debounced && categories.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 mb-3">
-            <Pill active={category === null} onClick={() => pickCategory(null)}>Все <Count n={products.length} /></Pill>
-            {categories.map((c) => {
-              const n = products.filter((p) => p.category_id === c.id).length;
-              if (!n) return null;
-              return <Pill key={c.id} active={category === c.id} onClick={() => pickCategory(c.id)}>{c.name} <Count n={n} /></Pill>;
-            })}
+        <div className="flex items-center justify-between gap-6 pt-6 max-md:flex-col max-md:items-start max-md:gap-4">
+          {!debounced && categories.length > 0 ? (
+            <div className="flex gap-8 overflow-x-auto scrollbar-hide max-w-full">
+              <Tab active={category === null} onClick={() => pickCategory(null)} count={products.length}>Все</Tab>
+              {categories.map((c) => {
+                const n = products.filter((p) => p.category_id === c.id).length;
+                if (!n) return null;
+                return <Tab key={c.id} active={category === c.id} onClick={() => pickCategory(c.id)} count={n}>{c.name}</Tab>;
+              })}
+            </div>
+          ) : <div className="text-[13px] text-muted">{debounced ? `Найдено: ${filtered.length}` : ''}</div>}
+          <div className="text-[12px] text-muted shrink-0">
+            {promoCode
+              ? <>Цены по промокоду <span className="text-primary tracking-[0.1em]">{promoCode}</span> · {promoCount} {plural(promoCount, 'позиция', 'позиции', 'позиций')} дешевле</>
+              : 'Цены без промокода — с ним будет дешевле'}
           </div>
-        )}
+        </div>
         {!debounced && subs.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 mb-3">
-            <Pill small active={subcategory === null} onClick={() => { setSubcategory(null); setShown(PAGE); }}>Все</Pill>
+          <div className="flex gap-6 overflow-x-auto scrollbar-hide pt-4">
+            <Tab small active={subcategory === null} onClick={() => { setSubcategory(null); setShown(PAGE); }}>Все</Tab>
             {subs.map((s) => (
-              <Pill key={s.id} small active={subcategory === s.id} onClick={() => { setSubcategory(s.id); setShown(PAGE); }}>{s.name}</Pill>
+              <Tab small key={s.id} active={subcategory === s.id} onClick={() => { setSubcategory(s.id); setShown(PAGE); }}>{s.name}</Tab>
             ))}
           </div>
         )}
 
-        <div className="mt-6">
+        <div className="mt-12">
           {loading ? (
-            <div className="grid grid-cols-4 gap-5 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:gap-3">
+            <div className="grid grid-cols-4 gap-x-6 gap-y-14 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:gap-x-3 max-sm:gap-y-10">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="card-luxe rounded-3xl overflow-hidden animate-pulse">
-                  <div className="pt-[110%] bg-white/[0.03]" />
-                  <div className="p-4 space-y-3">
-                    <div className="h-4 bg-white/[0.06] rounded w-3/4" />
-                    <div className="h-5 bg-white/[0.06] rounded w-1/3" />
-                  </div>
+                <div key={i} className="animate-pulse">
+                  <div className="aspect-[4/5] bg-tile" />
+                  <div className="h-3.5 bg-white/[0.05] w-3/4 mt-5" />
+                  <div className="h-3.5 bg-white/[0.05] w-1/3 mt-3" />
                 </div>
               ))}
             </div>
           ) : visible.length === 0 ? (
-            <div className="text-center py-20 text-muted">
-              <Sparkles size={32} className="mx-auto mb-3 text-primary/50" />
-              {debounced ? 'Ничего не нашли — попробуйте другое название' : 'Скоро здесь появятся товары'}
+            <div className="py-24 text-center">
+              <div className="font-display text-[28px] text-text">{debounced ? 'Ничего не нашлось' : 'Каталог скоро пополнится'}</div>
+              <p className="text-[14px] text-muted mt-3">{debounced ? 'Попробуйте другое название или бренд' : 'Загляните чуть позже'}</p>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-4 gap-5 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:gap-3">
+              <div className="grid grid-cols-4 gap-x-6 gap-y-14 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:gap-x-3 max-sm:gap-y-10">
                 {visible.map((p, i) => (
                   <ProductCard key={p.id} product={p} index={i} onOpen={() => setSelected(p)} onNeedVariant={() => setVariantFor(p)} />
                 ))}
               </div>
               {filtered.length > shown && (
-                <div className="text-center mt-8">
-                  <button onClick={() => setShown((n) => n + PAGE)} className="btn-ghost rounded-full px-7 py-3 text-sm">
-                    <ChevronDown size={16} /> Показать ещё {Math.min(PAGE, filtered.length - shown)}
+                <div className="text-center mt-16">
+                  <button onClick={() => setShown((n) => n + PAGE)} className="btn-outline">
+                    Показать ещё · {Math.min(PAGE, filtered.length - shown)}
                   </button>
                 </div>
               )}
@@ -162,23 +158,17 @@ function plural(n: number, one: string, few: string, many: string) {
   return many;
 }
 
-function Pill({ active, onClick, children, small }: { active: boolean; onClick: () => void; children: React.ReactNode; small?: boolean }) {
+function Tab({ active, onClick, children, count, small }: { active: boolean; onClick: () => void; children: React.ReactNode; count?: number; small?: boolean }) {
   return (
     <button
       onClick={onClick}
-      className={`shrink-0 inline-flex items-center gap-2 rounded-full border transition-all cursor-pointer whitespace-nowrap ${small ? 'px-3.5 py-1.5 text-[12px]' : 'px-5 py-2.5 text-[13px]'} font-semibold ${
-        active
-          ? 'bg-gradient-to-br from-primary-light to-primary-dark text-ink border-transparent shadow-[0_6px_20px_rgba(212,175,90,0.25)]'
-          : 'bg-white/[0.03] text-muted border-white/10 hover:text-text hover:border-primary/40'
-      }`}
+      className={`relative shrink-0 pb-2 whitespace-nowrap cursor-pointer transition-colors ${small ? 'text-[12px]' : 'text-[13px] uppercase tracking-[0.12em]'} ${active ? 'text-text' : 'text-muted hover:text-text'}`}
     >
       {children}
+      {count != null && <sup className="ml-1 text-[10px] text-light tracking-normal">{count}</sup>}
+      <span className={`absolute left-0 right-0 bottom-0 h-px bg-text transition-transform duration-500 origin-left ${active ? 'scale-x-100' : 'scale-x-0'}`} />
     </button>
   );
-}
-
-function Count({ n }: { n: number }) {
-  return <span className="text-[11px] opacity-70">{n}</span>;
 }
 
 /** Base price, or было/стало once a promo code is active. */
@@ -188,24 +178,25 @@ export function PriceTag({ product, size = 'md' }: { product: Product; size?: 'm
   const base = Number(product.price) || 0;
   const now = priceFor(product.id, base, prices);
   const discounted = now < base;
-  const pct = discounted ? Math.round((1 - now / base) * 100) : 0;
-  const big = size === 'lg';
-  return (
-    <div className="min-w-0">
-      {discounted && (
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className={`${big ? 'text-[15px]' : 'text-[12px]'} text-light line-through`}>{formatPrice(base)}</span>
-          <span className={`${big ? 'text-[12px] px-2' : 'text-[10px] px-1.5'} py-0.5 rounded-full bg-primary/15 text-primary-light font-bold`}>−{pct}%</span>
+  if (size === 'lg') {
+    return (
+      <div>
+        <div className="flex items-baseline gap-4 flex-wrap">
+          <span className="font-display text-[40px] leading-none text-text">{formatPrice(now)}</span>
+          {discounted && <span className="text-[16px] text-light line-through">{formatPrice(base)}</span>}
+          {discounted && <span className="label !text-primary">−{Math.round((1 - now / base) * 100)}% по промокоду</span>}
         </div>
-      )}
-      <div className={`font-display ${big ? 'text-[38px]' : 'text-[26px] max-sm:text-[22px]'} leading-none ${discounted ? 'text-gold-gradient' : 'text-text'}`}>
-        {formatPrice(now)}
+        {!discounted && !code && product.has_promo_price && (
+          <div className="text-[13px] text-muted mt-3">С промокодом от блогера эта позиция дешевле</div>
+        )}
       </div>
-      {!discounted && !code && product.has_promo_price && (
-        <div className={`${big ? 'text-[12px]' : 'text-[10.5px]'} text-primary/90 mt-1 flex items-center gap-1`}>
-          <BadgePercent size={big ? 13 : 11} /> с промокодом дешевле
-        </div>
-      )}
+    );
+  }
+  return (
+    <div className="flex items-baseline gap-2.5 flex-wrap">
+      <span className="text-[15px] text-text tabular-nums">{formatPrice(now)}</span>
+      {discounted && <span className="text-[13px] text-light line-through tabular-nums">{formatPrice(base)}</span>}
+      {!discounted && !code && product.has_promo_price && <span className="text-[11px] text-primary/90">дешевле с промокодом</span>}
     </div>
   );
 }
@@ -223,51 +214,89 @@ function useAddToCart(product: Product, onNeedVariant: () => void) {
   return { inCart, add };
 }
 
+function Monogram({ big }: { big?: boolean }) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center">
+      <span className={`font-display text-white/[0.06] ${big ? 'text-[140px]' : 'text-[88px]'}`}>R</span>
+    </div>
+  );
+}
+
 const ProductCard = memo(function ProductCard({ product, index, onOpen, onNeedVariant }: {
   product: Product; index: number; onOpen: () => void; onNeedVariant: () => void;
 }) {
   const unavailable = product.is_available === false;
+  const prices = usePromoStore((s) => s.prices);
   const { inCart, add } = useAddToCart(product, onNeedVariant);
+  const base = Number(product.price) || 0;
+  const now = priceFor(product.id, base, prices);
+  const pct = now < base ? Math.round((1 - now / base) * 100) : 0;
+
   return (
     <motion.article
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: Math.min(index % PAGE, 8) * 0.035 }}
-      className={`card-luxe group rounded-3xl overflow-hidden flex flex-col ${unavailable ? 'opacity-60' : 'hover:-translate-y-1'}`}
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-30px' }}
+      transition={{ duration: 0.8, delay: (index % 4) * 0.06, ease: EASE }}
+      className="group"
     >
-      <button onClick={onOpen} className="relative block w-full pt-[110%] bg-[radial-gradient(circle_at_50%_40%,rgba(212,175,90,0.10),transparent_65%)] cursor-pointer" aria-label={`Подробнее: ${product.name}`}>
-        {product.image_url ? (
-          <img src={product.image_url} alt={product.name} loading="lazy" className="absolute inset-0 w-full h-full object-contain p-5 max-sm:p-3 transition-transform duration-500 group-hover:scale-[1.04]" />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-primary/30"><Sparkles size={40} /></div>
-        )}
-        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-          {unavailable && <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-black/60 text-muted border border-white/10">Нет в наличии</span>}
-          {!unavailable && product.badge && BADGES[product.badge] && (
-            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-black/55 text-primary-light border border-primary/30 backdrop-blur">{BADGES[product.badge]}</span>
-          )}
-        </div>
-      </button>
-      <div className="p-4 max-sm:p-3 flex-1 flex flex-col gap-3">
-        <button onClick={onOpen} className="text-left text-[15px] max-sm:text-[13px] font-semibold text-text leading-snug line-clamp-2 hover:text-primary-light transition-colors cursor-pointer">
-          {product.name}
+      <div className="relative aspect-[4/5] overflow-hidden bg-[radial-gradient(ellipse_at_50%_42%,#1C1C1C_0%,#121212_68%)]">
+        <button onClick={onOpen} className="absolute inset-0 cursor-pointer" aria-label={`Подробнее: ${product.name}`}>
+          {product.image_url ? (
+            <img
+              src={product.image_url}
+              alt={product.name}
+              loading="lazy"
+              className={`absolute inset-0 w-full h-full object-contain p-[11%] transition-transform duration-[1200ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.045] ${unavailable ? 'opacity-40 grayscale' : ''}`}
+            />
+          ) : <Monogram />}
         </button>
-        <div className="mt-auto"><PriceTag product={product} /></div>
-        <div className="flex gap-2">
+        <div className="absolute top-4 left-4 right-4 flex justify-between pointer-events-none">
+          <span className="label !text-[10px] !text-text/80">
+            {unavailable ? 'Нет в наличии' : product.badge && BADGES[product.badge] ? BADGES[product.badge] : ''}
+          </span>
+          {pct > 0 && !unavailable && <span className="label !text-[10px] !text-primary">−{pct}%</span>}
+        </div>
+        {!unavailable && (
           <button
             onClick={add}
-            disabled={unavailable}
-            className={`flex-1 h-10 max-sm:h-9 rounded-full text-[13px] max-sm:text-[12px] ${inCart ? 'btn-ghost' : 'btn-gold'}`}
+            className="max-lg:hidden absolute inset-x-0 bottom-0 h-12 bg-ivory text-ink text-[11px] font-medium uppercase tracking-[0.16em] translate-y-full group-hover:translate-y-0 focus-visible:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer"
           >
-            {unavailable ? 'Нет в наличии' : inCart ? <><Check size={15} /> В корзине</> : <><ShoppingBag size={15} /> В корзину</>}
+            {inCart ? 'В корзине — открыть' : 'Добавить в корзину'}
           </button>
+        )}
+      </div>
+
+      <div className="pt-5">
+        <button onClick={onOpen} className="block text-left text-[14px] max-sm:text-[13px] leading-snug text-text line-clamp-2 min-h-[2.75em] cursor-pointer hover:text-white">
+          {product.name}
+        </button>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <PriceTag product={product} />
           <button
             onClick={() => askSeller(product.id)}
-            className="btn-ghost w-10 h-10 max-sm:w-9 max-sm:h-9 rounded-full shrink-0"
+            className="max-lg:hidden shrink-0 text-muted hover:text-text transition-colors cursor-pointer"
             title="Связаться с продавцом"
             aria-label="Связаться с продавцом"
           >
-            <MessageCircle size={16} />
+            <MessageCircle size={16} strokeWidth={1.4} />
+          </button>
+        </div>
+        <div className="lg:hidden mt-3 flex gap-1.5">
+          {!unavailable && (
+            <button
+              onClick={add}
+              className={`flex-1 h-9 flex items-center justify-center gap-1.5 text-[10.5px] uppercase tracking-[0.12em] border cursor-pointer transition-colors ${inCart ? 'border-line text-text' : 'border-ivory bg-ivory text-ink'}`}
+            >
+              {inCart ? <><Check size={13} strokeWidth={1.6} /> В корзине</> : <><Plus size={13} strokeWidth={1.6} /> В корзину</>}
+            </button>
+          )}
+          <button
+            onClick={() => askSeller(product.id)}
+            className={`${unavailable ? 'flex-1' : 'w-9'} h-9 flex items-center justify-center gap-1.5 border border-line text-muted hover:text-text cursor-pointer`}
+            aria-label="Связаться с продавцом"
+          >
+            <MessageCircle size={14} strokeWidth={1.4} />{unavailable && <span className="text-[10.5px] uppercase tracking-[0.12em]">Спросить</span>}
           </button>
         </div>
       </div>
@@ -275,8 +304,20 @@ const ProductCard = memo(function ProductCard({ product, index, onOpen, onNeedVa
   );
 });
 
-function ProductModal({ product, onClose, onNeedVariant }: { product: Product; onClose: () => void; onNeedVariant: () => void }) {
+function Overlay({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   useScrollLock(true);
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}
+      className="fixed inset-0 z-[3000] bg-black/80 flex items-end sm:items-center justify-center sm:p-6"
+      onClick={onClose}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function ProductModal({ product, onClose, onNeedVariant }: { product: Product; onClose: () => void; onNeedVariant: () => void }) {
   const unavailable = product.is_available === false;
   const { inCart, add } = useAddToCart(product, onNeedVariant);
   const images = useMemo(() => {
@@ -288,69 +329,60 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
   const [zoom, setZoom] = useState(false);
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[3000] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-5"
-      onClick={onClose}
-    >
+    <Overlay onClose={onClose}>
       <motion.div
-        initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }}
-        transition={{ duration: 0.2 }}
+        initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
+        transition={{ duration: 0.5, ease: EASE }}
         onClick={(e) => e.stopPropagation()}
-        className="glass-strong w-full max-w-[920px] max-h-[92vh] overflow-y-auto rounded-t-[28px] sm:rounded-[28px] grid grid-cols-2 max-md:grid-cols-1 relative"
+        className="relative w-full max-w-[1040px] max-h-[94vh] overflow-y-auto bg-bg border border-line grid grid-cols-2 max-md:grid-cols-1"
       >
-        <button onClick={onClose} className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-black/50 border border-white/10 flex items-center justify-center text-muted hover:text-text cursor-pointer" aria-label="Закрыть">
-          <X size={18} />
+        <button onClick={onClose} className="absolute top-5 right-5 z-10 text-muted hover:text-text cursor-pointer" aria-label="Закрыть">
+          <X size={22} strokeWidth={1.3} />
         </button>
-        <div className="relative min-h-[360px] max-sm:min-h-[300px] bg-[radial-gradient(circle_at_50%_40%,rgba(212,175,90,0.12),transparent_65%)]">
+        <div className="relative aspect-[4/5] max-md:aspect-square bg-[radial-gradient(ellipse_at_50%_42%,#1E1E1E_0%,#121212_70%)]">
           {images.length ? (
-            <img src={images[idx]} alt={product.name} onClick={() => setZoom(true)} className="absolute inset-0 w-full h-full object-contain p-8 cursor-zoom-in" />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-primary/30"><Sparkles size={56} /></div>
-          )}
+            <img src={images[idx]} alt={product.name} onClick={() => setZoom(true)} className="absolute inset-0 w-full h-full object-contain p-[10%] cursor-zoom-in" />
+          ) : <Monogram big />}
           {images.length > 0 && (
-            <button onClick={() => setZoom(true)} className="absolute top-4 left-4 w-9 h-9 rounded-full bg-black/50 border border-white/10 flex items-center justify-center text-muted hover:text-text cursor-pointer" aria-label="Открыть фото">
-              <Maximize2 size={15} />
+            <button onClick={() => setZoom(true)} className="absolute bottom-5 left-5 text-muted hover:text-text cursor-pointer" aria-label="Открыть фото">
+              <Maximize2 size={16} strokeWidth={1.4} />
             </button>
           )}
           {images.length > 1 && (
-            <>
-              <button onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)} className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 border border-white/10 flex items-center justify-center text-text cursor-pointer" aria-label="Предыдущее фото"><ChevronLeft size={18} /></button>
-              <button onClick={() => setIdx((i) => (i + 1) % images.length)} className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 border border-white/10 flex items-center justify-center text-text cursor-pointer" aria-label="Следующее фото"><ChevronRight size={18} /></button>
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {images.map((_, i) => <span key={i} className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-5 bg-primary' : 'w-1.5 bg-white/30'}`} />)}
-              </div>
-            </>
+            <div className="absolute bottom-4 right-5 flex items-center gap-4 text-muted">
+              <button onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)} className="hover:text-text cursor-pointer" aria-label="Предыдущее фото"><ChevronLeft size={18} strokeWidth={1.4} /></button>
+              <span className="text-[12px] tabular-nums">{idx + 1} / {images.length}</span>
+              <button onClick={() => setIdx((i) => (i + 1) % images.length)} className="hover:text-text cursor-pointer" aria-label="Следующее фото"><ChevronRight size={18} strokeWidth={1.4} /></button>
+            </div>
           )}
           {zoom && <Lightbox images={images} startIndex={idx} alt={product.name} onClose={() => setZoom(false)} />}
         </div>
-        <div className="p-8 max-sm:p-5 flex flex-col">
-          {product.badge && BADGES[product.badge] && <div className="eyebrow mb-3">{BADGES[product.badge]}</div>}
-          <h3 className="font-display text-[34px] leading-tight text-text max-sm:text-[28px] pr-8">{product.name}</h3>
+        <div className="p-12 max-lg:p-8 max-sm:p-6 flex flex-col">
+          <div className="label">{product.badge && BADGES[product.badge] ? BADGES[product.badge] : 'Оригинал'}</div>
+          <h3 className="font-display text-[38px] max-sm:text-[30px] leading-[1.08] text-text mt-4 pr-6">{product.name}</h3>
           {product.description && (
-            <p className="mt-4 text-[14px] text-muted leading-relaxed whitespace-pre-line">{product.description}</p>
+            <p className="mt-6 text-[15px] text-muted leading-[1.75] whitespace-pre-line">{product.description}</p>
           )}
-          <div className="divider-hairline my-6" />
+          <div className="hairline my-8" />
           <PriceTag product={product} size="lg" />
-          <div className="mt-6 flex flex-col gap-2.5">
-            <button onClick={add} disabled={unavailable} className={`h-12 rounded-full text-[15px] ${inCart ? 'btn-ghost' : 'btn-gold'}`}>
-              {unavailable ? 'Нет в наличии' : inCart ? <><Check size={17} /> В корзине — оформить</> : <><ShoppingBag size={17} /> Добавить в корзину</>}
+          <div className="mt-8 flex flex-col gap-3">
+            <button onClick={add} disabled={unavailable} className="btn-primary w-full">
+              {unavailable ? 'Нет в наличии' : inCart ? 'В корзине — оформить' : 'Добавить в корзину'}
             </button>
-            <button onClick={() => { onClose(); askSeller(product.id); }} className="btn-ghost h-11 rounded-full text-[14px]">
-              <MessageCircle size={16} /> Связаться с продавцом
+            <button onClick={() => { onClose(); askSeller(product.id); }} className="btn-outline w-full">
+              Спросить продавца
             </button>
           </div>
-          <p className="mt-5 text-[12px] text-light leading-relaxed">
-            После оформления откроется чат с менеджером: он подтвердит наличие и пришлёт реквизиты для предоплаты.
+          <p className="mt-auto pt-8 text-[12px] text-light leading-relaxed">
+            Оплачивать сразу не нужно: после оформления менеджер подтвердит наличие в чате заказа и пришлёт реквизиты для предоплаты.
           </p>
         </div>
       </motion.div>
-    </motion.div>
+    </Overlay>
   );
 }
 
 function VariantModal({ product, onClose }: { product: Product; onClose: () => void }) {
-  useScrollLock(true);
   const { addItem } = useCartStore();
   const show = useNotificationStore((s) => s.show);
   const [text, setText] = useState('');
@@ -361,17 +393,21 @@ function VariantModal({ product, onClose }: { product: Product; onClose: () => v
     onClose();
   };
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[3100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <motion.div initial={{ scale: 0.96 }} animate={{ scale: 1 }} exit={{ scale: 0.96 }} onClick={(e) => e.stopPropagation()} className="glass-strong rounded-[28px] w-full max-w-md p-7">
-        <div className="eyebrow mb-2">Уточните вариант</div>
-        <h3 className="font-display text-[28px] leading-tight text-text">{product.name}</h3>
-        <p className="text-sm text-muted mt-2 mb-4">Напишите, какой именно вариант нужен: объём, оттенок, аромат линейки.</p>
+    <Overlay onClose={onClose}>
+      <motion.div
+        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} transition={{ duration: 0.4, ease: EASE }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md bg-bg border border-line p-10 max-sm:p-6"
+      >
+        <div className="label">Уточните вариант</div>
+        <h3 className="font-display text-[30px] leading-tight text-text mt-3">{product.name}</h3>
+        <p className="text-[14px] text-muted mt-3 mb-6">Напишите, какой вариант нужен: объём, оттенок, концентрация.</p>
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="Например: 100 мл, EDP" className="field resize-none" autoFocus />
-        <div className="flex gap-2 mt-4">
-          <button onClick={onClose} className="btn-ghost flex-1 h-11 rounded-full text-sm">Отмена</button>
-          <button onClick={submit} className="btn-gold flex-1 h-11 rounded-full text-sm"><ShoppingBag size={16} /> В корзину</button>
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose} className="btn-outline flex-1">Отмена</button>
+          <button onClick={submit} className="btn-primary flex-1">В корзину</button>
         </div>
       </motion.div>
-    </motion.div>
+    </Overlay>
   );
 }

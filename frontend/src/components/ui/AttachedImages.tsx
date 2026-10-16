@@ -49,7 +49,7 @@ export default function AttachedImages({ images, size = 'md', className = '', on
             type="button"
             onClick={(e) => { e.stopPropagation(); setOpen(i); }}
             title="Открыть фото"
-            className={`${box} rounded-lg overflow-hidden border border-border bg-bg cursor-zoom-in hover:opacity-90 transition-opacity p-0`}
+            className={`${box} overflow-hidden border border-border bg-bg cursor-zoom-in hover:opacity-90 transition-opacity p-0`}
           >
             <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
           </button>

@@ -11,7 +11,6 @@ import PromoBar from './components/promo/PromoBar';
 import Notification from './components/ui/Notification';
 import SupportWidget from './components/support/SupportWidget';
 import SupportChatModal from './components/support/SupportChatModal';
-import ContactSellerSnackbar from './components/ui/ContactSellerSnackbar';
 
 const AuthModal = lazy(() => import('./components/auth/AuthModal'));
 const ForgotPassword = lazy(() => import('./components/auth/ForgotPassword'));
@@ -66,7 +65,6 @@ function App() {
 
   return (
     <>
-      <div className="grain-overlay" aria-hidden="true" />
       <Header />
       <Routes>
         <Route path="/" element={
@@ -94,7 +92,6 @@ function App() {
       <Notification />
       <SupportWidget />
       <SupportChatModal />
-      <ContactSellerSnackbar />
     </>
   );
 }

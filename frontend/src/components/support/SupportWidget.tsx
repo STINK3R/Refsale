@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { MessageCircle } from 'lucide-react';
 import { useAuthStore, runAfterAuth } from '../../store';
 import { useSupportStore } from '../../store/support';
@@ -19,6 +20,9 @@ export default function SupportWidget() {
   const openSupport = useSupportStore((s) => s.open);
   const isOpen = useSupportStore((s) => s.isOpen);
   const [unreadCount, setUnreadCount] = useState(0);
+  const { pathname } = useLocation();
+  // Order and cabinet pages are chats themselves; the floating button would cover their input.
+  const hidden = pathname.startsWith('/orders') || pathname.startsWith('/cabinet');
 
   useEffect(() => {
     if (!user?.id) { setUnreadCount(0); return; }
@@ -37,6 +41,8 @@ export default function SupportWidget() {
     if (isOpen) setUnreadCount(0);
   }, [isOpen]);
 
+  if (hidden) return null;
+
   return (
     <button
       onClick={() => {
@@ -44,12 +50,13 @@ export default function SupportWidget() {
         runAfterAuth(() => openSupport());
         useAuthStore.getState().openAuth('register', 'Чтобы написать продавцу, создайте аккаунт — это полминуты, без подтверждения администратора.');
       }}
-      className="fixed bottom-4 right-5 max-sm:right-3 z-[1500] w-[52px] h-[52px] max-sm:w-[48px] max-sm:h-[48px] rounded-full btn-gold shadow-[0_4px_20px_rgba(212,175,90,0.4)] hover:shadow-[0_6px_28px_rgba(212,175,90,0.55)] hover:scale-105 transition-all flex items-center justify-center cursor-pointer"
+      className="fixed bottom-5 right-5 max-sm:right-3 max-sm:bottom-3 z-[1500] btn-primary !h-11 !px-5 max-sm:!w-11 max-sm:!px-0 shadow-[0_18px_40px_rgba(0,0,0,0.55)]"
       aria-label="Написать продавцу"
     >
-      <MessageCircle size={20} className="max-sm:w-[17px] max-sm:h-[17px]" />
+      <MessageCircle size={16} strokeWidth={1.6} className="shrink-0" />
+      <span className="max-sm:hidden">Чат с продавцом</span>
       {unreadCount > 0 && (
-        <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] flex items-center justify-center px-1 rounded-full bg-red-500 text-white text-[11px] font-bold leading-none">{unreadCount}</span>
+        <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center px-1 rounded-full bg-primary text-ink text-[10px] font-semibold leading-none tracking-normal">{unreadCount}</span>
       )}
     </button>
   );

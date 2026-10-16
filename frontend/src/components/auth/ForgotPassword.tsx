@@ -60,7 +60,7 @@ export default function ForgotPassword() {
         title="Новый пароль"
         subtitle="Введите новый пароль для вашего аккаунта"
       >
-        {error && <div className="text-[13px] text-danger bg-danger/10 px-3.5 py-2.5 rounded-lg mb-4">{error}</div>}
+        {error && <div className="text-[13px] text-danger mb-4">{error}</div>}
         {resetDone ? (
           <div className="text-center py-6">
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -70,7 +70,7 @@ export default function ForgotPassword() {
             <p className="text-xs text-muted mb-6">Теперь вы можете войти с новым паролем</p>
             <button
               onClick={() => { setResetToken(''); setResetDone(false); openAuth('login'); }}
-              className="flex items-center justify-center gap-2 mx-auto px-6 py-2.5 bg-gradient-to-br from-primary to-primary-light text-ink rounded-lg text-sm font-semibold border-none cursor-pointer"
+              className="btn-outline mx-auto"
             >
               <ArrowLeft size={16} /> Войти
             </button>
@@ -86,7 +86,7 @@ export default function ForgotPassword() {
                   value={newPass}
                   onChange={e => setNewPass(e.target.value)}
                   placeholder="Минимум 6 символов"
-                  className="w-full pl-10 pr-3.5 py-2.5 border-[1.5px] border-border rounded-lg text-sm text-text bg-card focus:outline-none focus:border-primary transition-all font-[inherit]"
+                  className="field !pl-10"
                 />
               </div>
             </div>
@@ -99,7 +99,7 @@ export default function ForgotPassword() {
                   value={newPass2}
                   onChange={e => setNewPass2(e.target.value)}
                   placeholder="Повторите новый пароль"
-                  className="w-full pl-10 pr-3.5 py-2.5 border-[1.5px] border-border rounded-lg text-sm text-text bg-card focus:outline-none focus:border-primary transition-all font-[inherit]"
+                  className="field !pl-10"
                   onKeyDown={e => { if (e.key === 'Enter') handleResetPassword(); }}
                 />
               </div>
@@ -107,7 +107,7 @@ export default function ForgotPassword() {
             <button
               onClick={handleResetPassword}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-br from-primary to-primary-light text-ink rounded-lg text-[15px] font-bold border-none cursor-pointer hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              className="btn-primary w-full"
             >
               {loading ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}
               {loading ? 'Сохраняем...' : 'Сохранить пароль'}
@@ -126,7 +126,7 @@ export default function ForgotPassword() {
       subtitle="Введите email, указанный при регистрации"
     >
       {error && (
-        <div className="text-[13px] text-danger bg-danger/10 px-3.5 py-2.5 rounded-lg mb-4">{error}</div>
+        <div className="text-[13px] text-danger mb-4">{error}</div>
       )}
       {success ? (
         <div className="text-center py-6">
@@ -137,7 +137,7 @@ export default function ForgotPassword() {
           <p className="text-xs text-muted mb-6">Проверьте папку «Спам», если письмо не пришло</p>
           <button
             onClick={() => { closeForgotPassword(); openAuth('login'); setSuccess(''); setEmail(''); }}
-            className="flex items-center justify-center gap-2 mx-auto px-6 py-2.5 bg-gradient-to-br from-primary to-primary-light text-ink rounded-lg text-sm font-semibold border-none cursor-pointer"
+            className="btn-outline mx-auto"
           >
             <ArrowLeft size={16} /> Вернуться к входу
           </button>
@@ -151,14 +151,14 @@ export default function ForgotPassword() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="email@example.com"
-              className="w-full px-3.5 py-2.5 border-[1.5px] border-border rounded-lg text-sm text-text bg-card focus:outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(212,175,90,0.1)] transition-all font-[inherit]"
+              className="field"
               onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
             />
           </div>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-br from-primary to-primary-light text-ink rounded-lg text-[15px] font-bold border-none cursor-pointer hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            className="btn-primary w-full"
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : <Mail size={18} />}
             {loading ? 'Отправляем...' : 'Отправить ссылку'}

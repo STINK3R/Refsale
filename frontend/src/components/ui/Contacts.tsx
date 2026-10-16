@@ -1,4 +1,3 @@
-import { Mail, Phone } from 'lucide-react';
 import { useAppStore } from '../../store';
 import TelegramIcon from './TelegramIcon';
 
@@ -64,53 +63,36 @@ export function WhatsAppIcon({ size = 16 }: { size?: number }) {
 export function MaxIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="2" y="2" width="20" height="20" rx="6" stroke="currentColor" strokeWidth="2" />
-      <path d="M7 16V8l5 5 5-5v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="2.5" y="2.5" width="19" height="19" rx="5" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M7.5 16V8.5l4.5 4.5 4.5-4.5V16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-/** Messenger + phone + email buttons for one pair. */
-export function ContactLinks({ pair, compact = false }: { pair: ContactPair; compact?: boolean }) {
-  const btn = `inline-flex items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-muted hover:text-primary-light hover:border-primary/40 transition-colors ${compact ? 'w-7 h-7' : 'w-9 h-9'}`;
-  const icon = compact ? 13 : 16;
+/** Messenger icons for one pair — quiet, no chrome. */
+export function ContactLinks({ pair, size = 15 }: { pair: ContactPair; size?: number }) {
+  const cls = 'text-muted hover:text-text transition-colors';
   return (
-    <div className="flex items-center gap-1.5">
-      {pair.telegram && (
-        <a href={telegramHref(pair.telegram)} target="_blank" rel="noreferrer" className={btn} aria-label="Telegram" title="Telegram"><TelegramIcon size={icon} /></a>
-      )}
-      {pair.whatsapp && (
-        <a href={whatsappHref(pair.whatsapp)} target="_blank" rel="noreferrer" className={btn} aria-label="WhatsApp" title="WhatsApp"><WhatsAppIcon size={icon} /></a>
-      )}
-      {pair.max && (
-        <a href={maxHref(pair.max)} target="_blank" rel="noreferrer" className={btn} aria-label="MAX" title="MAX"><MaxIcon size={icon} /></a>
-      )}
-      {compact && pair.phone && (
-        <a href={telHref(pair.phone)} className={btn} aria-label="Позвонить" title={pair.phone}><Phone size={icon} /></a>
-      )}
-      {compact && pair.email && (
-        <a href={`mailto:${pair.email}`} className={btn} aria-label="Написать на почту" title={pair.email}><Mail size={icon} /></a>
-      )}
-    </div>
+    <span className="inline-flex items-center gap-3">
+      {pair.telegram && <a href={telegramHref(pair.telegram)} target="_blank" rel="noreferrer" className={cls} aria-label="Telegram" title="Telegram"><TelegramIcon size={size} /></a>}
+      {pair.whatsapp && <a href={whatsappHref(pair.whatsapp)} target="_blank" rel="noreferrer" className={cls} aria-label="WhatsApp" title="WhatsApp"><WhatsAppIcon size={size} /></a>}
+      {pair.max && <a href={maxHref(pair.max)} target="_blank" rel="noreferrer" className={cls} aria-label="MAX" title="MAX"><MaxIcon size={size} /></a>}
+    </span>
   );
 }
 
-/** Full block: label, phone, email and messengers — used in the menu and footer. */
+/** Label, phone, email and messengers — used in the menu and footer. */
 export function ContactBlock({ pair }: { pair: ContactPair }) {
   return (
-    <div className="space-y-2">
-      <div className="eyebrow !text-[10px] !tracking-[0.22em] text-primary/80">{pair.label}</div>
+    <div>
+      <div className="label mb-3">{pair.label}</div>
       {pair.phone && (
-        <a href={telHref(pair.phone)} className="flex items-center gap-2 text-[15px] font-semibold text-text hover:text-primary-light transition-colors">
-          <Phone size={14} className="text-primary" /> {pair.phone}
-        </a>
+        <a href={telHref(pair.phone)} className="block font-display text-[22px] leading-tight text-text hover:text-white transition-colors">{pair.phone}</a>
       )}
       {pair.email && (
-        <a href={`mailto:${pair.email}`} className="flex items-center gap-2 text-sm text-muted hover:text-primary-light transition-colors break-all">
-          <Mail size={14} className="text-primary shrink-0" /> {pair.email}
-        </a>
+        <a href={`mailto:${pair.email}`} className="block mt-1.5 text-[14px] text-muted hover:text-text transition-colors break-all">{pair.email}</a>
       )}
-      <ContactLinks pair={pair} />
+      <div className="mt-3"><ContactLinks pair={pair} /></div>
     </div>
   );
 }

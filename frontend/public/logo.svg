@@ -1,13 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#F6E3A8"/>
-      <stop offset="0.45" stop-color="#D4AF5A"/>
-      <stop offset="1" stop-color="#8A6A2F"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="16" fill="#0B0C10"/>
-  <rect x="1" y="1" width="62" height="62" rx="15" fill="none" stroke="url(#g)" stroke-opacity="0.55" stroke-width="1.5"/>
-  <path d="M32 9 L51 32 L32 55 L13 32 Z" fill="none" stroke="url(#g)" stroke-width="2"/>
-  <path d="M25 22 h8.5 a6 6 0 0 1 0 12 H25 Z M25 34 L25 42 M31 34 L38 42" fill="none" stroke="url(#g)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect width="64" height="64" fill="#0A0A0A"/>
+  <rect x="5.5" y="5.5" width="53" height="53" fill="none" stroke="#ECE8E1" stroke-opacity="0.35"/>
+  <text x="32" y="44" text-anchor="middle" font-family="Didot, 'Bodoni 72', 'Noto Serif Display', Georgia, serif" font-size="34" font-weight="300" fill="#ECE8E1">R</text>
 </svg>

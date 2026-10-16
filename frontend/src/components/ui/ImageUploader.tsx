@@ -59,7 +59,7 @@ export default function ImageUploader({
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2 flex-wrap">
         {value.map(url => (
-          <div key={url} className={`${thumb} relative rounded-lg overflow-hidden border border-border bg-bg group`}>
+          <div key={url} className={`${thumb} relative overflow-hidden border border-border bg-bg group`}>
             <img src={url} alt="" className="w-full h-full object-cover" />
             <button
               type="button"
@@ -78,7 +78,7 @@ export default function ImageUploader({
             onClick={() => inputRef.current?.click()}
             disabled={busy || disabled}
             title="Добавить фото"
-            className={`${thumb} rounded-lg border-[1.5px] border-dashed border-border bg-bg text-muted flex items-center justify-center cursor-pointer hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-wait`}
+            className={`${thumb} border-[1.5px] border-dashed border-border bg-bg text-muted flex items-center justify-center cursor-pointer hover:border-primary hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-wait`}
           >
             {busy ? <Loader2 size={18} className="animate-spin" /> : <ImagePlus size={18} />}
           </button>

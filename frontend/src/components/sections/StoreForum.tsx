@@ -73,12 +73,12 @@ export default function StoreForum() {
     <section className="pt-28 pb-16 max-sm:pt-24">
       <div className="max-w-[860px] mx-auto px-5">
         <div className="mb-6">
-          <div className="eyebrow mb-2">Сообщество</div>
+          <div className="label mb-2">Сообщество</div>
           <h1 className="font-display text-[44px] leading-none text-text max-sm:text-[34px]">Общий форум</h1>
           <p className="text-sm text-muted mt-3">Обсуждаем ароматы, делимся находками и советуем друг другу уход.</p>
         </div>
 
-        <div className="glass rounded-[28px] overflow-hidden flex flex-col h-[calc(100dvh-280px)] min-h-[440px]">
+        <div className="bg-card border border-line overflow-hidden flex flex-col h-[calc(100dvh-280px)] min-h-[440px]">
           <div className="flex-1 min-h-0 overflow-y-auto p-5 flex flex-col-reverse gap-3" style={{ overscrollBehavior: 'contain' }}>
             {loading ? (
               <div className="flex justify-center py-16"><Loader2 className="animate-spin text-primary" /></div>
@@ -91,7 +91,7 @@ export default function StoreForum() {
               const mine = user ? p.user_id === user.id : p.user_name === nick;
               return (
                 <div key={p.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[78%] rounded-2xl px-4 py-2.5 ${mine ? 'bg-primary/15 border border-primary/25 rounded-br-md' : 'bg-white/[0.04] border border-white/[0.07] rounded-bl-md'}`}>
+                  <div className={`max-w-[78%] px-4 py-2.5 ${mine ? 'bg-primary/15 border border-primary/25 rounded-br-md' : 'bg-white/[0.04] border border-white/[0.07] rounded-bl-md'}`}>
                     <div className="text-[11px] font-semibold text-primary/90 mb-0.5">{unescapeHtml(p.user_name)}</div>
                     <div className="text-[14px] text-text leading-relaxed break-words whitespace-pre-line">{unescapeHtml(p.text)}</div>
                     <div className="text-[10px] text-light mt-1 text-right">
@@ -120,9 +120,9 @@ export default function StoreForum() {
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
                 placeholder="Написать сообщение…"
-                className="field !rounded-full"
+                className="field"
               />
-              <button onClick={send} disabled={!text.trim() || sending} className="btn-gold w-12 h-12 rounded-full shrink-0" aria-label="Отправить">
+              <button onClick={send} disabled={!text.trim() || sending} className="btn-primary w-12 h-12 !p-0 shrink-0" aria-label="Отправить">
                 {sending ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />}
               </button>
             </div>
