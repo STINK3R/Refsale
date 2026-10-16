@@ -59,15 +59,22 @@ docker compose -f docker-compose.local.yml exec -T db psql -U coop -d coop < db/
 
 ## Продакшен
 
-1. DNS: A-записи `refsale.ru` и `www.refsale.ru` на IP сервера.
-2. `git clone … /opt/refsale && cd /opt/refsale && cp .env.example .env`, затем заполнить `.env`: `SERVER_SECRET`, `POSTGRES_PASSWORD`, `DATABASE_URL`, SMTP, `ADMIN_PASSWORD`.
-3. Порты 80 и 443 сейчас занимает nginx кооператива. Смена домена делается одним окном:
-   - остановить фронтенд кооператива (`docker compose stop frontend` в `/opt/1Kooperativniy`);
-   - выпустить сертификат: `sudo bash scripts/setup-cert-renewal.sh` (он поднимет фронтенд RefSale);
-   - `docker compose up -d --build`.
+RefSale живёт на одном сервере с кооперативом. Порты 80 и 443 держит nginx кооператива (`/opt/1Kooperativniy`):
+он выпускает и хранит сертификат `refsale.ru`, принимает HTTPS и проксирует запросы в nginx RefSale
+через общую Docker-сеть `edge`. Сам RefSale наружу портов не открывает.
 
-   Если оба сайта нужны одновременно до переезда, задайте в `.env` `HTTP_PORT` и `HTTPS_PORT` и проксируйте на них с основного nginx.
-4. При первом запуске свежей базы применяются `db/init.sql` и миграции из `db/`. Демо-данных в продакшен-базе нет. Таблицы и колонки магазина бэкенд создаёт сам при старте.
+1. DNS: A-записи `refsale.ru` и `www.refsale.ru` на IP сервера.
+2. Сертификат (порт 80 уже отдаёт ACME-проверки из `/var/www/certbot`):
+   `certbot certonly --webroot -w /var/www/certbot --cert-name refsale.ru -d refsale.ru -d www.refsale.ru`.
+3. Кооператив: `cd /opt/1Kooperativniy && git pull && docker compose up -d --build frontend`.
+   Это создаёт сеть `edge` и включает vhost `refsale.ru`. Пока RefSale не запущен, refsale.ru отвечает 502, кооператив работает.
+4. `git clone https://github.com/STINK3R/Refsale.git /opt/refsale && cd /opt/refsale && cp .env.example .env`,
+   затем заполнить `.env`: `SERVER_SECRET`, `POSTGRES_PASSWORD`, `DATABASE_URL`, SMTP, `ADMIN_PASSWORD`.
+   Токен Telegram-бота нужен свой, не кооператива.
+5. `docker compose up -d --build`.
+6. При первом запуске свежей базы применяются `db/init.sql` и миграции из `db/`. Демо-данных в продакшен-базе нет. Таблицы и колонки магазина бэкенд создаёт сам при старте.
+
+Обновление: `cd /opt/refsale && git pull && docker compose up -d --build`.
 
 ## Ещё не сделано (следующий этап по ТЗ)
 

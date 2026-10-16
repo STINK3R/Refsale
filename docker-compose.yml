@@ -51,6 +51,8 @@ services:
       WEBSITE_URL: ${WEBSITE_URL:-http://localhost}
       SITE_DOMAIN: ${SITE_DOMAIN:-http://localhost}
       CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      # First boot only: empty means a random one is printed to the log.
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     volumes:
       - uploads:/app/uploads
     ports:
@@ -58,7 +60,7 @@ services:
       # (http://backend:5000), so publishing this port publicly only served to
       # expose the API and /admin.html over plain HTTP, bypassing TLS, the nginx
       # rate limits and the /admin block.
-      - "127.0.0.1:${BACKEND_PORT:-5000}:5000"
+      - "127.0.0.1:${BACKEND_PORT:-5001}:5000"
 
   frontend:
     build:
@@ -69,14 +71,14 @@ services:
     restart: always
     depends_on:
       - backend
-    ports:
-      - "${HTTP_PORT:-80}:80"
-      - "${HTTPS_PORT:-443}:443"
-    volumes:
-      - /etc/letsencrypt:/etc/letsencrypt:ro
-      # certbot (on the host) writes ACME challenges here; nginx serves them
-      # on port 80 so certs renew without stopping the container
-      - /var/www/certbot:/var/www/certbot:ro
+    # No published ports: the cooperative's nginx owns 80/443 on the server,
+    # terminates TLS for refsale.ru and proxies to "refsale-web" on the shared
+    # edge network (created by the cooperative's compose file).
+    networks:
+      default:
+      edge:
+        aliases:
+          - refsale-web
 
   bot:
     build:
@@ -98,7 +100,7 @@ services:
     depends_on:
       - db
     ports:
-      - "127.0.0.1:${ADMINER_PORT:-8080}:8080"
+      - "127.0.0.1:${ADMINER_PORT:-8091}:8080"
     environment:
       ADMINER_DEFAULT_SERVER: db
       ADMINER_DESIGN: nette
@@ -106,3 +108,8 @@ services:
 volumes:
   pgdata:
   uploads:
+
+networks:
+  edge:
+    external: true
+    name: edge
