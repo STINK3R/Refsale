@@ -736,7 +736,7 @@
 <div id="tab-reviews" class="tab-content">
     <div class="card">
         <div class="card-title"><i class="fas fa-star"></i> Модерация отзывов</div>
-        <div class="table-wrap"><table><thead><tr><th>ID</th><th>Автор</th><th>Оценка</th><th>Текст</th><th>Дата</th><th>Действия</th></tr></thead><tbody id="reviewsTableBody"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>ID</th><th>Автор</th><th>Оценка</th><th>Текст</th><th>Дата</th><th>Страница категории</th><th>Действия</th></tr></thead><tbody id="reviewsTableBody"></tbody></table></div>
     </div>
 </div>
 <!-- SUPPLIERS TAB -->
@@ -1565,9 +1565,19 @@
             <div class="form-group"><label>Цена (₽)</label><input type="number" id="editPPrice"></div>
         </div>
         <div class="form-group"><label>Цена по промокоду (₽) — пусто, если скидки нет</label><input type="number" id="editPPromoPrice" style="background:#FFFBF2;border-color:#E6D3A3"></div>
+        <div class="form-row">
+            <div class="form-group"><label id="editPCmp1Label">Цена в Золотом Яблоке (₽)</label><input type="number" id="editPCmp1" placeholder="не показывать"></div>
+            <div class="form-group"><label id="editPCmp2Label">Цена в Рандеву (₽)</label><input type="number" id="editPCmp2" placeholder="не показывать"></div>
+        </div>
+        <div style="padding:12px 14px;background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;margin-bottom:14px">
+            <div style="font-weight:700;font-size:13px;color:#075985">Объёмы и упаковки</div>
+            <div style="font-size:11px;color:#0369A1;margin:3px 0 10px;line-height:1.4">Например «50 мл, товарная упаковка» и «50 мл, тестер». Если варианты есть, покупатель выбирает один из них, и цена берётся из варианта. Цены товара выше тогда — «от».</div>
+            <div id="editPVariants"></div>
+            <button type="button" class="btn btn-xs btn-secondary" onclick="addVariantRow()"><i class="fas fa-plus"></i> Добавить вариант</button>
+        </div>
         <div class="form-group"><label>Описание</label><textarea id="editPDesc"></textarea></div>
         <div class="form-row">
-            <div class="form-group"><label>Категория</label><select id="editPCategory" onchange="populateSubcategorySelect('editPSubcategory',this.value)"></select></div>
+            <div class="form-group"><label>Категория</label><select id="editPCategory" onchange="populateSubcategorySelect('editPSubcategory',this.value);setCompareLabels(this.value)"></select></div>
             <div class="form-group"><label>Подкатегория</label><select id="editPSubcategory"><option value="">Без подкатегории</option></select></div>
         </div>
         <div class="form-row">
@@ -1640,6 +1650,26 @@
         <input type="hidden" id="editCId">
         <div class="form-group"><label>Название</label><input type="text" id="editCName"></div>
         <div class="form-group"><label>Описание</label><input type="text" id="editCDesc"></div>
+        <div style="padding:12px 14px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;margin-bottom:14px">
+            <div style="font-weight:700;font-size:13px;color:#92400E;margin-bottom:10px">Страница категории на сайте</div>
+            <div class="form-group"><label>Слоган — крупно под фото</label><input type="text" id="editCSlogan" placeholder="Любимые ароматы дешевле, чем в социальных сетях"></div>
+            <div class="form-group"><label>«Как это работает» — текст под кнопкой</label><textarea id="editCIntro" rows="4" placeholder="Оригинальные духи по ценам ниже крупных магазинов. С промокодом от блогера — ещё ниже."></textarea></div>
+            <div class="form-group">
+                <label>Главное фото категории</label>
+                <div id="editCHeroPreview" style="margin:6px 0"></div>
+                <div class="file-upload" id="editCHeroFileWrap" style="max-width:220px">
+                    <div class="file-upload-icon"><i class="fas fa-image"></i></div>
+                    <div class="file-upload-text"><strong>Загрузить фото</strong>широкое, от 1200 px</div>
+                    <input type="file" id="editCHeroFile" accept="image/*" onchange="uploadCategoryHero(this)">
+                </div>
+                <input type="hidden" id="editCHero">
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Магазин для сравнения 1</label><input type="text" id="editCCmp1" placeholder="Золотое Яблоко"></div>
+                <div class="form-group"><label>Магазин для сравнения 2</label><input type="text" id="editCCmp2" placeholder="Рандеву"></div>
+            </div>
+            <div class="form-group"><label>Порядок во вкладках (меньше — левее)</label><input type="number" id="editCSort" step="1"></div>
+        </div>
         <div style="display:flex;gap:10px;margin-top:4px">
             <button class="btn btn-primary" onclick="saveCategoryEdit()"><i class="fas fa-save"></i> Сохранить</button>
             <button class="btn btn-secondary" onclick="closeModal('editCategoryModal')"><i class="fas fa-times"></i> Отмена</button>
@@ -1680,7 +1710,8 @@ function _getAdminToken(){
 }
 async function _api(path,options={}){
     const token=_getAdminToken();
-    if(token&&path.includes('/api/admin')){
+    // /api/data also gets the token: with it the products keep their promo prices.
+    if(token&&(path.includes('/api/admin')||path.startsWith('/api/data'))){
         if(!options.headers) options.headers={};
         if(options.headers instanceof Headers){options.headers.set('Authorization','Bearer '+token);}
         else if(typeof options.headers==='object'){options.headers['Authorization']='Bearer '+token;}
@@ -2268,6 +2299,10 @@ function openEditProduct(id){
     document.getElementById('editPName').value=p.name||'';
     document.getElementById('editPPrice').value=p.price||'';
     const ppEl=document.getElementById('editPPromoPrice');if(ppEl)ppEl.value=p.promo_price||'';
+    document.getElementById('editPCmp1').value=p.compare_price_1||'';
+    document.getElementById('editPCmp2').value=p.compare_price_2||'';
+    setCompareLabels(p.category_id);
+    loadProductVariants(p.id);
     document.getElementById('editPDesc').value=p.description||'';
     document.getElementById('editPBadge').value=p.badge||'';
     document.getElementById('editPAvailable').checked=p.is_available!==false;
@@ -2296,6 +2331,55 @@ function openEditProduct(id){
     // Load gallery images
     loadProductGallery(p.id);
     openModal('editProductModal');
+}
+
+// ---- PRODUCT: comparison prices and variants ----
+function setCompareLabels(categoryId){
+    const c=adminCategories.find(x=>String(x.id)===String(categoryId))||{};
+    document.getElementById('editPCmp1Label').textContent='Цена в «'+(c.compare_label_1||'Золотое Яблоко')+'» (₽)';
+    document.getElementById('editPCmp2Label').textContent='Цена в «'+(c.compare_label_2||'Рандеву')+'» (₽)';
+}
+
+async function loadProductVariants(productId){
+    const box=document.getElementById('editPVariants');
+    box.innerHTML='<span style="color:#9CA3AF;font-size:12px">Загрузка...</span>';
+    try{
+        const list=await _api('/api/admin/store/products/'+productId+'/variants');
+        box.innerHTML='';
+        (list||[]).forEach(addVariantRow);
+    }catch(e){box.innerHTML='<span style="color:#DC2626;font-size:12px">Не удалось загрузить варианты</span>';}
+}
+
+function addVariantRow(v){
+    v=v||{};
+    const box=document.getElementById('editPVariants');
+    if(box.querySelector('span'))box.innerHTML='';
+    const row=document.createElement('div');
+    row.className='variant-row';
+    row.dataset.id=v.id||'';
+    row.style.cssText='display:grid;grid-template-columns:2fr repeat(4,1fr) auto auto;gap:6px;align-items:center;margin-bottom:6px';
+    const num=(cls,val,ph)=>`<input type="number" class="${cls}" value="${val??''}" placeholder="${ph}" style="padding:7px 8px;font-size:12px">`;
+    row.innerHTML=`<input type="text" class="v-label" placeholder="50 мл, тестер" style="padding:7px 8px;font-size:12px">
+        ${num('v-price',v.price,'Цена')}
+        ${num('v-promo',v.promo_price,'По промо')}
+        ${num('v-cmp1',v.compare_price_1,'Магазин 1')}
+        ${num('v-cmp2',v.compare_price_2,'Магазин 2')}
+        <label title="В наличии" style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer"><input type="checkbox" class="v-avail" ${v.is_available===false?'':'checked'}>есть</label>
+        <button type="button" class="btn btn-xs btn-danger" onclick="this.parentElement.remove()" title="Удалить вариант"><i class="fas fa-trash"></i></button>`;
+    row.querySelector('.v-label').value=v.label||'';
+    box.appendChild(row);
+}
+
+function readVariantRows(){
+    return [...document.querySelectorAll('#editPVariants .variant-row')].map(r=>({
+        id:r.dataset.id?Number(r.dataset.id):null,
+        label:r.querySelector('.v-label').value.trim(),
+        price:r.querySelector('.v-price').value,
+        promo_price:r.querySelector('.v-promo').value,
+        compare_price_1:r.querySelector('.v-cmp1').value,
+        compare_price_2:r.querySelector('.v-cmp2').value,
+        is_available:r.querySelector('.v-avail').checked
+    })).filter(v=>v.label||v.price);
 }
 
 function resetFileInput(inputId,wrapId){
@@ -2377,6 +2461,8 @@ async function saveProductEdit(){
             name:document.getElementById('editPName').value.trim(),
             price:document.getElementById('editPPrice').value||null,
             promo_price:document.getElementById('editPPromoPrice')?.value||null,
+            compare_price_1:document.getElementById('editPCmp1').value||null,
+            compare_price_2:document.getElementById('editPCmp2').value||null,
             description:document.getElementById('editPDesc').value.trim(),
             category_id:document.getElementById('editPCategory').value||null,
             subcategory_id:scVal?Number(scVal):null,
@@ -2392,8 +2478,12 @@ async function saveProductEdit(){
             pack_weight_kg:document.getElementById('editPPackWeight')?.value?Number(document.getElementById('editPPackWeight').value):null,
             requires_variant:document.getElementById('editPRequiresVariant')?.checked||false
         };
+        let variants;
+        try{variants=await _api('/api/admin/store/products/'+id+'/variants',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({variants:readVariantRows()})});}
+        catch(e){showAlert(e.message||'Ошибка сохранения вариантов','error');btnLoading(btn,false);return;}
         const result=await updateProduct(id,updates);
         if(result){
+            updates.variants=variants;
             const idx=adminProducts.findIndex(p=>String(p.id)===String(id));
             if(idx>=0) adminProducts[idx]={...adminProducts[idx],...updates};
             renderProductsTable();
@@ -2468,7 +2558,33 @@ function openEditCategory(id){
     document.getElementById('editCId').value=c.id;
     document.getElementById('editCName').value=c.name||'';
     document.getElementById('editCDesc').value=c.description||'';
+    document.getElementById('editCSlogan').value=c.slogan||'';
+    document.getElementById('editCIntro').value=c.intro||'';
+    document.getElementById('editCCmp1').value=c.compare_label_1||'';
+    document.getElementById('editCCmp2').value=c.compare_label_2||'';
+    document.getElementById('editCSort').value=c.sort_order??0;
+    setCategoryHero(c.hero_image||'');
+    resetFileInput('editCHeroFile','editCHeroFileWrap');
     openModal('editCategoryModal');
+}
+
+function setCategoryHero(url){
+    document.getElementById('editCHero').value=url||'';
+    const box=document.getElementById('editCHeroPreview');
+    box.innerHTML=url
+        ?`<div style="display:flex;align-items:center;gap:10px"><img src="${url}" style="width:160px;height:90px;object-fit:cover;border-radius:8px;border:1px solid #E5E7EB"><button type="button" class="btn btn-xs btn-danger" onclick="setCategoryHero('')"><i class="fas fa-trash"></i> Убрать</button></div>`
+        :'<span style="color:#9CA3AF;font-size:12px">Не задано — на сайте будет общее фото</span>';
+}
+
+async function uploadCategoryHero(input){
+    const file=input.files?.[0];
+    if(!file)return;
+    _showUploadProgress('Загрузка: '+file.name,0);
+    // No old_url: the server would delete the current photo even if the form is never saved.
+    const url=await _uploadFileWithProgress(file,'category');
+    _hideUploadProgress();
+    if(url){setCategoryHero(url);showAlert('Фото загружено — не забудьте сохранить');}
+    else showAlert('Ошибка загрузки','error');
 }
 
 async function saveCategoryEdit(){
@@ -2476,7 +2592,16 @@ async function saveCategoryEdit(){
     btnLoading(btn,true);
     try{
         const id=document.getElementById('editCId').value;
-        const updates={name:document.getElementById('editCName').value.trim(),description:document.getElementById('editCDesc').value.trim()};
+        const updates={
+            name:document.getElementById('editCName').value.trim(),
+            description:document.getElementById('editCDesc').value.trim(),
+            slogan:document.getElementById('editCSlogan').value.trim(),
+            intro:document.getElementById('editCIntro').value.trim(),
+            hero_image:document.getElementById('editCHero').value,
+            compare_label_1:document.getElementById('editCCmp1').value.trim()||'Золотое Яблоко',
+            compare_label_2:document.getElementById('editCCmp2').value.trim()||'Рандеву',
+            sort_order:parseInt(document.getElementById('editCSort').value)||0
+        };
         const result=await updateCategory(id,updates);
         if(result){
             const idx=adminCategories.findIndex(c=>String(c.id)===String(id));
@@ -2903,7 +3028,7 @@ async function clearVipNote(){
 function renderReviewsTable(){
     const tbody=document.getElementById('reviewsTableBody');
     if(!tbody) return;
-    if(!adminReviews.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#9CA3AF;padding:30px">Нет отзывов</td></tr>';return;}
+    if(!adminReviews.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#9CA3AF;padding:30px">Нет отзывов</td></tr>';return;}
     tbody.innerHTML=adminReviews.map(r=>{
         const date=r.created_at?new Date(r.created_at).toLocaleDateString('ru-RU'):'—';
         const stars='★'.repeat(r.rating||0)+'☆'.repeat(5-(r.rating||0));
@@ -2913,9 +3038,18 @@ function renderReviewsTable(){
             <td style="color:#f59e0b;font-size:14px;letter-spacing:1px;">${stars}</td>
             <td style="max-width:300px;font-size:13px;">${r.text||''}</td>
             <td>${date}</td>
+            <td><select onchange="setReviewCategory(${r.id},this.value)" style="padding:6px 8px;font-size:12px"><option value="">— нигде —</option>${adminCategories.map(c=>`<option value="${c.id}" ${String(c.id)===String(r.category_id)?'selected':''}>${c.name}</option>`).join('')}</select></td>
             <td><button class="btn btn-danger btn-sm" onclick="deleteReviewHandler(${r.id})"><i class="fas fa-trash"></i> Удалить</button></td>
         </tr>`;
     }).join('');
+}
+
+async function setReviewCategory(id,categoryId){
+    try{
+        const upd=await _patch('/api/admin/reviews/'+id,{category_id:categoryId||null});
+        const r=adminReviews.find(x=>x.id===id);if(r)r.category_id=upd.category_id;
+        showAlert('Отзыв привязан');
+    }catch(e){showAlert(e.message||'Ошибка','error');}
 }
 
 async function deleteReviewHandler(id){

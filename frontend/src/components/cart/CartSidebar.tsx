@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Minus, Plus } from 'lucide-react';
-import { useCartStore, useAuthStore, usePromoStore, priceFor, runAfterAuth } from '../../store';
+import { useCartStore, useAuthStore, usePromoStore, priceFor, promoKey, cartKey, runAfterAuth } from '../../store';
 import { formatPrice } from '../../utils/format';
 import useScrollLock from '../../hooks/useScrollLock';
 import PromoForm from '../promo/PromoForm';
@@ -14,7 +14,7 @@ export default function CartSidebar() {
   useScrollLock(sidebarOpen);
 
   const baseTotal = items.reduce((s, i) => s + (Number(i.price) || 0) * i.qty, 0);
-  const total = items.reduce((s, i) => s + priceFor(i.id, i.price, prices) * i.qty, 0);
+  const total = items.reduce((s, i) => s + priceFor(promoKey(i.id, i.variant_id), i.price, prices) * i.qty, 0);
   const saved = baseTotal - total;
   const count = items.reduce((s, i) => s + i.qty, 0);
 
@@ -57,10 +57,11 @@ export default function CartSidebar() {
                 </div>
               ) : (
                 items.map((item) => {
-                  const unit = priceFor(item.id, item.price, prices);
+                  const key = cartKey(item);
+                  const unit = priceFor(promoKey(item.id, item.variant_id), item.price, prices);
                   const discounted = unit < (Number(item.price) || 0);
                   return (
-                    <div key={item.id} className="flex gap-5 py-6 border-b border-line last:border-b-0">
+                    <div key={key} className="flex gap-5 py-6 border-b border-line last:border-b-0">
                       <div className="w-[88px] h-[110px] shrink-0 bg-[radial-gradient(ellipse_at_50%_42%,#1C1C1C_0%,#121212_70%)] flex items-center justify-center">
                         {item.image_url
                           ? <img src={item.image_url} alt="" className="w-full h-full object-contain p-2" />
@@ -68,6 +69,7 @@ export default function CartSidebar() {
                       </div>
                       <div className="flex-1 min-w-0 flex flex-col">
                         <div className="text-[14px] leading-snug text-text line-clamp-2">{item.name}</div>
+                        {item.variant_label && <div className="text-[12px] text-muted mt-1 truncate">{item.variant_label}</div>}
                         {item.variant_comment && <div className="text-[12px] text-muted mt-1 truncate">Вариант: {item.variant_comment}</div>}
                         <div className="flex items-baseline gap-2.5 mt-2">
                           <span className="text-[14px] text-text tabular-nums">{formatPrice(unit)}</span>
@@ -75,11 +77,11 @@ export default function CartSidebar() {
                         </div>
                         <div className="mt-auto pt-3 flex items-center justify-between">
                           <div className="flex items-center border border-line">
-                            <button onClick={() => changeQty(item.id, -1)} className="w-8 h-8 flex items-center justify-center text-muted hover:text-text cursor-pointer" aria-label="Меньше"><Minus size={13} strokeWidth={1.5} /></button>
+                            <button onClick={() => changeQty(key, -1)} className="w-8 h-8 flex items-center justify-center text-muted hover:text-text cursor-pointer" aria-label="Меньше"><Minus size={13} strokeWidth={1.5} /></button>
                             <span className="w-7 text-center text-[13px] tabular-nums">{item.qty}</span>
-                            <button onClick={() => changeQty(item.id, 1)} className="w-8 h-8 flex items-center justify-center text-muted hover:text-text cursor-pointer" aria-label="Больше"><Plus size={13} strokeWidth={1.5} /></button>
+                            <button onClick={() => changeQty(key, 1)} className="w-8 h-8 flex items-center justify-center text-muted hover:text-text cursor-pointer" aria-label="Больше"><Plus size={13} strokeWidth={1.5} /></button>
                           </div>
-                          <button onClick={() => removeItem(item.id)} className="text-[11px] uppercase tracking-[0.14em] text-muted hover:text-text cursor-pointer">Удалить</button>
+                          <button onClick={() => removeItem(key)} className="text-[11px] uppercase tracking-[0.14em] text-muted hover:text-text cursor-pointer">Удалить</button>
                         </div>
                       </div>
                     </div>

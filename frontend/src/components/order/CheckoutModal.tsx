@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import Modal from '../ui/Modal';
-import { useAuthStore, useCartStore, useNotificationStore, usePromoStore, priceFor } from '../../store';
+import { useAuthStore, useCartStore, useNotificationStore, usePromoStore, priceFor, promoKey, cartKey } from '../../store';
 import { createStoreOrder } from '../../api/client';
 import { formatPrice } from '../../utils/format';
 
@@ -35,7 +35,7 @@ export default function CheckoutModal() {
     setPhone((v) => v || user.phone || '');
   }, [checkoutOpen, user]);
 
-  const total = items.reduce((s, i) => s + priceFor(i.id, i.price, prices) * i.qty, 0);
+  const total = items.reduce((s, i) => s + priceFor(promoKey(i.id, i.variant_id), i.price, prices) * i.qty, 0);
   const baseTotal = items.reduce((s, i) => s + (Number(i.price) || 0) * i.qty, 0);
 
   const submit = async () => {
@@ -50,7 +50,7 @@ export default function CheckoutModal() {
       comment: comment.trim(),
       contact_method: method,
       promo_code: code,
-      items: items.map((i) => ({ id: i.id, qty: i.qty, variant_comment: i.variant_comment })),
+      items: items.map((i) => ({ id: i.id, qty: i.qty, variant_id: i.variant_id ?? null, variant_comment: i.variant_comment })),
     });
     setSending(false);
     if (res.promo_invalid) clearPromo();
@@ -103,10 +103,10 @@ export default function CheckoutModal() {
           <div className="label">Ваш заказ</div>
           <div className="mt-5 space-y-4 max-h-[260px] overflow-y-auto pr-1">
             {items.map((i) => {
-              const unit = priceFor(i.id, i.price, prices);
+              const unit = priceFor(promoKey(i.id, i.variant_id), i.price, prices);
               return (
-                <div key={i.id} className="flex justify-between gap-4 text-[13px]">
-                  <span className="text-muted">{i.name}<span className="text-light"> × {i.qty}</span></span>
+                <div key={cartKey(i)} className="flex justify-between gap-4 text-[13px]">
+                  <span className="text-muted">{i.name}{i.variant_label ? ` — ${i.variant_label}` : ''}<span className="text-light"> × {i.qty}</span></span>
                   <span className="text-text whitespace-nowrap tabular-nums">{formatPrice(unit * i.qty)}</span>
                 </div>
               );

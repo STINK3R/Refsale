@@ -14,7 +14,7 @@ from flask import Blueprint, request, jsonify
 
 from ..db import get_db, _row_to_dict, _rows_to_list
 from ..utils import rate_limited, rate_limited_auth, rate_limited_email, check_brute_force, record_login_fail, record_login_success, hash_password, verify_password, sanitize_string, validate_upload, _find_forum_by_normalized_address, _ensure_local_forum, normalize_address_key, sanitize_image_urls
-from ..auth import create_user_token, require_auth, require_self, claimed_user_id, invalidate_user_tokens
+from ..auth import create_user_token, require_auth, require_self, claimed_user_id, invalidate_user_tokens, _verify_admin_token
 from ..email_service import email_welcome, email_order_confirmation, email_admin_new_order, email_forgot_password, email_verification_code, email_seller_new_order
 from ..config import DEVELOPMENT_FEE, UPLOAD_DIR
 
@@ -151,6 +151,12 @@ def api_data():
                     pass
                 cur.execute("SELECT * FROM coop_products ORDER BY created_at ASC")
                 prods = _rows_to_list(cur.fetchall())
+                # Promo prices go only to holders of a working code, through
+                # /api/store/promo/validate. The admin panel reads this endpoint
+                # too, so it keeps them when it sends its token.
+                if not _verify_admin_token():
+                    for p in prods:
+                        p.pop("promo_price", None)
             except Exception as e:
                 print(f"[/api/data] products failed: {e}")
 
@@ -1014,7 +1020,12 @@ def api_modify_order(oid):
 def api_get_reviews():
     try:
         with get_db() as cur:
-            cur.execute("SELECT * FROM coop_reviews ORDER BY created_at DESC LIMIT 50")
+            # ?category_id=N — the reviews shown on that category's page.
+            cid = request.args.get("category_id", type=int)
+            if cid:
+                cur.execute("SELECT * FROM coop_reviews WHERE category_id = %s ORDER BY created_at DESC LIMIT 50", (cid,))
+            else:
+                cur.execute("SELECT * FROM coop_reviews ORDER BY created_at DESC LIMIT 50")
             reviews = _rows_to_list(cur.fetchall())
         return jsonify(reviews or [])
     except:
@@ -1032,6 +1043,10 @@ def api_add_review():
     text = sanitize_string(d.get("text") or "", 2000)
     rating = min(5, max(1, int(d.get("rating", 5))))
     images = sanitize_image_urls(d.get("images"))
+    try:
+        category_id = int(d["category_id"]) if d.get("category_id") else None
+    except (TypeError, ValueError):
+        category_id = None
     if not user_id or not text:
         return jsonify({"error": "Заполните текст отзыва"}), 400
     try:
@@ -1040,8 +1055,8 @@ def api_add_review():
             u = cur.fetchone()
             user_name = u["full_name"] if u else ""
             cur.execute(
-                "INSERT INTO coop_reviews (user_id, user_name, text, rating, images) VALUES (%s, %s, %s, %s, %s) RETURNING *",
-                (user_id, user_name, text, rating, images)
+                "INSERT INTO coop_reviews (user_id, user_name, text, rating, images, category_id) VALUES (%s, %s, %s, %s, %s, %s) RETURNING *",
+                (user_id, user_name, text, rating, images, category_id)
             )
             result = _row_to_dict(cur.fetchone())
         return jsonify(result)

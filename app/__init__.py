@@ -128,7 +128,7 @@ def create_app():
 
     # Client-side routes of the SPA. Anything else that is not a real file or
     # an API call stays a 404 instead of silently rendering the storefront.
-    _SPA_ROOTS = {"forums", "orders", "cabinet", "about"}
+    _SPA_ROOTS = {"forums", "orders", "cabinet", "about", "favorites"}
 
     @app.route("/<path:spa_path>")
     def serve_spa(spa_path):

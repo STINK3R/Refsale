@@ -20,6 +20,7 @@ const ProfileModal = lazy(() => import('./components/profile/ProfileModal'));
 const StoreForum = lazy(() => import('./components/sections/StoreForum'));
 const OrdersPage = lazy(() => import('./components/sections/OrdersPage'));
 const LeaderCabinet = lazy(() => import('./components/sections/LeaderCabinet'));
+const FavoritesPage = lazy(() => import('./components/sections/FavoritesPage'));
 const NotFound = lazy(() => import('./components/sections/NotFound'));
 
 function PageFallback() {
@@ -79,6 +80,7 @@ function App() {
         <Route path="/forums" element={<Suspense fallback={<PageFallback />}><StoreForum /></Suspense>} />
         <Route path="/orders" element={<Suspense fallback={<PageFallback />}><OrdersPage /></Suspense>} />
         <Route path="/cabinet" element={<Suspense fallback={<PageFallback />}><LeaderCabinet /></Suspense>} />
+        <Route path="/favorites" element={<Suspense fallback={<PageFallback />}><FavoritesPage /></Suspense>} />
         <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
       </Routes>
       <Footer />

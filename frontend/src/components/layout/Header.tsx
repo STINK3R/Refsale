@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, ShoppingBag, User, Package } from 'lucide-react';
-import { useAuthStore, useCartStore, useNotificationStore, usePromoStore } from '../../store';
+import { X, ShoppingBag, User, Package, Heart } from 'lucide-react';
+import { useAppStore, useAuthStore, useCartStore, useFavoritesStore, useNotificationStore, usePromoStore } from '../../store';
 import { useSupportStore } from '../../store/support';
 import { fetchOrderChatsUnread } from '../../api/client';
 import { useContacts, ContactBlock, ContactLinks, telHref } from '../ui/Contacts';
@@ -17,6 +17,8 @@ export default function Header() {
   const openSupport = useSupportStore((s) => s.open);
   const show = useNotificationStore((s) => s.show);
   const contacts = useContacts();
+  const favCount = useFavoritesStore((s) => s.ids.length);
+  const { categories, activeCategoryId, setActiveCategory } = useAppStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [orderUnread, setOrderUnread] = useState(0);
@@ -53,6 +55,12 @@ export default function Header() {
     setMenuOpen(false);
     if (!user) { openAuth('register', 'Чтобы написать продавцу, создайте аккаунт — это полминуты.'); return; }
     openSupport();
+  };
+
+  const pickCategory = (id: number) => {
+    setActiveCategory(id);
+    if (!isHome) navigate('/');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const solid = scrolled || !isHome;
@@ -106,7 +114,11 @@ export default function Header() {
                   Промокод · {promoCode}
                 </span>
               )}
-              <Link to="/orders" className="relative text-text hover:text-white transition-colors max-sm:hidden" aria-label="Статусы заказов" title="Статусы заказов">
+              <Link to="/favorites" className="relative text-text hover:text-white transition-colors max-sm:hidden" aria-label="Избранное" title="Избранное">
+                <Heart size={19} strokeWidth={1.4} />
+                {favCount > 0 && <span className="absolute -top-1.5 -right-2 text-[10px] tabular-nums text-primary">{favCount}</span>}
+              </Link>
+              <Link to="/orders" className="relative text-text hover:text-white transition-colors max-sm:hidden" aria-label="Сообщения и заказы" title="Сообщения и заказы">
                 <Package size={19} strokeWidth={1.4} />
                 {orderUnread > 0 && <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-primary" />}
               </Link>
@@ -124,6 +136,26 @@ export default function Header() {
               </button>
             </div>
           </div>
+
+          {/* Category pages: each switches the hero, products and reviews */}
+          {isHome && categories.length > 1 && (
+            <div className="max-w-[1440px] mx-auto px-8 max-sm:px-4 pb-3 -mt-1 flex justify-center gap-8 max-sm:gap-5 overflow-x-auto scrollbar-hide">
+              {categories.map((c) => {
+                const active = c.id === activeCategoryId;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => pickCategory(c.id)}
+                    aria-current={active ? 'page' : undefined}
+                    className={`relative shrink-0 pb-1.5 text-[13px] max-sm:text-[12px] uppercase tracking-[0.14em] whitespace-nowrap cursor-pointer transition-colors ${active ? 'text-text' : 'text-muted hover:text-text'}`}
+                  >
+                    {c.name}
+                    <span className={`absolute left-0 right-0 bottom-0 h-px bg-primary transition-transform duration-500 origin-left ${active ? 'scale-x-100' : 'scale-x-0'}`} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </header>
 
@@ -151,12 +183,13 @@ export default function Header() {
               <div className="flex-1 overflow-y-auto px-8 max-sm:px-6 py-8">
                 <nav className="flex flex-col">
                   <MenuItem n="01" onClick={() => goToSection('#catalog')}>Каталог</MenuItem>
-                  <MenuItem n="02" to="/forums">Форум</MenuItem>
-                  <MenuItem n="03" onClick={openChats}>Чаты с продавцом</MenuItem>
-                  <MenuItem n="04" onClick={() => goToSection('#reviews')}>Отзывы</MenuItem>
-                  <MenuItem n="05" onClick={() => goToSection('#about')}>О нас</MenuItem>
-                  <MenuItem n="06" to="/orders" badge={orderUnread > 0}>Статусы заказов</MenuItem>
-                  {user?.is_leader && <MenuItem n="07" to="/cabinet">Кабинет лидера мнений</MenuItem>}
+                  <MenuItem n="02" to="/orders" badge={orderUnread > 0}>Сообщения и заказы</MenuItem>
+                  <MenuItem n="03" to="/favorites">Избранное{favCount > 0 && <sup className="ml-1.5 text-[13px] text-primary">{favCount}</sup>}</MenuItem>
+                  <MenuItem n="04" to="/forums">Форум</MenuItem>
+                  <MenuItem n="05" onClick={() => goToSection('#reviews')}>Отзывы</MenuItem>
+                  <MenuItem n="06" onClick={() => goToSection('#about')}>О нас</MenuItem>
+                  <MenuItem n="07" onClick={openChats}>Вопрос продавцу</MenuItem>
+                  {user?.is_leader && <MenuItem n="08" to="/cabinet">Кабинет лидера мнений</MenuItem>}
                 </nav>
 
                 <div className="mt-10 flex flex-col gap-3">

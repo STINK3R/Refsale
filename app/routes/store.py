@@ -49,6 +49,18 @@ _STORE_COLUMNS = [
     "ALTER TABLE coop_products ADD COLUMN requires_variant BOOLEAN DEFAULT FALSE",
     "ALTER TABLE coop_products ADD COLUMN requires_subscription BOOLEAN DEFAULT FALSE",
     "ALTER TABLE coop_products ADD COLUMN is_adult BOOLEAN DEFAULT FALSE",
+    # The same item at two other shops, for the "сравните цены" line
+    "ALTER TABLE coop_products ADD COLUMN compare_price_1 NUMERIC(12,2) DEFAULT NULL",
+    "ALTER TABLE coop_products ADD COLUMN compare_price_2 NUMERIC(12,2) DEFAULT NULL",
+    # A category is a page of its own: picture, slogan, "как это работает"
+    # and which two shops its prices are compared with.
+    "ALTER TABLE coop_categories ADD COLUMN hero_image TEXT DEFAULT ''",
+    "ALTER TABLE coop_categories ADD COLUMN slogan TEXT DEFAULT ''",
+    "ALTER TABLE coop_categories ADD COLUMN intro TEXT DEFAULT ''",
+    "ALTER TABLE coop_categories ADD COLUMN compare_label_1 VARCHAR(100) DEFAULT 'Золотое Яблоко'",
+    "ALTER TABLE coop_categories ADD COLUMN compare_label_2 VARCHAR(100) DEFAULT 'Рандеву'",
+    "ALTER TABLE coop_categories ADD COLUMN sort_order INTEGER DEFAULT 0",
+    "ALTER TABLE coop_reviews ADD COLUMN category_id INTEGER DEFAULT NULL",
     # Accounts
     "ALTER TABLE coop_users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE",
     "ALTER TABLE coop_users ADD COLUMN is_leader BOOLEAN DEFAULT FALSE",
@@ -90,6 +102,22 @@ def ensure_store_schema():
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 )
             """)
+            # Volume / packaging options of one product, each with its own prices
+            # ("50 мл, тестер"), so the catalog needs no card per bottle size.
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS ref_product_variants (
+                    id SERIAL PRIMARY KEY,
+                    product_id INTEGER NOT NULL REFERENCES coop_products(id) ON DELETE CASCADE,
+                    label VARCHAR(200) NOT NULL,
+                    price NUMERIC(12,2) NOT NULL,
+                    promo_price NUMERIC(12,2) DEFAULT NULL,
+                    compare_price_1 NUMERIC(12,2) DEFAULT NULL,
+                    compare_price_2 NUMERIC(12,2) DEFAULT NULL,
+                    is_available BOOLEAN DEFAULT TRUE,
+                    sort_order INTEGER DEFAULT 0
+                )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_variants_product ON ref_product_variants(product_id)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_ref_promos_leader ON ref_promos(leader_id)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_leader ON coop_orders(leader_id)")
             cur.execute("CREATE INDEX IF NOT EXISTS idx_tickets_leader ON coop_support_tickets(leader_id)")
@@ -233,6 +261,13 @@ def apply_order_status(cur, order_id: int, new_status: str, by: str = "admin"):
 # ══════════════════════════════════════════════════
 # STOREFRONT
 # ══════════════════════════════════════════════════
+def _hide_promo_price(row: dict):
+    """Swap the promo price for a flag: the public catalog only says one exists."""
+    promo = row.pop("promo_price", None)
+    base = float(row.get("price") or 0)
+    row["has_promo_price"] = promo is not None and 0 < float(promo) < base
+
+
 @bp.route("/api/store/catalog")
 def store_catalog():
     """Categories and products with base prices only.
@@ -244,7 +279,11 @@ def store_catalog():
         return jsonify({"error": "rate limit"}), 429
     try:
         with get_db() as cur:
-            cur.execute("SELECT id, name, description FROM coop_categories ORDER BY created_at ASC")
+            cur.execute("""
+                SELECT id, name, description, hero_image, slogan, intro,
+                       compare_label_1, compare_label_2
+                FROM coop_categories ORDER BY sort_order ASC, created_at ASC
+            """)
             cats = _rows_to_list(cur.fetchall())
             try:
                 cur.execute("SELECT id, category_id, name FROM coop_subcategories ORDER BY created_at ASC")
@@ -252,8 +291,8 @@ def store_catalog():
             except Exception:
                 subcats = []
             cur.execute("""
-                SELECT id, name, description, price, promo_price, category_id, subcategory_id,
-                       badge, image_url, is_available, requires_variant, created_at
+                SELECT id, name, description, price, promo_price, compare_price_1, compare_price_2,
+                       category_id, subcategory_id, badge, image_url, is_available, requires_variant, created_at
                 FROM coop_products ORDER BY created_at DESC
             """)
             prods = _rows_to_list(cur.fetchall())
@@ -264,11 +303,18 @@ def store_catalog():
                     img_map.setdefault(img["product_id"], []).append({"url": img["url"], "is_main": img["is_main"]})
             except Exception:
                 img_map = {}
+            cur.execute("""
+                SELECT id, product_id, label, price, promo_price, compare_price_1, compare_price_2, is_available
+                FROM ref_product_variants ORDER BY sort_order ASC, id ASC
+            """)
+            var_map: dict = {}
+            for v in _rows_to_list(cur.fetchall()):
+                _hide_promo_price(v)
+                var_map.setdefault(v.pop("product_id"), []).append(v)
         for p in prods:
-            promo = p.pop("promo_price", None)
-            base = float(p.get("price") or 0)
-            p["has_promo_price"] = promo is not None and 0 < float(promo) < base
+            _hide_promo_price(p)
             p["images"] = img_map.get(p["id"], [])
+            p["variants"] = var_map.get(p["id"], [])
         return jsonify({"categories": cats, "subcategories": subcats, "products": prods})
     except Exception as e:
         print(f"[/api/store/catalog] {e}")
@@ -292,11 +338,19 @@ def store_validate_promo():
                 unit, base = _effective_price(row, True)
                 if unit < base:
                     prices[str(row["id"])] = unit
+            # Variants share the map under "v<id>" so product and variant ids never clash.
+            cur.execute("SELECT id, price, promo_price FROM ref_product_variants WHERE promo_price IS NOT NULL")
+            for row in cur.fetchall():
+                unit, base = _effective_price(row, True)
+                if unit < base:
+                    prices[f"v{row['id']}"] = unit
+        expires = promo.get("expires_at")
         return jsonify({
             "valid": True,
             "code": promo["code"].upper(),
             "label": promo.get("label") or "",
             "leader_name": _first_name(promo.get("leader_name") or ""),
+            "expires_at": expires.isoformat() if expires else None,
             "prices": prices,
         })
     except Exception as e:
@@ -374,6 +428,8 @@ def store_create_order():
     raw_items = d.get("items") or []
     if not isinstance(raw_items, list) or not raw_items:
         return jsonify({"error": "Корзина пуста"}), 400
+    # Keyed by (product id, variant id or None): two sizes of one perfume are
+    # two lines with two prices.
     wanted: dict = {}
     notes: dict = {}
     for it in raw_items:
@@ -382,14 +438,16 @@ def store_create_order():
         try:
             pid = int(it.get("id") or 0)
             qty = int(it.get("qty") or 1)
+            vid = int(it["variant_id"]) if it.get("variant_id") not in (None, "", 0) else None
         except (TypeError, ValueError):
             continue
         if pid <= 0 or qty <= 0:
             continue
-        wanted[pid] = min(wanted.get(pid, 0) + qty, MAX_QTY)
+        key = (pid, vid)
+        wanted[key] = min(wanted.get(key, 0) + qty, MAX_QTY)
         note = sanitize_string(it.get("variant_comment") or "", 300)
         if note:
-            notes[pid] = note
+            notes[key] = note
     if not wanted:
         return jsonify({"error": "Корзина пуста"}), 400
 
@@ -402,22 +460,41 @@ def store_create_order():
                 if perr:
                     return jsonify({"error": f"{perr}. Уберите промокод или введите другой.", "promo_invalid": True}), 400
 
+            pids = list({pid for pid, _ in wanted})
             cur.execute(
                 "SELECT id, name, price, promo_price, is_available, image_url FROM coop_products WHERE id = ANY(%s)",
-                (list(wanted.keys()),)
+                (pids,)
             )
             products = {row["id"]: row for row in cur.fetchall()}
+            cur.execute(
+                "SELECT id, product_id, label, price, promo_price, is_available FROM ref_product_variants WHERE product_id = ANY(%s)",
+                (pids,)
+            )
+            variants: dict = {}
+            for row in cur.fetchall():
+                variants[row["id"]] = row
+            has_variants = {row["product_id"] for row in variants.values()}
             items, total, discount = [], 0.0, 0.0
-            for pid, qty in wanted.items():
+            for (pid, vid), qty in wanted.items():
                 p = products.get(pid)
                 if not p or p.get("is_available") is False:
                     name = p["name"] if p else f"#{pid}"
                     return jsonify({"error": f"Товар «{name}» сейчас недоступен — уберите его из корзины"}), 409
-                unit, base = _effective_price(p, promo is not None)
-                line = {"id": pid, "name": p["name"], "qty": qty, "price": unit,
+                name, priced = p["name"], p
+                if vid is not None or pid in has_variants:
+                    v = variants.get(vid)
+                    if not v or v["product_id"] != pid:
+                        return jsonify({"error": f"Выберите объём или упаковку для «{p['name']}» заново"}), 409
+                    if v.get("is_available") is False:
+                        return jsonify({"error": f"«{p['name']} — {v['label']}» сейчас нет в наличии"}), 409
+                    name, priced = f"{p['name']} — {v['label']}", v
+                unit, base = _effective_price(priced, promo is not None)
+                line = {"id": pid, "name": name, "qty": qty, "price": unit,
                         "base_price": base, "image_url": p.get("image_url")}
-                if pid in notes:
-                    line["variant_comment"] = notes[pid]
+                if vid is not None:
+                    line["variant_id"] = vid
+                if (pid, vid) in notes:
+                    line["variant_comment"] = notes[(pid, vid)]
                 items.append(line)
                 total += unit * qty
                 discount += (base - unit) * qty
@@ -853,6 +930,97 @@ def admin_store_update_product(pid):
             return jsonify(_row_to_dict(row))
     except Exception as e:
         print(f"[/api/admin/store/products/{pid}] {e}")
+        return jsonify({"error": "Ошибка сервера"}), 500
+
+
+# ── Product variants (volume / packaging) ─────────
+_VARIANT_FIELDS = ("label", "price", "promo_price", "compare_price_1", "compare_price_2", "is_available")
+
+
+@bp.route("/api/admin/store/products/<int:pid>/variants")
+def admin_product_variants(pid):
+    try:
+        with get_db() as cur:
+            cur.execute("SELECT * FROM ref_product_variants WHERE product_id = %s ORDER BY sort_order, id", (pid,))
+            return jsonify(_rows_to_list(cur.fetchall()))
+    except Exception as e:
+        print(f"[/api/admin/store/products/{pid}/variants] {e}")
+        return jsonify([])
+
+
+@bp.route("/api/admin/store/products/<int:pid>/variants", methods=["PUT"])
+def admin_save_product_variants(pid):
+    """Replace the product's variant list with the one sent, in that order.
+
+    Rows that carry an id are updated, rows without one are added, and
+    variants missing from the list are deleted.
+    """
+    raw = (request.json or {}).get("variants")
+    if not isinstance(raw, list):
+        return jsonify({"error": "Нужен список вариантов"}), 400
+
+    def _num(v):
+        return None if v in (None, "") else round(float(v), 2)
+
+    clean = []
+    try:
+        for i, v in enumerate(raw):
+            if not isinstance(v, dict):
+                continue
+            label = sanitize_string(v.get("label") or "", 200).strip()
+            price = _num(v.get("price"))
+            if not label:
+                return jsonify({"error": f"Вариант {i + 1}: укажите название, например «50 мл, тестер»"}), 400
+            if price is None or price <= 0:
+                return jsonify({"error": f"«{label}»: цена должна быть больше нуля"}), 400
+            row = {
+                "id": int(v["id"]) if v.get("id") else None,
+                "label": label,
+                "price": price,
+                "promo_price": _num(v.get("promo_price")),
+                "compare_price_1": _num(v.get("compare_price_1")),
+                "compare_price_2": _num(v.get("compare_price_2")),
+                "is_available": v.get("is_available") is not False,
+                "sort_order": i,
+            }
+            for f in ("promo_price", "compare_price_1", "compare_price_2"):
+                if row[f] is not None and row[f] <= 0:
+                    row[f] = None
+            clean.append(row)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Некорректная цена"}), 400
+
+    try:
+        with get_db() as cur:
+            cur.execute("SELECT 1 FROM coop_products WHERE id = %s", (pid,))
+            if not cur.fetchone():
+                return jsonify({"error": "Товар не найден"}), 404
+            keep = [r["id"] for r in clean if r["id"]]
+            cur.execute(
+                "DELETE FROM ref_product_variants WHERE product_id = %s AND NOT (id = ANY(%s))",
+                (pid, keep)
+            )
+            for r in clean:
+                vals = (r["label"], r["price"], r["promo_price"], r["compare_price_1"],
+                        r["compare_price_2"], r["is_available"], r["sort_order"])
+                if r["id"]:
+                    cur.execute(
+                        """UPDATE ref_product_variants SET label = %s, price = %s, promo_price = %s,
+                               compare_price_1 = %s, compare_price_2 = %s, is_available = %s, sort_order = %s
+                           WHERE id = %s AND product_id = %s""",
+                        (*vals, r["id"], pid)
+                    )
+                else:
+                    cur.execute(
+                        """INSERT INTO ref_product_variants
+                           (label, price, promo_price, compare_price_1, compare_price_2, is_available, sort_order, product_id)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                        (*vals, pid)
+                    )
+            cur.execute("SELECT * FROM ref_product_variants WHERE product_id = %s ORDER BY sort_order, id", (pid,))
+            return jsonify(_rows_to_list(cur.fetchall()))
+    except Exception as e:
+        print(f"[/api/admin/store/products/{pid}/variants PUT] {e}")
         return jsonify({"error": "Ошибка сервера"}), 500
 
 

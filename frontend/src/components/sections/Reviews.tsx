@@ -15,7 +15,7 @@ const MANUAL_PAUSE_MS = 45000;
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 export default function Reviews() {
-  const { reviews, loadReviews } = useAppStore();
+  const { reviews, loadReviews, activeCategoryId } = useAppStore();
   const { user, openAuth } = useAuthStore();
   const show = useNotificationStore((s) => s.show);
   const [idx, setIdx] = useState(0);
@@ -29,7 +29,8 @@ export default function Reviews() {
   const pauseAuto = () => { pausedUntilRef.current = Date.now() + MANUAL_PAUSE_MS; };
   useScrollLock(modalOpen);
 
-  useEffect(() => { loadReviews(); }, [loadReviews]);
+  // Each category page shows its own reviews.
+  useEffect(() => { void loadReviews(); }, [loadReviews, activeCategoryId]);
 
   useEffect(() => {
     if (reviews.length <= 1 || viewerOpen) return;
@@ -44,7 +45,7 @@ export default function Reviews() {
     if (!user) return;
     if (!text.trim()) { show('Напишите отзыв', 'error'); return; }
     setSubmitting(true);
-    const result = await addReview({ user_id: user.id, text: text.trim(), rating, images });
+    const result = await addReview({ user_id: user.id, text: text.trim(), rating, images, category_id: activeCategoryId });
     setSubmitting(false);
     if (!result) { show('Не удалось отправить отзыв', 'error'); return; }
     setText(''); setRating(5); setImages([]);
@@ -54,7 +55,9 @@ export default function Reviews() {
   };
 
   const go = (d: number) => { pauseAuto(); setIdx((i) => (i + d + reviews.length) % reviews.length); };
-  const review: Review | undefined = reviews[idx];
+  // The list changes with the category page, so wrap the position into it.
+  const pos = reviews.length ? idx % reviews.length : 0;
+  const review: Review | undefined = reviews[pos];
 
   return (
     <section id="reviews" className="border-t border-line">
@@ -102,7 +105,7 @@ export default function Reviews() {
                   <button onClick={() => go(1)} className="w-11 h-11 border border-line flex items-center justify-center text-text hover:border-text transition-colors cursor-pointer" aria-label="Следующий отзыв">
                     <ArrowRight size={16} strokeWidth={1.4} />
                   </button>
-                  <span className="text-[12px] text-muted tabular-nums">{String(idx + 1).padStart(2, '0')} / {String(reviews.length).padStart(2, '0')}</span>
+                  <span className="text-[12px] text-muted tabular-nums">{String(pos + 1).padStart(2, '0')} / {String(reviews.length).padStart(2, '0')}</span>
                 </div>
               )}
             </div>

@@ -156,15 +156,15 @@ export async function modifyOrder(orderId: number, items: string, total: number)
 }
 
 // ==================== REVIEWS ====================
-export async function fetchReviews(): Promise<Review[]> {
+export async function fetchReviews(categoryId?: number | null): Promise<Review[]> {
   try {
-    return await _api('/api/reviews');
+    return await _api(categoryId ? `/api/reviews?category_id=${categoryId}` : '/api/reviews');
   } catch {
     return [];
   }
 }
 
-export async function addReview(review: { user_id: number; text: string; rating: number; images?: string[] }): Promise<Review | null> {
+export async function addReview(review: { user_id: number; text: string; rating: number; images?: string[]; category_id?: number | null }): Promise<Review | null> {
   try {
     return await _post('/api/reviews', review);
   } catch {
@@ -479,7 +479,9 @@ export interface PromoResult {
   code?: string;
   label?: string;
   leader_name?: string;
-  /** product id → price for promo-code holders */
+  /** ISO date the code stops working, null when it has no end date */
+  expires_at?: string | null;
+  /** product id (or "v" + variant id) → price for promo-code holders */
   prices?: Record<string, number>;
   error?: string;
 }
@@ -511,7 +513,7 @@ export interface StoreOrderPayload {
   comment?: string;
   contact_method: string;
   promo_code?: string | null;
-  items: { id: number; qty: number; variant_comment?: string }[];
+  items: { id: number; qty: number; variant_id?: number | null; variant_comment?: string }[];
 }
 
 export async function createStoreOrder(data: StoreOrderPayload): Promise<{ order?: Order; error?: string; promo_invalid?: boolean }> {

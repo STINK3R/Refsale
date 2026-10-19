@@ -185,14 +185,19 @@ def api_admin_save_settings():
 
 
 # ── CRUD: categories ───────────────────────────
+# Each category is a page of its own on the storefront: picture, slogan,
+# "как это работает" text and the two shops its prices are compared with.
+_CATEGORY_COLS = {'name', 'description', 'hero_image', 'slogan', 'intro',
+                  'compare_label_1', 'compare_label_2', 'sort_order'}
+
+
 @bp.route("/api/admin/categories", methods=["POST"])
 def api_add_category():
     d = request.json or {}
     try:
         with get_db() as cur:
-            cur.execute("INSERT INTO coop_categories (name, description) VALUES (%s, %s) RETURNING *",
-                        (d.get("name", ""), d.get("description", "")))
-            result = _row_to_dict(cur.fetchone())
+            row = safe_insert(cur, 'coop_categories', _CATEGORY_COLS, {"name": "", "description": "", **d})
+            result = _row_to_dict(row)
         return jsonify(result)
     except Exception as e:
         print(f"[app/routes/admin.py] {request.method} {request.path}: {e}")
@@ -202,10 +207,9 @@ def api_add_category():
 @bp.route("/api/admin/categories/<int:cid>", methods=["PATCH"])
 def api_update_category(cid):
     d = request.json or {}
-    _COLS = {'name', 'description'}
     try:
         with get_db() as cur:
-            row = safe_update(cur, 'coop_categories', _COLS, d, 'id', cid)
+            row = safe_update(cur, 'coop_categories', _CATEGORY_COLS, d, 'id', cid)
             result = _row_to_dict(row)
         return jsonify(result)
     except Exception as e:
@@ -268,7 +272,11 @@ def api_delete_subcategory(sid):
 _PRODUCT_COLS = {'name','price','description','category_id','subcategory_id','supplier_id',
                  'badge','image_url','is_available','product_type','box_size',
                  'counter_reset_at','requires_subscription','is_adult',
-                 'pack_quantity','pack_weight_kg','requires_variant','promo_price'}
+                 'pack_quantity','pack_weight_kg','requires_variant','promo_price',
+                 'compare_price_1','compare_price_2'}
+
+# Empty price fields mean "no such price", not zero.
+_OPTIONAL_PRICES = ('promo_price', 'compare_price_1', 'compare_price_2')
 
 
 def _ensure_products_requires_variant(cur):
@@ -286,9 +294,9 @@ def _ensure_products_requires_variant(cur):
 @bp.route("/api/admin/products", methods=["POST"])
 def api_add_product():
     d = request.json or {}
-    # An empty promo price field means "no promo price", not zero.
-    if 'promo_price' in d and d['promo_price'] in ('', 0, '0'):
-        d['promo_price'] = None
+    for k in _OPTIONAL_PRICES:
+        if k in d and d[k] in ('', 0, '0'):
+            d[k] = None
     try:
         with get_db() as cur:
             _ensure_products_requires_variant(cur)
@@ -303,9 +311,9 @@ def api_add_product():
 @bp.route("/api/admin/products/<int:pid>", methods=["PATCH"])
 def api_update_product(pid):
     d = request.json or {}
-    # An empty promo price field means "no promo price", not zero.
-    if 'promo_price' in d and d['promo_price'] in ('', 0, '0'):
-        d['promo_price'] = None
+    for k in _OPTIONAL_PRICES:
+        if k in d and d[k] in ('', 0, '0'):
+            d[k] = None
     try:
         with get_db() as cur:
             _ensure_products_requires_variant(cur)
@@ -878,6 +886,26 @@ def api_delete_review(rid):
         with get_db() as cur:
             cur.execute("DELETE FROM coop_reviews WHERE id = %s", (rid,))
         return jsonify({"ok": True})
+    except Exception as e:
+        print(f"[app/routes/admin.py] {request.method} {request.path}: {e}")
+        return jsonify({"error": "Ошибка сервера"}), 500
+
+
+@bp.route("/api/admin/reviews/<int:rid>", methods=["PATCH"])
+def api_update_review_category(rid):
+    """Which category page shows the review. Empty means none of them."""
+    raw = (request.json or {}).get("category_id")
+    try:
+        cid = int(raw) if raw not in (None, "", 0, "0") else None
+    except (TypeError, ValueError):
+        return jsonify({"error": "Некорректная категория"}), 400
+    try:
+        with get_db() as cur:
+            cur.execute("UPDATE coop_reviews SET category_id = %s WHERE id = %s RETURNING *", (cid, rid))
+            row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "Отзыв не найден"}), 404
+        return jsonify(_row_to_dict(row))
     except Exception as e:
         print(f"[app/routes/admin.py] {request.method} {request.path}: {e}")
         return jsonify({"error": "Ошибка сервера"}), 500

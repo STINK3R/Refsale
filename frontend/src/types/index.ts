@@ -2,7 +2,25 @@ export interface Category {
   id: number;
   name: string;
   description?: string;
+  /** The category is a page of its own: picture, slogan, "как это работает". */
+  hero_image?: string;
+  slogan?: string;
+  intro?: string;
+  /** The two shops this category's prices are compared with. */
+  compare_label_1?: string;
+  compare_label_2?: string;
   created_at?: string;
+}
+
+/** A volume / packaging option of one product, with prices of its own. */
+export interface ProductVariant {
+  id: number;
+  label: string;
+  price: number;
+  has_promo_price?: boolean;
+  compare_price_1?: number | null;
+  compare_price_2?: number | null;
+  is_available?: boolean;
 }
 
 export interface ProductImage {
@@ -31,6 +49,10 @@ export interface Product {
   requires_variant?: boolean;
   /** True when the admin set a lower price for promo-code holders. */
   has_promo_price?: boolean;
+  compare_price_1?: number | null;
+  compare_price_2?: number | null;
+  /** When present, the buyer picks one and its price applies. */
+  variants?: ProductVariant[];
   is_adult?: boolean;
   pack_quantity?: number | null;
   pack_weight_kg?: number | null;
@@ -95,6 +117,9 @@ export interface CartItem {
   subscription_id?: number | null;
   /** Buyer's note for "уточните вариант" products (volume, shade…). */
   variant_comment?: string;
+  /** Chosen volume / packaging; one product can sit in the cart once per variant. */
+  variant_id?: number | null;
+  variant_label?: string;
 }
 
 export type OrderStatus = 'new' | 'accepted' | 'processing' | 'shipping' | 'done' | 'cancelled';
@@ -132,6 +157,7 @@ export interface Review {
   user_name: string;
   text: string;
   rating: number;
+  category_id?: number | null;
   created_at: string;
   /** JSON array of /uploads/... urls as stored by the API. */
   images?: string | string[] | null;

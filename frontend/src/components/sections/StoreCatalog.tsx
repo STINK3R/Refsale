@@ -1,12 +1,16 @@
 import { useMemo, useRef, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, ChevronLeft, ChevronRight, MessageCircle, Plus, Check, Maximize2 } from 'lucide-react';
-import { useAppStore, useCartStore, useNotificationStore, usePromoStore, priceFor } from '../../store';
+import { Search, X, ChevronLeft, ChevronRight, MessageCircle, Plus, Check, Maximize2, Heart } from 'lucide-react';
+import {
+  useAppStore, useCartStore, useNotificationStore, usePromoStore, useFavoritesStore, useActiveCategory,
+  priceFor, promoKey, cartKey,
+} from '../../store';
 import { formatPrice } from '../../utils/format';
+import { priceInfo, availableVariants, type PriceInfo } from '../../utils/prices';
 import { askSeller } from '../../utils/askSeller';
 import Lightbox from '../ui/Lightbox';
 import useScrollLock from '../../hooks/useScrollLock';
-import type { Product } from '../../types';
+import type { Category, Product, ProductVariant } from '../../types';
 
 const PAGE = 12;
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -16,10 +20,10 @@ const BADGES: Record<string, string> = {
 };
 
 export default function StoreCatalog() {
-  const { products, categories, subcategories, loading } = useAppStore();
+  const { products, subcategories, loading } = useAppStore();
+  const category = useActiveCategory();
   const prices = usePromoStore((s) => s.prices);
   const promoCode = usePromoStore((s) => s.code);
-  const [category, setCategory] = useState<number | null>(null);
   const [subcategory, setSubcategory] = useState<number | null>(null);
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -27,6 +31,15 @@ export default function StoreCatalog() {
   const [shown, setShown] = useState(PAGE);
   const [selected, setSelected] = useState<Product | null>(null);
   const [variantFor, setVariantFor] = useState<Product | null>(null);
+  const categoryId = category?.id ?? null;
+
+  // A new category page starts from the top of its list.
+  const [seenCategory, setSeenCategory] = useState(categoryId);
+  if (seenCategory !== categoryId) {
+    setSeenCategory(categoryId);
+    setSubcategory(null);
+    setShown(PAGE);
+  }
 
   const onSearch = (v: string) => {
     setQuery(v);
@@ -34,25 +47,30 @@ export default function StoreCatalog() {
     timer.current = setTimeout(() => { setDebounced(v.trim().toLowerCase()); setShown(PAGE); }, 220);
   };
 
+  const inCategory = useMemo(
+    () => (categoryId ? products.filter((p) => p.category_id === categoryId) : products),
+    [products, categoryId],
+  );
   const subs = useMemo(
-    () => (category ? subcategories.filter((s) => s.category_id === category) : []),
-    [subcategories, category],
+    () => subcategories.filter((s) => s.category_id === categoryId && inCategory.some((p) => p.subcategory_id === s.id)),
+    [subcategories, categoryId, inCategory],
   );
 
   const filtered = useMemo(() => {
-    let list = products;
+    let list = inCategory;
     if (debounced) {
       list = list.filter((p) => p.name.toLowerCase().includes(debounced) || (p.description || '').toLowerCase().includes(debounced));
-    } else {
-      if (category) list = list.filter((p) => p.category_id === category);
-      if (subcategory) list = list.filter((p) => p.subcategory_id === subcategory);
+    } else if (subcategory) {
+      list = list.filter((p) => p.subcategory_id === subcategory);
     }
     return [...list].sort((a, b) => Number(b.is_available !== false) - Number(a.is_available !== false));
-  }, [products, category, subcategory, debounced]);
+  }, [inCategory, subcategory, debounced]);
 
   const visible = filtered.slice(0, shown);
-  const promoCount = useMemo(() => products.filter((p) => prices[String(p.id)] != null).length, [products, prices]);
-  const pickCategory = (id: number | null) => { setCategory(id); setSubcategory(null); setShown(PAGE); };
+  const promoCount = useMemo(
+    () => inCategory.filter((p) => prices[String(p.id)] != null || (p.variants || []).some((v) => prices[promoKey(p.id, v.id)] != null)).length,
+    [inCategory, prices],
+  );
 
   return (
     <section id="catalog" className="py-28 max-md:py-16">
@@ -60,14 +78,14 @@ export default function StoreCatalog() {
         <div className="flex items-end justify-between gap-10 pb-8 border-b border-line max-md:flex-col max-md:items-stretch max-md:gap-6">
           <div>
             <div className="label mb-5">Каталог</div>
-            <h2 className="font-display text-[clamp(38px,4.4vw,64px)] leading-[1.02] text-text">Парфюмерия и уход</h2>
+            <h2 className="font-display text-[clamp(38px,4.4vw,64px)] leading-[1.02] text-text">{category?.name || 'Каталог'}</h2>
           </div>
           <label className="relative w-[340px] max-md:w-full block">
             <Search size={16} strokeWidth={1.4} className="absolute left-0 top-1/2 -translate-y-1/2 text-muted" />
             <input
               value={query}
               onChange={(e) => onSearch(e.target.value)}
-              placeholder="Бренд, аромат или средство"
+              placeholder={category ? `Поиск: ${category.name.toLowerCase()}` : 'Поиск товаров'}
               className="field-line !pl-7"
               aria-label="Поиск товаров"
             />
@@ -75,14 +93,19 @@ export default function StoreCatalog() {
         </div>
 
         <div className="flex items-center justify-between gap-6 pt-6 max-md:flex-col max-md:items-start max-md:gap-4">
-          {!debounced && categories.length > 0 ? (
+          {!debounced && subs.length > 0 ? (
             <div className="flex gap-8 overflow-x-auto scrollbar-hide max-w-full">
-              <Tab active={category === null} onClick={() => pickCategory(null)} count={products.length}>Все</Tab>
-              {categories.map((c) => {
-                const n = products.filter((p) => p.category_id === c.id).length;
-                if (!n) return null;
-                return <Tab key={c.id} active={category === c.id} onClick={() => pickCategory(c.id)} count={n}>{c.name}</Tab>;
-              })}
+              <Tab active={subcategory === null} onClick={() => { setSubcategory(null); setShown(PAGE); }} count={inCategory.length}>Все</Tab>
+              {subs.map((s) => (
+                <Tab
+                  key={s.id}
+                  active={subcategory === s.id}
+                  onClick={() => { setSubcategory(s.id); setShown(PAGE); }}
+                  count={inCategory.filter((p) => p.subcategory_id === s.id).length}
+                >
+                  {s.name}
+                </Tab>
+              ))}
             </div>
           ) : <div className="text-[13px] text-muted">{debounced ? `Найдено: ${filtered.length}` : ''}</div>}
           <div className="text-[12px] text-muted shrink-0">
@@ -91,14 +114,6 @@ export default function StoreCatalog() {
               : 'Цены без промокода — с ним будет дешевле'}
           </div>
         </div>
-        {!debounced && subs.length > 0 && (
-          <div className="flex gap-6 overflow-x-auto scrollbar-hide pt-4">
-            <Tab small active={subcategory === null} onClick={() => { setSubcategory(null); setShown(PAGE); }}>Все</Tab>
-            {subs.map((s) => (
-              <Tab small key={s.id} active={subcategory === s.id} onClick={() => { setSubcategory(s.id); setShown(PAGE); }}>{s.name}</Tab>
-            ))}
-          </div>
-        )}
 
         <div className="mt-12">
           {loading ? (
@@ -135,6 +150,18 @@ export default function StoreCatalog() {
         </div>
       </div>
 
+      <ProductModals selected={selected} setSelected={setSelected} variantFor={variantFor} setVariantFor={setVariantFor} />
+    </section>
+  );
+}
+
+/** Product details and the "уточните вариант" prompt; shared with the favourites page. */
+export function ProductModals({ selected, setSelected, variantFor, setVariantFor }: {
+  selected: Product | null; setSelected: (p: Product | null) => void;
+  variantFor: Product | null; setVariantFor: (p: Product | null) => void;
+}) {
+  return (
+    <>
       <AnimatePresence>
         {selected && (
           <ProductModal
@@ -147,7 +174,7 @@ export default function StoreCatalog() {
       <AnimatePresence>
         {variantFor && <VariantModal product={variantFor} onClose={() => setVariantFor(null)} />}
       </AnimatePresence>
-    </section>
+    </>
   );
 }
 
@@ -158,11 +185,11 @@ function plural(n: number, one: string, few: string, many: string) {
   return many;
 }
 
-function Tab({ active, onClick, children, count, small }: { active: boolean; onClick: () => void; children: React.ReactNode; count?: number; small?: boolean }) {
+function Tab({ active, onClick, children, count }: { active: boolean; onClick: () => void; children: React.ReactNode; count?: number }) {
   return (
     <button
       onClick={onClick}
-      className={`relative shrink-0 pb-2 whitespace-nowrap cursor-pointer transition-colors ${small ? 'text-[12px]' : 'text-[13px] uppercase tracking-[0.12em]'} ${active ? 'text-text' : 'text-muted hover:text-text'}`}
+      className={`relative shrink-0 pb-2 whitespace-nowrap cursor-pointer transition-colors text-[13px] uppercase tracking-[0.12em] ${active ? 'text-text' : 'text-muted hover:text-text'}`}
     >
       {children}
       {count != null && <sup className="ml-1 text-[10px] text-light tracking-normal">{count}</sup>}
@@ -171,22 +198,23 @@ function Tab({ active, onClick, children, count, small }: { active: boolean; onC
   );
 }
 
+// ── Prices ──────────────────────────────────────────
+
 /** Base price, or было/стало once a promo code is active. */
-export function PriceTag({ product, size = 'md' }: { product: Product; size?: 'md' | 'lg' }) {
-  const prices = usePromoStore((s) => s.prices);
+export function PriceTag({ info, size = 'md' }: { info: PriceInfo; size?: 'md' | 'lg' }) {
   const code = usePromoStore((s) => s.code);
-  const base = Number(product.price) || 0;
-  const now = priceFor(product.id, base, prices);
+  const { base, now, hasPromo, from } = info;
   const discounted = now < base;
+  const pre = from ? 'от ' : '';
   if (size === 'lg') {
     return (
       <div>
         <div className="flex items-baseline gap-4 flex-wrap">
-          <span className="font-display text-[40px] leading-none text-text">{formatPrice(now)}</span>
+          <span className="font-display text-[40px] leading-none text-text">{pre}{formatPrice(now)}</span>
           {discounted && <span className="text-[16px] text-light line-through">{formatPrice(base)}</span>}
           {discounted && <span className="label !text-primary">−{Math.round((1 - now / base) * 100)}% по промокоду</span>}
         </div>
-        {!discounted && !code && product.has_promo_price && (
+        {!discounted && !code && hasPromo && (
           <div className="text-[13px] text-muted mt-3">С промокодом от блогера эта позиция дешевле</div>
         )}
       </div>
@@ -194,24 +222,76 @@ export function PriceTag({ product, size = 'md' }: { product: Product; size?: 'm
   }
   return (
     <div className="flex items-baseline gap-2.5 flex-wrap">
-      <span className="text-[15px] text-text tabular-nums">{formatPrice(now)}</span>
+      <span className="text-[15px] text-text tabular-nums">{pre}{formatPrice(now)}</span>
       {discounted && <span className="text-[13px] text-light line-through tabular-nums">{formatPrice(base)}</span>}
-      {!discounted && !code && product.has_promo_price && <span className="text-[11px] text-primary/90">дешевле с промокодом</span>}
+      {!discounted && !code && hasPromo && <span className="text-[11px] text-primary/90">дешевле с промокодом</span>}
     </div>
   );
 }
 
-function useAddToCart(product: Product, onNeedVariant: () => void) {
+/** "Золотое Яблоко 16 500 ₽ · Рандеву 17 200 ₽" — only the shops that have a price. */
+export function ComparePrices({ info, category, size = 'md' }: { info: PriceInfo; category?: Category; size?: 'md' | 'lg' }) {
+  const rows = [
+    { label: category?.compare_label_1 || 'Золотое Яблоко', price: info.compare1 },
+    { label: category?.compare_label_2 || 'Рандеву', price: info.compare2 },
+  ].filter((r) => r.price != null && Number(r.price) > 0);
+  if (!rows.length) return null;
+  if (size === 'lg') {
+    return (
+      <div className="mt-5 grid gap-1.5">
+        <div className="label !text-[10px]">В других магазинах</div>
+        {rows.map((r) => (
+          <div key={r.label} className="flex justify-between gap-4 text-[14px]">
+            <span className="text-muted">{r.label}</span>
+            <span className="text-light line-through tabular-nums">{formatPrice(Number(r.price))}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="mt-1.5 text-[11px] leading-snug text-light">
+      {rows.map((r, i) => (
+        <span key={r.label}>{i > 0 && ' · '}{r.label} <span className="line-through tabular-nums">{formatPrice(Number(r.price))}</span></span>
+      ))}
+    </div>
+  );
+}
+
+// ── Cart and favourites ─────────────────────────────
+
+function useAddToCart(product: Product, variant: ProductVariant | null, onNeedVariant: () => void, onNeedChoice?: () => void) {
   const { addItem, items, openSidebar } = useCartStore();
   const show = useNotificationStore((s) => s.show);
-  const inCart = items.some((i) => i.id === product.id);
+  const hasVariants = (product.variants || []).length > 0;
+  const inCart = hasVariants
+    ? !!variant && items.some((i) => cartKey(i) === cartKey({ id: product.id, variant_id: variant.id }))
+    : items.some((i) => i.id === product.id);
   const add = useCallback(() => {
     if (inCart) { openSidebar(); return; }
-    if (product.requires_variant || product.badge === 'custom') { onNeedVariant(); return; }
-    addItem(product);
-    show(`«${product.name}» в корзине`);
-  }, [inCart, product, addItem, openSidebar, show, onNeedVariant]);
+    if (hasVariants && !variant) { onNeedChoice?.(); return; }
+    if (!hasVariants && (product.requires_variant || product.badge === 'custom')) { onNeedVariant(); return; }
+    addItem(product, undefined, variant);
+    show(`«${product.name}${variant ? ` — ${variant.label}` : ''}» в корзине`);
+  }, [inCart, hasVariants, variant, product, addItem, openSidebar, show, onNeedVariant, onNeedChoice]);
   return { inCart, add };
+}
+
+export function FavoriteButton({ productId, className = '' }: { productId: number; className?: string }) {
+  const active = useFavoritesStore((s) => s.ids.includes(productId));
+  const toggle = useFavoritesStore((s) => s.toggle);
+  const show = useNotificationStore((s) => s.show);
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); show(toggle(productId) ? 'Добавлено в избранное' : 'Убрано из избранного'); }}
+      className={`cursor-pointer transition-colors ${active ? 'text-primary' : 'text-muted hover:text-text'} ${className}`}
+      aria-label={active ? 'Убрать из избранного' : 'В избранное'}
+      aria-pressed={active}
+      title={active ? 'Убрать из избранного' : 'В избранное'}
+    >
+      <Heart size={18} strokeWidth={1.5} fill={active ? 'currentColor' : 'none'} />
+    </button>
+  );
 }
 
 function Monogram({ big }: { big?: boolean }) {
@@ -222,15 +302,19 @@ function Monogram({ big }: { big?: boolean }) {
   );
 }
 
-const ProductCard = memo(function ProductCard({ product, index, onOpen, onNeedVariant }: {
+export const ProductCard = memo(function ProductCard({ product, index, onOpen, onNeedVariant }: {
   product: Product; index: number; onOpen: () => void; onNeedVariant: () => void;
 }) {
   const unavailable = product.is_available === false;
   const prices = usePromoStore((s) => s.prices);
-  const { inCart, add } = useAddToCart(product, onNeedVariant);
-  const base = Number(product.price) || 0;
-  const now = priceFor(product.id, base, prices);
-  const pct = now < base ? Math.round((1 - now / base) * 100) : 0;
+  const categories = useAppStore((s) => s.categories);
+  const category = categories.find((c) => c.id === product.category_id);
+  // Products with sizes are added from the details window, where the size is picked.
+  const { inCart, add } = useAddToCart(product, null, onNeedVariant, onOpen);
+  const info = priceInfo(product, null, prices);
+  const pct = info.now < info.base ? Math.round((1 - info.now / info.base) * 100) : 0;
+  const hasVariants = (product.variants || []).length > 0;
+  const addLabel = hasVariants ? 'Выбрать объём' : inCart ? 'В корзине — открыть' : 'Добавить в корзину';
 
   return (
     <motion.article
@@ -251,18 +335,21 @@ const ProductCard = memo(function ProductCard({ product, index, onOpen, onNeedVa
             />
           ) : <Monogram />}
         </button>
-        <div className="absolute top-4 left-4 right-4 flex justify-between pointer-events-none">
+        <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
           <span className="label !text-[10px] !text-text/80">
             {unavailable ? 'Нет в наличии' : product.badge && BADGES[product.badge] ? BADGES[product.badge] : ''}
           </span>
-          {pct > 0 && !unavailable && <span className="label !text-[10px] !text-primary">−{pct}%</span>}
+          <div className="flex items-center gap-3">
+            {pct > 0 && !unavailable && <span className="label !text-[10px] !text-primary">−{pct}%</span>}
+            <span className="pointer-events-auto"><FavoriteButton productId={product.id} /></span>
+          </div>
         </div>
         {!unavailable && (
           <button
             onClick={add}
             className="max-lg:hidden absolute inset-x-0 bottom-0 h-12 bg-ivory text-ink text-[11px] font-medium uppercase tracking-[0.16em] translate-y-full group-hover:translate-y-0 focus-visible:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer"
           >
-            {inCart ? 'В корзине — открыть' : 'Добавить в корзину'}
+            {addLabel}
           </button>
         )}
       </div>
@@ -272,7 +359,7 @@ const ProductCard = memo(function ProductCard({ product, index, onOpen, onNeedVa
           {product.name}
         </button>
         <div className="mt-2 flex items-center justify-between gap-3">
-          <PriceTag product={product} />
+          <PriceTag info={info} />
           <button
             onClick={() => askSeller(product.id)}
             className="max-lg:hidden shrink-0 text-muted hover:text-text transition-colors cursor-pointer"
@@ -282,13 +369,14 @@ const ProductCard = memo(function ProductCard({ product, index, onOpen, onNeedVa
             <MessageCircle size={16} strokeWidth={1.4} />
           </button>
         </div>
+        <ComparePrices info={info} category={category} />
         <div className="lg:hidden mt-3 flex gap-1.5">
           {!unavailable && (
             <button
               onClick={add}
               className={`flex-1 h-9 flex items-center justify-center gap-1.5 text-[10.5px] uppercase tracking-[0.12em] border cursor-pointer transition-colors ${inCart ? 'border-line text-text' : 'border-ivory bg-ivory text-ink'}`}
             >
-              {inCart ? <><Check size={13} strokeWidth={1.6} /> В корзине</> : <><Plus size={13} strokeWidth={1.6} /> В корзину</>}
+              {hasVariants ? 'Выбрать объём' : inCart ? <><Check size={13} strokeWidth={1.6} /> В корзине</> : <><Plus size={13} strokeWidth={1.6} /> В корзину</>}
             </button>
           )}
           <button
@@ -318,8 +406,22 @@ function Overlay({ onClose, children }: { onClose: () => void; children: React.R
 }
 
 function ProductModal({ product, onClose, onNeedVariant }: { product: Product; onClose: () => void; onNeedVariant: () => void }) {
-  const unavailable = product.is_available === false;
-  const { inCart, add } = useAddToCart(product, onNeedVariant);
+  const prices = usePromoStore((s) => s.prices);
+  const category = useAppStore((s) => s.categories.find((c) => c.id === product.category_id));
+  const show = useNotificationStore((s) => s.show);
+  const variants = product.variants || [];
+  // Preselect the cheapest variant in stock, so the price shown is one you can buy.
+  const [variantId, setVariantId] = useState<number | null>(() => {
+    if (!variants.length) return null;
+    const pick = availableVariants(product).reduce((a, b) =>
+      priceFor(promoKey(product.id, b.id), b.price, prices) < priceFor(promoKey(product.id, a.id), a.price, prices) ? b : a);
+    return pick.id;
+  });
+  const variant = variants.find((v) => v.id === variantId) || null;
+  const variantOut = variant?.is_available === false;
+  const unavailable = product.is_available === false || variantOut;
+  const { inCart, add } = useAddToCart(product, variant, onNeedVariant, () => show('Выберите объём или упаковку', 'error'));
+  const info = priceInfo(product, variant, prices);
   const images = useMemo(() => {
     const list = [...(product.images || [])].sort((a, b) => Number(!!b.is_main) - Number(!!a.is_main)).map((i) => i.url).filter(Boolean);
     if (!list.length && product.image_url) list.push(product.image_url);
@@ -358,13 +460,44 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
           {zoom && <Lightbox images={images} startIndex={idx} alt={product.name} onClose={() => setZoom(false)} />}
         </div>
         <div className="p-12 max-lg:p-8 max-sm:p-6 flex flex-col">
-          <div className="label">{product.badge && BADGES[product.badge] ? BADGES[product.badge] : 'Оригинал'}</div>
+          <div className="flex items-center gap-4">
+            <div className="label">{product.badge && BADGES[product.badge] ? BADGES[product.badge] : 'Оригинал'}</div>
+            <FavoriteButton productId={product.id} />
+          </div>
           <h3 className="font-display text-[38px] max-sm:text-[30px] leading-[1.08] text-text mt-4 pr-6">{product.name}</h3>
           {product.description && (
             <p className="mt-6 text-[15px] text-muted leading-[1.75] whitespace-pre-line">{product.description}</p>
           )}
+          {variants.length > 0 && (
+            <div className="mt-8">
+              <div className="label !text-[10px] mb-3">Объём и упаковка</div>
+              <div className="grid gap-2" role="radiogroup" aria-label="Объём и упаковка">
+                {variants.map((v) => {
+                  const vi = priceInfo(product, v, prices);
+                  const active = v.id === variantId;
+                  const out = v.is_available === false;
+                  return (
+                    <button
+                      key={v.id}
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setVariantId(v.id)}
+                      className={`flex items-center justify-between gap-4 px-4 py-3 border text-left cursor-pointer transition-colors ${active ? 'border-primary text-text' : 'border-line text-muted hover:text-text'} ${out ? 'opacity-50' : ''}`}
+                    >
+                      <span className="text-[14px]">{v.label}{out && ' · нет в наличии'}</span>
+                      <span className="flex items-baseline gap-2 tabular-nums">
+                        <span className="text-[14px] text-text">{formatPrice(vi.now)}</span>
+                        {vi.now < vi.base && <span className="text-[12px] text-light line-through">{formatPrice(vi.base)}</span>}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div className="hairline my-8" />
-          <PriceTag product={product} size="lg" />
+          <PriceTag info={info} size="lg" />
+          <ComparePrices info={info} category={category} size="lg" />
           <div className="mt-8 flex flex-col gap-3">
             <button onClick={add} disabled={unavailable} className="btn-primary w-full">
               {unavailable ? 'Нет в наличии' : inCart ? 'В корзине — оформить' : 'Добавить в корзину'}
