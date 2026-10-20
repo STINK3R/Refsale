@@ -5,7 +5,7 @@ export default function Footer() {
   const contacts = useContacts();
   const year = new Date().getFullYear();
   return (
-    <footer className="border-t-2 border-ink bg-sun">
+    <footer className="border-t-2 border-ink bg-accent">
       <div className="max-w-[1440px] mx-auto px-8 max-sm:px-5 pt-20 pb-28 max-md:pt-14">
         <div className="grid grid-cols-12 gap-x-8 gap-y-12">
           <div className="col-span-4 max-lg:col-span-12">

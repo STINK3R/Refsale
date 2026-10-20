@@ -185,7 +185,7 @@ def store_catalog():
         with get_db() as cur:
             cur.execute("""
                 SELECT id, name, description, hero_image, slogan, intro,
-                       compare_label_1, compare_label_2, accent_color
+                       compare_label_1, compare_label_2, accent_color, accent_strong
                 FROM coop_categories ORDER BY sort_order ASC, created_at ASC
             """)
             cats = _rows_to_list(cur.fetchall())

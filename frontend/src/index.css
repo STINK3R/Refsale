@@ -18,6 +18,7 @@
      tab and product tiles take it on. */
   --color-accent: #FFE45C;
   --color-accent-deep: #F5C800;
+  --color-accent-strong: #FAD52C;
   --color-muted: #5C5647;
   --color-light: #8E8774;
   --color-border: #EFE2B6;
@@ -38,7 +39,13 @@
    instead of snapping (useCategoryAccent sets them on <html>). */
 @property --color-accent { syntax: '<color>'; inherits: true; initial-value: #FFE45C; }
 @property --color-accent-deep { syntax: '<color>'; inherits: true; initial-value: #F5C800; }
-html { transition: --color-accent 0.6s ease, --color-accent-deep 0.6s ease; }
+@property --color-accent-strong { syntax: '<color>'; inherits: true; initial-value: #FAD52C; }
+html { transition: --color-accent 0.6s ease, --color-accent-deep 0.6s ease, --color-accent-strong 0.6s ease; }
+
+/* The page itself takes a light wash of the category colour: cream for
+   perfume, a hint of green for food, of blue for China. Everything painted
+   with bg-bg (sections, windows, drawers) follows. */
+:root { --color-bg: color-mix(in srgb, var(--color-accent) 16%, #FFFCF2); }
 
 * {
   -webkit-font-smoothing: antialiased;
@@ -170,7 +177,7 @@ body {
     background: radial-gradient(ellipse at 58% 38%, #FFFFFF 0%, var(--color-accent) 58%, var(--color-accent-deep) 100%);
   }
   .bar-blur {
-    background: rgba(255, 251, 235, 0.88);
+    background: color-mix(in srgb, var(--color-bg) 88%, transparent);
     -webkit-backdrop-filter: blur(14px) saturate(120%);
     backdrop-filter: blur(14px) saturate(120%);
   }

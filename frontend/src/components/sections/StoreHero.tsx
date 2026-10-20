@@ -8,7 +8,7 @@ import { useUiStore } from '../../store/ui';
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 const FACTS = [
-  { n: '01', title: 'Только оригинал', text: 'Каждая позиция — от проверенных поставщиков. Без распива и реплик.', tone: 'bg-sun' },
+  { n: '01', title: 'Только оригинал', text: 'Каждая позиция — от проверенных поставщиков. Без распива и реплик.', tone: 'bg-accent-strong' },
   { n: '02', title: 'Дешевле сетей', text: 'Даже без промокода цены ниже, чем в крупных магазинах.', tone: 'bg-card' },
   { n: '03', title: 'Промокод — ещё ниже', text: 'Слово от вашего блогера снижает цену на весь каталог сразу.', tone: 'bg-primary text-white' },
 ];
@@ -148,7 +148,7 @@ export default function StoreHero() {
                 transition={{ duration: 0.5, ease: EASE }}
                 className="text-center font-display text-[length:inherit] leading-[1.02] text-ink"
               >
-                {slogan || <>Любимые ароматы <mark className="bg-sun px-2 rounded-xl text-ink">дешевле</mark>, чем в&nbsp;соцсетях</>}
+                {slogan || <>Любимые ароматы <mark className="bg-accent-strong px-2 rounded-xl text-ink">дешевле</mark>, чем в&nbsp;соцсетях</>}
               </motion.h1>
             )}
           </AnimatePresence>

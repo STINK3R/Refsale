@@ -11,6 +11,8 @@ export interface Category {
   compare_label_2?: string;
   /** The page's accent colour, e.g. #DDF2B2 for food. */
   accent_color?: string;
+  /** Optional bold version for bars and highlights; derived when empty. */
+  accent_strong?: string;
   created_at?: string;
 }
 

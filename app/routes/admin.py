@@ -127,7 +127,7 @@ def api_admin_save_settings():
 # Each category is a page of its own on the storefront: picture, slogan,
 # "как это работает" text and the two shops its prices are compared with.
 _CATEGORY_COLS = {'name', 'description', 'hero_image', 'slogan', 'intro',
-                  'compare_label_1', 'compare_label_2', 'sort_order', 'accent_color'}
+                  'compare_label_1', 'compare_label_2', 'sort_order', 'accent_color', 'accent_strong'}
 
 
 @bp.route("/api/admin/categories", methods=["POST"])
@@ -146,9 +146,10 @@ def api_add_category():
 @bp.route("/api/admin/categories/<int:cid>", methods=["PATCH"])
 def api_update_category(cid):
     d = request.json or {}
-    accent = d.get("accent_color")
-    if accent not in (None, "") and not re.fullmatch(r"#[0-9a-fA-F]{6}", str(accent)):
-        return jsonify({"error": "Цвет — в формате #RRGGBB"}), 400
+    for key in ("accent_color", "accent_strong"):
+        value = d.get(key)
+        if value not in (None, "") and not re.fullmatch(r"#[0-9a-fA-F]{6}", str(value)):
+            return jsonify({"error": "Цвет — в формате #RRGGBB"}), 400
     try:
         with get_db() as cur:
             row = safe_update(cur, 'coop_categories', _CATEGORY_COLS, d, 'id', cid)

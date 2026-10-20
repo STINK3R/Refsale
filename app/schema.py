@@ -67,6 +67,9 @@ _COLUMNS = [
     ("coop_categories", "compare_label_2", "VARCHAR(100) DEFAULT 'Рандеву'"),
     ("coop_categories", "sort_order", "INTEGER DEFAULT 0"),
     ("coop_categories", "accent_color", "VARCHAR(20) DEFAULT ''"),
+    # Optional bold version of it (contact bar, active tab, highlights);
+    # empty means the site derives it from accent_color.
+    ("coop_categories", "accent_strong", "VARCHAR(20) DEFAULT ''"),
     ("coop_reviews", "category_id", "INTEGER DEFAULT NULL"),
     # Photo attachments: a JSON array of /uploads/... urls
     ("coop_reviews", "images", "TEXT DEFAULT '[]'"),

@@ -745,6 +745,13 @@
                     </div>
                 </div>
             </div>
+            <div class="form-group">
+                <label>Насыщенный цвет — полоса с контактами, активная вкладка, выделения</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <input type="color" id="editCStrong" style="width:52px;height:40px;padding:2px;cursor:pointer" oninput="document.getElementById('editCStrongAuto').checked=false">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editCStrongAuto"> Подобрать автоматически по цвету страницы</label>
+                </div>
+            </div>
         </div>
         <div style="display:flex;gap:10px;margin-top:4px">
             <button class="btn btn-primary" onclick="saveCategoryEdit()"><i class="fas fa-save"></i> Сохранить</button>
@@ -1522,6 +1529,9 @@ function openEditCategory(id){
     document.getElementById('editCCmp2').value=c.compare_label_2||'';
     document.getElementById('editCSort').value=c.sort_order??0;
     document.getElementById('editCAccent').value=/^#[0-9a-fA-F]{6}$/.test(c.accent_color||'')?c.accent_color:'#FFE45C';
+    const strongOk=/^#[0-9a-fA-F]{6}$/.test(c.accent_strong||'');
+    document.getElementById('editCStrong').value=strongOk?c.accent_strong:'#FAD52C';
+    document.getElementById('editCStrongAuto').checked=!strongOk;
     setCategoryHero(c.hero_image||'');
     resetFileInput('editCHeroFile','editCHeroFileWrap');
     openModal('editCategoryModal');
@@ -1560,7 +1570,8 @@ async function saveCategoryEdit(){
             compare_label_1:document.getElementById('editCCmp1').value.trim()||'Золотое Яблоко',
             compare_label_2:document.getElementById('editCCmp2').value.trim()||'Рандеву',
             sort_order:parseInt(document.getElementById('editCSort').value)||0,
-            accent_color:document.getElementById('editCAccent').value
+            accent_color:document.getElementById('editCAccent').value,
+            accent_strong:document.getElementById('editCStrongAuto').checked?'':document.getElementById('editCStrong').value
         };
         const result=await updateCategory(id,updates);
         if(result){

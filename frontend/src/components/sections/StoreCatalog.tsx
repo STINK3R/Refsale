@@ -80,7 +80,10 @@ export default function StoreCatalog() {
         <div className="flex items-end justify-between gap-10 pb-6 max-md:flex-col max-md:items-stretch max-md:gap-5">
           <div>
             <div className="label mb-5">Каталог</div>
-            <h2 className="font-display text-[clamp(34px,4.4vw,60px)] leading-[1.02] text-ink">{category?.name || 'Каталог'}</h2>
+            {/* A highlighter stroke in the category's strong colour */}
+            <h2 className="font-display text-[clamp(34px,4.4vw,60px)] leading-[1.02] text-ink">
+              <span className="px-1 -mx-1 bg-[linear-gradient(transparent_58%,var(--color-accent-strong)_58%,var(--color-accent-strong)_92%,transparent_92%)]">{category?.name || 'Каталог'}</span>
+            </h2>
           </div>
           <label className="relative w-[340px] max-md:w-full block">
             <Search size={18} strokeWidth={2.2} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink" />
@@ -490,7 +493,7 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
                           role="radio"
                           aria-checked={active}
                           onClick={() => setVariantId(v.id)}
-                          className={`flex flex-col items-start gap-1 px-3.5 py-2.5 rounded-2xl border-2 text-left cursor-pointer transition-colors ${active ? 'border-ink bg-sun text-ink' : 'border-line bg-card text-muted hover:border-ink hover:text-ink'} ${out ? 'opacity-50' : ''}`}
+                          className={`flex flex-col items-start gap-1 px-3.5 py-2.5 rounded-2xl border-2 text-left cursor-pointer transition-colors ${active ? 'border-ink bg-accent-strong text-ink' : 'border-line bg-card text-muted hover:border-ink hover:text-ink'} ${out ? 'opacity-50' : ''}`}
                         >
                           <span className="text-[12.5px] font-semibold leading-snug">{v.label}{out && ' · нет'}</span>
                           <span className="flex items-baseline gap-1.5 tabular-nums">
