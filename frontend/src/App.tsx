@@ -1,5 +1,5 @@
 import { useEffect, lazy, Suspense } from 'react';
-import { Routes, Route, useLocation, useSearchParams } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore, useAuthStore, useNotificationStore, usePromoStore } from './store';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
@@ -13,7 +13,7 @@ import SupportChatModal from './components/support/SupportChatModal';
 import MascotLayer from './components/mascot/MascotLayer';
 import PromoDock from './components/promo/PromoDock';
 import useCategoryAccent from './hooks/useCategoryAccent';
-import { scrollPageToTop } from './hooks/useScrollLock';
+import { scrollPageToTop, glidePageToTop, glideToElement, isScrollLocked } from './hooks/useScrollLock';
 
 const AuthModal = lazy(() => import('./components/auth/AuthModal'));
 const ForgotPassword = lazy(() => import('./components/auth/ForgotPassword'));
@@ -52,6 +52,42 @@ function useReferralLink() {
   }, []);
 }
 
+/**
+ * Links move the page smoothly: one to another page glides up first and opens
+ * the page once at the top (the way a category switch does), one to a section
+ * ("/#catalog") glides to it. Runs in the capture phase, before the router's
+ * own handler, which leaves alone a click whose default is already prevented.
+ */
+function useGlidingLinks() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+      const url = new URL(a.href, window.location.href);
+      // Other sites, files and the admin page are left to the browser
+      if (url.origin !== window.location.origin || /\.[a-z0-9]+$/i.test(url.pathname)) return;
+      const samePage = url.pathname === window.location.pathname;
+      if (samePage && url.hash) {
+        if (!document.querySelector(url.hash)) return;
+        e.preventDefault();
+        glideToElement(url.hash);
+        return;
+      }
+      if (isScrollLocked() || window.scrollY < 4) return;
+      e.preventDefault();
+      glidePageToTop(() => {
+        if (samePage) return;
+        navigate(url.pathname + url.search);
+        if (url.hash) setTimeout(() => glideToElement(url.hash), 250);
+      });
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [navigate]);
+}
+
 function App() {
   const loadData = useAppStore((s) => s.loadData);
   const refreshUser = useAuthStore((s) => s.refreshUser);
@@ -67,6 +103,7 @@ function App() {
   }, [loadData, refreshUser, revalidatePromo]);
 
   useEffect(() => { scrollPageToTop(); }, [pathname]);
+  useGlidingLinks();
 
   return (
     <>

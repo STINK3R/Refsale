@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, ChevronLeft, ChevronRight, MessageCircle, Plus, Check, Maximize2, Heart } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, MessageCircle, Plus, Minus, Trash2, Check, Maximize2, Heart } from 'lucide-react';
 import {
   useAppStore, useCartStore, useNotificationStore, usePromoStore, useFavoritesStore, useActiveCategory,
   priceFor, promoKey, cartKey,
@@ -12,7 +12,7 @@ import Lightbox from '../ui/Lightbox';
 import Meerkat from '../mascot/Meerkat';
 
 import useScrollLock from '../../hooks/useScrollLock';
-import type { Category, Product, ProductVariant } from '../../types';
+import type { CartItem, Category, Product, ProductVariant } from '../../types';
 
 const PAGE = 12;
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -276,9 +276,8 @@ function useAddToCart(product: Product, variant: ProductVariant | null, onNeedVa
   const { addItem, items, openSidebar } = useCartStore();
   const show = useNotificationStore((s) => s.show);
   const hasVariants = (product.variants || []).length > 0;
-  const inCart = hasVariants
-    ? !!variant && items.some((i) => cartKey(i) === cartKey({ id: product.id, variant_id: variant.id }))
-    : items.some((i) => i.id === product.id);
+  const line = items.find((i) => cartKey(i) === cartKey({ id: product.id, variant_id: variant?.id ?? null }));
+  const inCart = hasVariants ? !!variant && !!line : items.some((i) => i.id === product.id);
   const add = useCallback(() => {
     if (inCart) { openSidebar(); return; }
     if (hasVariants && !variant) { onNeedChoice?.(); return; }
@@ -286,7 +285,48 @@ function useAddToCart(product: Product, variant: ProductVariant | null, onNeedVa
     addItem(product, undefined, variant);
     show(`«${product.name}${variant ? ` — ${variant.label}` : ''}» в корзине`);
   }, [inCart, hasVariants, variant, product, addItem, openSidebar, show, onNeedVariant, onNeedChoice]);
-  return { inCart, add };
+  return { inCart, add, line };
+}
+
+/**
+ * A line already in the cart, right on the card: minus takes one off (a bin
+ * at the last one takes the line out), the middle opens the cart, plus adds.
+ */
+function CartStepper({ line, size = 'sm', className = '' }: { line: CartItem; size?: 'sm' | 'lg'; className?: string }) {
+  const changeQty = useCartStore((s) => s.changeQty);
+  const openSidebar = useCartStore((s) => s.openSidebar);
+  const show = useNotificationStore((s) => s.show);
+  const key = cartKey(line);
+  const last = line.qty <= 1;
+  const lg = size === 'lg';
+  const icon = lg ? 17 : 14;
+  const side = `${lg ? 'w-[42px]' : 'w-8'} h-full shrink-0 rounded-full flex items-center justify-center text-ink hover:bg-sun transition-colors cursor-pointer disabled:opacity-35 disabled:pointer-events-none`;
+  const name = `«${line.name}${line.variant_label ? ` — ${line.variant_label}` : ''}»`;
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.25, ease: EASE }}
+      className={`${lg ? 'h-[50px]' : 'h-10'} rounded-full border-2 border-ink bg-card flex items-center p-[3px] ${className}`}
+    >
+      <button
+        onClick={() => { changeQty(key, -1); if (last) show(`${name} убран из корзины`); }}
+        className={side}
+        aria-label={last ? 'Убрать из корзины' : 'На одну меньше'}
+        title={last ? 'Убрать из корзины' : 'На одну меньше'}
+      >
+        {last ? <Trash2 size={icon} strokeWidth={2.2} /> : <Minus size={icon} strokeWidth={2.4} />}
+      </button>
+      <button
+        onClick={openSidebar}
+        className={`flex-1 min-w-0 h-full px-1 rounded-full font-bold tabular-nums whitespace-nowrap text-ink hover:text-primary transition-colors cursor-pointer ${lg ? 'text-[14px]' : 'text-[12.5px] max-sm:text-[12px]'}`}
+        title="Открыть корзину"
+      >
+        {lg ? `В корзине · ${line.qty}` : <><span className="max-sm:hidden">В корзине · </span>{line.qty}<span className="sm:hidden"> шт</span></>}
+      </button>
+      <button onClick={() => changeQty(key, 1)} disabled={line.qty >= 99} className={side} aria-label="Ещё одну" title="Ещё одну">
+        <Plus size={icon} strokeWidth={2.4} />
+      </button>
+    </motion.div>
+  );
 }
 
 export function FavoriteButton({ productId, className = '' }: { productId: number; className?: string }) {
@@ -322,7 +362,7 @@ export const ProductCard = memo(function ProductCard({ product, index, onOpen, o
   const categories = useAppStore((s) => s.categories);
   const category = categories.find((c) => c.id === product.category_id);
   // Products with sizes are added from the details window, where the size is picked.
-  const { inCart, add } = useAddToCart(product, null, onNeedVariant, onOpen);
+  const { inCart, add, line } = useAddToCart(product, null, onNeedVariant, onOpen);
   const info = priceInfo(product, null, prices);
   const pct = info.now < info.base ? Math.round((1 - info.now / info.base) * 100) : 0;
   const hasVariants = (product.variants || []).length > 0;
@@ -368,7 +408,9 @@ export const ProductCard = memo(function ProductCard({ product, index, onOpen, o
         </div>
         <ComparePrices info={info} category={category} />
         <div className="mt-auto pt-3 flex gap-1.5">
-          {!unavailable && (
+          {!unavailable && !hasVariants && line ? (
+            <CartStepper line={line} className="flex-1 min-w-0" />
+          ) : !unavailable && (
             <button
               onClick={add}
               className={`flex-1 h-10 rounded-full border-2 border-ink flex items-center justify-center gap-1 text-[12.5px] max-sm:text-[12px] font-bold whitespace-nowrap cursor-pointer transition-colors ${inCart ? 'bg-card text-ink' : 'bg-sun text-ink hover:bg-ink hover:text-sun'}`}
@@ -417,7 +459,7 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
   const variant = variants.find((v) => v.id === variantId) || null;
   const variantOut = variant?.is_available === false;
   const unavailable = product.is_available === false || variantOut;
-  const { inCart, add } = useAddToCart(product, variant, onNeedVariant, () => show('Выберите объём или упаковку', 'error'));
+  const { inCart, add, line } = useAddToCart(product, variant, onNeedVariant, () => show('Выберите объём или упаковку', 'error'));
   const info = priceInfo(product, variant, prices);
   const images = useMemo(() => {
     const list = [...(product.images || [])].sort((a, b) => Number(!!b.is_main) - Number(!!a.is_main)).map((i) => i.url).filter(Boolean);
@@ -527,9 +569,13 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
               )}
             </div>
             <div className="flex gap-2 shrink-0 max-sm:w-full">
-              <button onClick={add} disabled={unavailable} className="btn-primary max-sm:flex-1 !px-6">
-                {unavailable ? 'Нет в наличии' : inCart ? 'В корзине' : 'В корзину'}
-              </button>
+              {line && !unavailable ? (
+                <CartStepper line={line} size="lg" className="w-[220px] max-sm:w-auto max-sm:flex-1" />
+              ) : (
+                <button onClick={add} disabled={unavailable} className="btn-primary max-sm:flex-1 !px-6">
+                  {unavailable ? 'Нет в наличии' : inCart ? 'В корзине' : 'В корзину'}
+                </button>
+              )}
               <button
                 onClick={() => { onClose(); askSeller(product.id); }}
                 className="w-[50px] h-[50px] shrink-0 rounded-full bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun-soft cursor-pointer"

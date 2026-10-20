@@ -6,7 +6,7 @@ import { useAppStore, useAuthStore, useCartStore, useFavoritesStore, useNotifica
 import { useSupportStore } from '../../store/support';
 import { fetchOrderChatsUnread } from '../../api/client';
 import { useContacts, ContactBlock, ContactLinks, telHref } from '../ui/Contacts';
-import useScrollLock, { glidePageToTop } from '../../hooks/useScrollLock';
+import useScrollLock, { glidePageToTop, glideToElement } from '../../hooks/useScrollLock';
 import Meerkat from '../mascot/Meerkat';
 
 
@@ -60,7 +60,7 @@ export default function Header() {
 
   const goToSection = useCallback((hash: string) => {
     setMenuOpen(false);
-    const scroll = () => document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' });
+    const scroll = () => glideToElement(hash);
     // Wait for the menu to let go of the page: while it is open the body is
     // pinned, and closing it restores the old offset over our scroll.
     if (location.pathname === '/') setTimeout(scroll, 80);

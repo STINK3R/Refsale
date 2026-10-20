@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X, Minus, Plus } from 'lucide-react';
 import { useCartStore, useAuthStore, usePromoStore, priceFor, promoKey, cartKey, runAfterAuth } from '../../store';
 import { formatPrice } from '../../utils/format';
-import useScrollLock from '../../hooks/useScrollLock';
+import useScrollLock, { glideToElement } from '../../hooks/useScrollLock';
 import PromoForm from '../promo/PromoForm';
 import Meerkat from '../mascot/Meerkat';
 
@@ -54,7 +54,7 @@ export default function CartSidebar() {
                   <Meerkat pose="cart" width={150} decorative className="mb-6" />
                   <div className="font-display text-[30px] text-text">Корзина пуста</div>
                   <p className="text-[14px] text-muted mt-3 mb-8 max-w-[260px]">Выберите аромат или средство ухода в каталоге</p>
-                  <button onClick={() => { closeSidebar(); document.querySelector('#catalog')?.scrollIntoView({ behavior: 'smooth' }); }} className="btn-outline">
+                  <button onClick={() => { closeSidebar(); setTimeout(() => glideToElement('#catalog'), 80); }} className="btn-outline">
                     Перейти в каталог
                   </button>
                 </div>

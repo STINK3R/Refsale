@@ -263,12 +263,13 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
 /* Anchors stop just under the fixed header, whatever its height. */
 [id] { scroll-margin-top: calc(var(--header-h, 110px) + 12px); }
 
+/* Keyframe animations stop for visitors who ask for less motion. Transitions
+   stay: colour fades and hovers are short, and Windows with "Animation
+   effects" off reports this setting too — the site would look broken there. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
 }
 
