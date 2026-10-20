@@ -60,22 +60,23 @@ export default function AuthModal() {
 
   return (
     <Modal open={authModalOpen} onClose={closeAuth}>
-      <div className="flex gap-8 border-b border-line mb-8 pr-8">
+      <div className="inline-flex p-1 mb-7 mr-12 rounded-full bg-surface border-2 border-line" role="tablist">
         {(['register', 'login'] as const).map((t) => (
           <button
             key={t}
+            role="tab"
+            aria-selected={authTab === t}
             onClick={() => switchTab(t)}
-            className={`relative pb-3 text-[12px] uppercase tracking-[0.14em] cursor-pointer transition-colors ${authTab === t ? 'text-text' : 'text-muted hover:text-text'}`}
+            className={`h-9 px-5 rounded-full text-[13px] font-bold cursor-pointer transition-colors ${authTab === t ? 'bg-sun text-ink border-2 border-ink' : 'text-muted hover:text-ink border-2 border-transparent'}`}
           >
             {t === 'register' ? 'Регистрация' : 'Вход'}
-            {authTab === t && <span className="absolute left-0 right-0 -bottom-px h-px bg-text" />}
           </button>
         ))}
       </div>
 
-      <h2 className="font-display text-[32px] leading-tight text-text">{isReg ? 'Создать аккаунт' : 'С возвращением'}</h2>
-      <p className={`mt-3 text-[14px] leading-relaxed ${authReason ? 'text-primary-light' : 'text-muted'}`}>
-        {authReason || (isReg ? 'Аккаунт активируется сразу — без ожидания одобрения.' : 'Email и пароль, указанные при регистрации.')}
+      <h2 className="font-display text-[26px] leading-tight text-ink">{isReg ? 'Регистрация за полминуты' : 'С возвращением!'}</h2>
+      <p className={`mt-3 text-[14px] leading-relaxed ${authReason ? 'text-primary font-semibold' : 'text-muted'}`}>
+        {authReason || (isReg ? 'Имя, почта и пароль — и всё готово. Заказы, чат с менеджером и избранное будут в одном месте.' : 'Почта и пароль, которые вы указали при регистрации.')}
       </p>
 
       <form className="mt-8 space-y-4" onSubmit={(e) => { e.preventDefault(); void (isReg ? register() : login()); }}>
@@ -108,7 +109,7 @@ export default function AuthModal() {
         {!isReg ? (
           <button onClick={openForgotPassword} className="text-muted hover:text-text cursor-pointer">Забыли пароль?</button>
         ) : <span />}
-        <button onClick={() => switchTab(isReg ? 'login' : 'register')} className="text-text underline underline-offset-4 decoration-line hover:decoration-text cursor-pointer">
+        <button onClick={() => switchTab(isReg ? 'login' : 'register')} className="text-ink font-semibold underline underline-offset-4 decoration-2 decoration-sun hover:decoration-ink cursor-pointer">
           {isReg ? 'Уже есть аккаунт' : 'Создать аккаунт'}
         </button>
       </div>

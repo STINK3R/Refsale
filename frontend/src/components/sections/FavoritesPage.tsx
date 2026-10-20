@@ -27,7 +27,7 @@ export default function FavoritesPage() {
   }, [products, categories, ids]);
 
   return (
-    <main className="pt-[120px] max-lg:pt-24 pb-28 max-md:pb-16 min-h-screen">
+    <main className="pt-[calc(var(--header-h,104px)+28px)] pb-28 max-md:pb-16 min-h-screen">
       <div className="max-w-[1440px] mx-auto px-8 max-sm:px-5">
         <div className="label mb-5">Избранное</div>
         <h1 className="font-display text-[clamp(38px,4.4vw,64px)] leading-[1.02] text-text">Сохранённые товары</h1>

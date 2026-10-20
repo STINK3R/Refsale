@@ -48,6 +48,20 @@ export function unlockScroll(): void {
   if (lockCount === 0) releaseLock();
 }
 
+/**
+ * Sends the page to the top — also when an overlay holds the scroll right now.
+ * Navigating from the side menu used to land at the bottom of the new page:
+ * the menu closed after the route change and restored the old offset.
+ */
+export function scrollPageToTop(): void {
+  if (lockCount > 0) {
+    savedScrollY = 0;
+    document.body.style.top = '0px';
+    return;
+  }
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+}
+
 /** Locks page scrolling while `active` is true. */
 export default function useScrollLock(active: boolean): void {
   useEffect(() => {

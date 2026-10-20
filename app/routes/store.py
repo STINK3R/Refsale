@@ -38,6 +38,7 @@ STATUS_LABELS = {
 }
 CONTACT_METHODS = ('phone', 'telegram', 'whatsapp', 'max', 'email')
 MAX_QTY = 99
+MAX_PRICE = 100_000_000  # well inside NUMERIC(12,2)
 
 
 # ══════════════════════════════════════════════════
@@ -975,6 +976,8 @@ def admin_save_product_variants(pid):
                 return jsonify({"error": f"Вариант {i + 1}: укажите название, например «50 мл, тестер»"}), 400
             if price is None or price <= 0:
                 return jsonify({"error": f"«{label}»: цена должна быть больше нуля"}), 400
+            if price > MAX_PRICE:
+                return jsonify({"error": f"«{label}»: слишком большая цена"}), 400
             row = {
                 "id": int(v["id"]) if v.get("id") else None,
                 "label": label,
@@ -986,7 +989,7 @@ def admin_save_product_variants(pid):
                 "sort_order": i,
             }
             for f in ("promo_price", "compare_price_1", "compare_price_2"):
-                if row[f] is not None and row[f] <= 0:
+                if row[f] is not None and (row[f] <= 0 or row[f] > MAX_PRICE):
                     row[f] = None
             clean.append(row)
     except (TypeError, ValueError):

@@ -16,8 +16,10 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 export default function PromoDock() {
   const heroVisible = useUiStore((s) => s.heroPromoVisible);
   const code = usePromoStore((s) => s.code);
-  const [open, setOpen] = useState(false);
-  const shown = !heroVisible || open;
+  const [wantOpen, setOpen] = useState(false);
+  // Back at the top the big plate is on screen again, so the dock folds away.
+  const shown = !heroVisible;
+  const open = wantOpen && shown;
 
   return (
     <AnimatePresence>

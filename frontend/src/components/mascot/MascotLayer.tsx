@@ -149,9 +149,11 @@ function MascotMoments() {
           transition={{ type: 'spring', stiffness: 260, damping: 22 }}
           className="fixed z-[4500] bottom-0 inset-x-0 flex justify-center pointer-events-none"
         >
-          <div className="flex items-end gap-2">
-            <Meerkat pose={moment.pose} width={110} decorative eager className="max-sm:w-[86px]" />
-            <div className="mb-16 max-sm:mb-12 px-4 py-2.5 rounded-2xl rounded-bl-sm bg-sun border-2 border-ink shadow-[0_4px_0_#111] text-[14px] max-sm:text-[13px] font-bold max-w-[220px]">
+          {/* On wider screens the meerkat itself sits on the centre line and the
+              bubble hangs off to its right; on a phone they share the row. */}
+          <div className="flex items-end gap-2 sm:block sm:relative">
+            <Meerkat pose={moment.pose} width={120} decorative eager className="max-sm:w-[86px]" />
+            <div className="mb-16 max-sm:mb-12 sm:absolute sm:left-full sm:bottom-16 sm:mb-0 sm:ml-2 sm:w-max px-4 py-2.5 rounded-2xl rounded-bl-sm bg-sun border-2 border-ink shadow-[0_4px_0_#111] text-[14px] max-sm:text-[13px] font-bold max-w-[220px]">
               {moment.text}
             </div>
           </div>

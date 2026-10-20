@@ -13,6 +13,7 @@ import SupportChatModal from './components/support/SupportChatModal';
 import MascotLayer from './components/mascot/MascotLayer';
 import PromoDock from './components/promo/PromoDock';
 import useCategoryAccent from './hooks/useCategoryAccent';
+import { scrollPageToTop } from './hooks/useScrollLock';
 
 const AuthModal = lazy(() => import('./components/auth/AuthModal'));
 const ForgotPassword = lazy(() => import('./components/auth/ForgotPassword'));
@@ -65,7 +66,7 @@ function App() {
     void revalidatePromo();
   }, [loadData, refreshUser, revalidatePromo]);
 
-  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  useEffect(() => { scrollPageToTop(); }, [pathname]);
 
   return (
     <>

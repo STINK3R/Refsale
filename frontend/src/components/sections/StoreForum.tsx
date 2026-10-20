@@ -71,7 +71,7 @@ export default function StoreForum() {
   };
 
   return (
-    <section className="pt-28 pb-16 max-sm:pt-24">
+    <section className="pt-[calc(var(--header-h,104px)+32px)] pb-16">
       <div className="max-w-[860px] mx-auto px-5">
         <div className="mb-6 relative pr-28 max-sm:pr-20">
           <Meerkat pose="laptop" width={110} decorative className="absolute right-0 bottom-0 max-sm:w-[80px]" />

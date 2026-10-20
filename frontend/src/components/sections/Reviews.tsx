@@ -68,7 +68,7 @@ export default function Reviews() {
           <div className="label mb-5">Отзывы</div>
           <h2 className="font-display text-[clamp(34px,3.6vw,54px)] leading-[1.05] text-text">Что говорят покупатели</h2>
           <div className="mt-10 max-lg:mt-6">
-            <button onClick={() => (user ? setModalOpen(true) : openAuth('login', 'Войдите, чтобы оставить отзыв.'))} className="btn-outline">
+            <button onClick={() => (user ? setModalOpen(true) : openAuth('login', 'Войдите или создайте аккаунт за полминуты — и поделитесь впечатлениями.'))} className="btn-outline">
               Оставить отзыв
             </button>
           </div>
@@ -132,13 +132,14 @@ export default function Reviews() {
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }}
               transition={{ duration: 0.4, ease: EASE }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-lg bg-bg border border-line p-10 max-sm:p-6 max-h-[92vh] overflow-y-auto"
+              className="relative w-full max-w-lg bg-bg border-2 border-ink rounded-t-[28px] sm:rounded-[28px] shadow-[0_8px_0_#111] max-h-[92vh] flex flex-col overflow-hidden"
             >
-              <button onClick={() => setModalOpen(false)} className="absolute top-5 right-5 text-muted hover:text-text cursor-pointer" aria-label="Закрыть">
-                <X size={20} strokeWidth={1.3} />
+              <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun transition-colors cursor-pointer" aria-label="Закрыть">
+                <X size={18} strokeWidth={2.2} />
               </button>
+              <div className="flex-1 min-h-0 overflow-y-auto modal-scroll p-10 max-sm:p-6">
               <div className="label">Отзыв</div>
-              <h3 className="font-display text-[32px] leading-tight text-text mt-3">Расскажите о покупке</h3>
+              <h3 className="font-display text-[26px] leading-tight text-ink mt-3">Расскажите о покупке</h3>
               <div className="flex gap-2 mt-6" role="radiogroup" aria-label="Оценка">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <button
@@ -165,6 +166,7 @@ export default function Reviews() {
               <button onClick={submit} disabled={submitting} className="btn-primary w-full mt-8">
                 {submitting ? 'Отправляем…' : 'Опубликовать отзыв'}
               </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

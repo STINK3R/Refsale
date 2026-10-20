@@ -43,7 +43,7 @@ def api_public_upload():
             if u.get("is_blocked"):
                 return jsonify({"error": "Аккаунт заблокирован"}), 403
             if not u.get("is_approved"):
-                return jsonify({"error": "Аккаунт не одобрен"}), 403
+                return jsonify({"error": "Аккаунт пока не активен — напишите нам в чат"}), 403
     except Exception:
         return jsonify({"error": "Неверный пользователь"}), 401
 
@@ -247,7 +247,6 @@ def api_data():
             "products": [],
             "suppliers": [],
             "music": [],
-            "error": str(e),
         }), 200
 
 
@@ -405,9 +404,9 @@ def api_login():
                 cur.execute("UPDATE coop_users SET password = %s WHERE id = %s", (hash_password(password), user['id']))
             user = _row_to_dict(user)
             if user.get("is_blocked"):
-                return jsonify({"error": "Ваш аккаунт заблокирован. Обратитесь к администратору."}), 403
+                return jsonify({"error": "Аккаунт заблокирован. Напишите нам — разберёмся."}), 403
             if user.get("is_approved") is False:
-                return jsonify({"error": "Ваша заявка ещё не одобрена администратором. Ожидайте уведомления на email."}), 403
+                return jsonify({"error": "Аккаунт пока не активен — напишите нам в чат, и мы всё включим."}), 403
             user.pop("password", None)
             record_login_success()
             return jsonify({"user": user, "token": create_user_token(user["id"])})

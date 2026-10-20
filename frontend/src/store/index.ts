@@ -50,6 +50,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         activeCategoryId: active,
         loading: false,
       });
+      useCartStore.getState().syncWithCatalog(catalog.products);
     } catch {
       set({ loading: false });
     }
@@ -232,6 +233,8 @@ interface CartState {
   removeItem: (key: string) => void;
   changeQty: (key: string, delta: number) => void;
   clearCart: () => void;
+  /** Bring saved lines in line with the current catalog (prices, sizes, removals). */
+  syncWithCatalog: (products: Product[]) => void;
   openSidebar: () => void;
   closeSidebar: () => void;
   openCheckout: () => void;
@@ -286,6 +289,34 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ items: newItems });
   },
   clearCart: () => { persist([]); set({ items: [] }); },
+  // The cart lives in localStorage for days. Since then the admin may have
+  // changed a price, added sizes to a product or removed it — the server would
+  // refuse such a line at checkout, so fix it here first.
+  syncWithCatalog: (products) => {
+    const byId = new Map(products.map((p) => [p.id, p]));
+    let dropped = 0;
+    const next: CartItem[] = [];
+    for (const item of get().items) {
+      const p = byId.get(item.id);
+      const variants = p?.variants || [];
+      if (!p) { dropped += 1; continue; }
+      if (variants.length) {
+        const v = variants.find((x) => x.id === item.variant_id);
+        if (!v) { dropped += 1; continue; }
+        next.push({ ...item, name: p.name, price: v.price, variant_label: v.label, image_url: p.image_url });
+      } else {
+        if (item.variant_id) { dropped += 1; continue; }
+        next.push({ ...item, name: p.name, price: p.price, image_url: p.image_url });
+      }
+    }
+    const changed = dropped > 0 || next.some((n, i) => n.price !== get().items[i]?.price || n.name !== get().items[i]?.name);
+    if (!changed) return;
+    persist(next);
+    set({ items: next });
+    if (dropped) {
+      useNotificationStore.getState().show('Часть товаров в корзине изменилась — выберите их заново', 'error');
+    }
+  },
   openSidebar: () => set({ sidebarOpen: true }),
   closeSidebar: () => set({ sidebarOpen: false }),
   openCheckout: () => set({ checkoutOpen: true, sidebarOpen: false }),
@@ -321,10 +352,15 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
 }));
 
 // ==================== NOTIFICATION STORE ====================
+// One toast at a time. A new message takes the current one's place instead of
+// stacking under it (ten taps on a heart used to fill the screen); the same
+// message again only bumps a ×N counter and keeps it up a little longer.
 interface Notification {
   id: number;
   text: string;
   type: 'success' | 'error';
+  /** How many times in a row this same message came in. */
+  count: number;
 }
 
 interface NotificationState {
@@ -333,14 +369,20 @@ interface NotificationState {
   remove: (id: number) => void;
 }
 
+const TOAST_MS = 3000;
 let _notifId = 0;
+let _notifTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
   show: (text, type = 'success') => {
-    const id = ++_notifId;
-    set({ notifications: [...get().notifications, { id, text, type }] });
-    setTimeout(() => get().remove(id), 3500);
+    const current = get().notifications[0];
+    const next = current && current.text === text && current.type === type
+      ? { ...current, count: current.count + 1 }
+      : { id: ++_notifId, text, type, count: 1 };
+    set({ notifications: [next] });
+    clearTimeout(_notifTimer);
+    _notifTimer = setTimeout(() => get().remove(next.id), TOAST_MS);
   },
   remove: (id) => {
     set({ notifications: get().notifications.filter((n) => n.id !== id) });

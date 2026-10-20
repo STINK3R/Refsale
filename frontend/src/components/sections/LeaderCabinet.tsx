@@ -55,10 +55,10 @@ export default function LeaderCabinet() {
 
   if (!user) {
     return (
-      <div className="max-w-lg mx-auto px-5 pt-[170px] max-lg:pt-[120px] pb-24 text-center">
+      <div className="max-w-lg mx-auto px-5 pt-[calc(var(--header-h,104px)+56px)] pb-24 text-center">
         <Crown size={34} className="mx-auto text-primary mb-4" />
         <h1 className="font-display text-[38px] leading-none text-text mb-3">Кабинет лидера мнений</h1>
-        <p className="text-sm text-muted mb-7">Войдите в аккаунт, к которому администратор привязал ваши промокоды.</p>
+        <p className="text-sm text-muted mb-7">Войдите в аккаунт, к которому привязаны ваши промокоды.</p>
         <button onClick={() => openAuth('login')} className="btn-primary px-8 h-12 text-[15px]"><LogIn size={17} /> Войти</button>
       </div>
     );
@@ -66,10 +66,10 @@ export default function LeaderCabinet() {
 
   if (error) {
     return (
-      <div className="max-w-lg mx-auto px-5 pt-[170px] max-lg:pt-[120px] pb-24 text-center">
+      <div className="max-w-lg mx-auto px-5 pt-[calc(var(--header-h,104px)+56px)] pb-24 text-center">
         <Crown size={34} className="mx-auto text-primary/60 mb-4" />
         <h1 className="font-display text-[34px] leading-none text-text mb-3">Кабинет недоступен</h1>
-        <p className="text-sm text-muted">{error}. Если вы договорились о сотрудничестве — напишите администратору, он откроет доступ.</p>
+        <p className="text-sm text-muted">{error}. Если вы договорились о сотрудничестве — напишите нам в чат, и мы откроем доступ.</p>
       </div>
     );
   }
@@ -85,7 +85,7 @@ export default function LeaderCabinet() {
   };
 
   return (
-    <div className="max-w-[1240px] mx-auto px-5 pt-[150px] max-lg:pt-[104px] pb-16">
+    <div className="max-w-[1240px] mx-auto px-5 pt-[calc(var(--header-h,104px)+32px)] pb-16">
       <div className="flex items-end justify-between gap-4 flex-wrap mb-8">
         <div className="flex items-end gap-4">
           <Meerkat pose="laptop" width={96} decorative className="max-sm:w-[70px]" />
@@ -111,7 +111,7 @@ export default function LeaderCabinet() {
       <div className="mt-8">
         <h2 className="font-display text-[28px] text-text mb-4">Ваши промокоды</h2>
         {overview.promos.length === 0 ? (
-          <div className="bg-card border border-line p-6 text-sm text-muted">Промокоды ещё не выданы — администратор создаст их и привяжет к вашему аккаунту.</div>
+          <div className="bg-card border border-line p-6 text-sm text-muted">Промокоды ещё не выданы — мы создадим их и привяжем к вашему аккаунту.</div>
         ) : (
           <div className="grid grid-cols-3 gap-4 max-lg:grid-cols-2 max-sm:grid-cols-1">
             {overview.promos.map((p) => (

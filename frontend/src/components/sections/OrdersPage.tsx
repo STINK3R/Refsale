@@ -103,7 +103,7 @@ export default function OrdersPage() {
 
   if (!user) {
     return (
-      <div className="max-w-lg mx-auto px-5 pt-[170px] max-lg:pt-[120px] pb-24 text-center">
+      <div className="max-w-lg mx-auto px-5 pt-[calc(var(--header-h,104px)+56px)] pb-24 text-center">
         <Meerkat pose="boxes" width={150} decorative className="mx-auto mb-5" />
         <h1 className="font-display text-[38px] leading-none text-text mb-3">Сообщения и заказы</h1>
         <p className="text-sm text-muted mb-7">Войдите, чтобы видеть свои заказы, их статусы и чат с менеджером.</p>
@@ -113,7 +113,7 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="max-w-[1180px] mx-auto px-3 sm:px-5 pt-[150px] max-lg:pt-[104px] pb-16">
+    <div className="max-w-[1180px] mx-auto px-3 sm:px-5 pt-[calc(var(--header-h,104px)+28px)] pb-16">
       <div className="mb-5 px-1">
         <div className="label mb-2">Мои заказы</div>
         <h1 className="font-display text-[40px] leading-none text-text max-sm:text-[32px]">Статусы и чаты</h1>

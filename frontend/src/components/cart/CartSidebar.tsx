@@ -25,7 +25,7 @@ export default function CartSidebar() {
     if (!user) {
       closeSidebar();
       runAfterAuth(openCheckout);
-      openAuth('register', 'Создайте аккаунт, чтобы оформить заказ: в нём будет чат с менеджером и статусы заказа.');
+      openAuth('register', 'Последний шаг — аккаунт за полминуты. В нём будут чат с менеджером и статусы заказа.');
       return;
     }
     openCheckout();
@@ -39,16 +39,16 @@ export default function CartSidebar() {
           <motion.aside
             initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
             transition={{ duration: 0.55, ease: EASE }}
-            className="fixed top-0 right-0 bottom-0 z-[2100] w-[460px] max-w-full bg-bg border-l border-line flex flex-col"
+            className="fixed top-0 right-0 bottom-0 z-[2100] w-[460px] max-w-full bg-bg border-l-2 border-ink sm:rounded-l-[28px] overflow-hidden flex flex-col"
           >
             <div className="flex items-center justify-between px-8 max-sm:px-5 h-[68px] border-b border-line shrink-0">
               <span className="label !text-text">Корзина{count ? ` · ${count}` : ''}</span>
-              <button onClick={closeSidebar} className="text-muted hover:text-text cursor-pointer" aria-label="Закрыть корзину">
-                <X size={20} strokeWidth={1.4} />
+              <button onClick={closeSidebar} className="w-10 h-10 rounded-full bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun transition-colors cursor-pointer" aria-label="Закрыть корзину">
+                <X size={18} strokeWidth={2.2} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-8 max-sm:px-5">
+            <div className="flex-1 overflow-y-auto modal-scroll px-8 max-sm:px-5">
               {items.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center py-20">
                   <Meerkat pose="cart" width={150} decorative className="mb-6" />

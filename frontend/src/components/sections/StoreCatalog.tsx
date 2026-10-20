@@ -420,85 +420,119 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
   const [idx, setIdx] = useState(0);
   const [zoom, setZoom] = useState(false);
 
+  const discounted = info.now < info.base;
+  const code = usePromoStore((s) => s.code);
+
   return (
     <Overlay onClose={onClose}>
       <motion.div
         initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
         transition={{ duration: 0.5, ease: EASE }}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-[1040px] max-h-[94vh] overflow-y-auto bg-bg border-2 border-ink rounded-t-[28px] sm:rounded-[28px] grid grid-cols-2 max-md:grid-cols-1"
+        // Fixed height: the photo keeps its half whole, only the details scroll,
+        // and the close button, price and buttons never leave the screen.
+        className="relative w-full max-w-[1040px] h-[min(92dvh,720px)] max-md:h-[92dvh] bg-bg border-2 border-ink rounded-t-[28px] sm:rounded-[28px] shadow-[0_8px_0_#111] flex flex-col md:grid md:grid-cols-2"
       >
         <button onClick={onClose} className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-card border-2 border-ink text-ink flex items-center justify-center cursor-pointer hover:bg-sun" aria-label="Закрыть">
-          <X size={22} strokeWidth={1.3} />
+          <X size={18} strokeWidth={2.2} />
         </button>
-        <div className="relative aspect-[4/5] max-md:aspect-square tile-bg">
+
+        <div className="relative shrink-0 h-[34dvh] md:h-auto tile-bg overflow-hidden rounded-t-[26px] md:rounded-tr-none md:rounded-l-[26px]">
           {images.length ? (
-            <img src={images[idx]} alt={product.name} onClick={() => setZoom(true)} className="absolute inset-0 w-full h-full object-contain p-[10%] cursor-zoom-in" />
+            <img src={images[idx]} alt={product.name} onClick={() => setZoom(true)} className="absolute inset-0 w-full h-full object-contain p-[8%] cursor-zoom-in" />
           ) : <Monogram big />}
+          {/* The meerkat peeking up from behind the photo's bottom edge — the
+              corner products never reach, so it covers nothing. */}
+          <Meerkat pose="peek" width={132} decorative className="absolute -bottom-[10px] left-6 max-md:-bottom-[7px] max-md:left-4 max-md:w-[96px] pointer-events-none" />
           {images.length > 0 && (
-            <button onClick={() => setZoom(true)} className="absolute bottom-5 left-5 text-muted hover:text-text cursor-pointer" aria-label="Открыть фото">
-              <Maximize2 size={16} strokeWidth={1.4} />
+            <button onClick={() => setZoom(true)} className="absolute top-4 left-4 w-9 h-9 rounded-full bg-card/90 border-2 border-ink text-ink flex items-center justify-center cursor-pointer hover:bg-sun" aria-label="Открыть фото">
+              <Maximize2 size={15} strokeWidth={2} />
             </button>
           )}
           {images.length > 1 && (
-            <div className="absolute bottom-4 right-5 flex items-center gap-4 text-muted">
-              <button onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)} className="hover:text-text cursor-pointer" aria-label="Предыдущее фото"><ChevronLeft size={18} strokeWidth={1.4} /></button>
-              <span className="text-[12px] tabular-nums">{idx + 1} / {images.length}</span>
-              <button onClick={() => setIdx((i) => (i + 1) % images.length)} className="hover:text-text cursor-pointer" aria-label="Следующее фото"><ChevronRight size={18} strokeWidth={1.4} /></button>
+            <div className="absolute bottom-4 right-4 flex items-center gap-2 px-1.5 py-1 rounded-full bg-card/90 border-2 border-ink text-ink">
+              <button onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-sun cursor-pointer" aria-label="Предыдущее фото"><ChevronLeft size={16} strokeWidth={2.2} /></button>
+              <span className="text-[12px] font-bold tabular-nums">{idx + 1} / {images.length}</span>
+              <button onClick={() => setIdx((i) => (i + 1) % images.length)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-sun cursor-pointer" aria-label="Следующее фото"><ChevronRight size={16} strokeWidth={2.2} /></button>
             </div>
           )}
           {zoom && <Lightbox images={images} startIndex={idx} alt={product.name} onClose={() => setZoom(false)} />}
         </div>
-        <div className="p-12 max-lg:p-8 max-sm:p-6 flex flex-col">
-          <div className="flex items-center gap-4">
-            <div className="label">{product.badge && BADGES[product.badge] ? BADGES[product.badge] : 'Оригинал'}</div>
-            <FavoriteButton productId={product.id} />
-          </div>
-          <h3 className="font-display text-[32px] max-sm:text-[24px] leading-[1.1] text-ink mt-4 pr-6">{product.name}</h3>
-          {product.description && (
-            <p className="mt-6 text-[15px] text-muted leading-[1.75] whitespace-pre-line">{product.description}</p>
-          )}
-          {variants.length > 0 && (
-            <div className="mt-8">
-              <div className="label !text-[10px] mb-3">Объём и упаковка</div>
-              <div className="grid gap-2" role="radiogroup" aria-label="Объём и упаковка">
-                {variants.map((v) => {
-                  const vi = priceInfo(product, v, prices);
-                  const active = v.id === variantId;
-                  const out = v.is_available === false;
-                  return (
-                    <button
-                      key={v.id}
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => setVariantId(v.id)}
-                      className={`flex items-center justify-between gap-4 px-4 py-3 rounded-2xl border-2 text-left cursor-pointer transition-colors ${active ? 'border-ink bg-sun text-ink font-bold' : 'border-line bg-card text-muted hover:border-ink hover:text-ink'} ${out ? 'opacity-50' : ''}`}
-                    >
-                      <span className="text-[14px]">{v.label}{out && ' · нет в наличии'}</span>
-                      <span className="flex items-baseline gap-2 tabular-nums">
-                        <span className={`text-[14px] font-bold ${vi.now < vi.base ? 'text-primary' : 'text-ink'}`}>{formatPrice(vi.now)}</span>
-                        {vi.now < vi.base && <span className="text-[12px] text-light line-through">{formatPrice(vi.base)}</span>}
-                      </span>
-                    </button>
-                  );
-                })}
+
+        <div className="flex-1 min-h-0 flex flex-col">
+          <div className="relative flex-1 min-h-0">
+            <div className="absolute inset-0 overflow-y-auto modal-scroll px-10 max-lg:px-8 max-sm:px-5 pt-9 max-sm:pt-5 pb-8">
+              <div className="flex items-center gap-3 pr-12">
+                <span className="px-3 py-1 rounded-full bg-card border-2 border-ink text-[10px] font-bold uppercase tracking-[0.08em]">
+                  {product.badge && BADGES[product.badge] ? BADGES[product.badge] : 'Оригинал'}
+                </span>
+                <FavoriteButton productId={product.id} />
               </div>
+              <h3 className="font-display text-[28px] max-lg:text-[24px] max-sm:text-[21px] leading-[1.12] text-ink mt-4 pr-6">{product.name}</h3>
+              {product.description && (
+                <p className="mt-4 text-[14px] text-muted leading-[1.65] whitespace-pre-line">{product.description}</p>
+              )}
+              {variants.length > 0 && (
+                <div className="mt-6">
+                  <div className="label !text-[10px] mb-2.5">Объём и упаковка</div>
+                  <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Объём и упаковка">
+                    {variants.map((v) => {
+                      const vi = priceInfo(product, v, prices);
+                      const active = v.id === variantId;
+                      const out = v.is_available === false;
+                      return (
+                        <button
+                          key={v.id}
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => setVariantId(v.id)}
+                          className={`flex flex-col items-start gap-1 px-3.5 py-2.5 rounded-2xl border-2 text-left cursor-pointer transition-colors ${active ? 'border-ink bg-sun text-ink' : 'border-line bg-card text-muted hover:border-ink hover:text-ink'} ${out ? 'opacity-50' : ''}`}
+                        >
+                          <span className="text-[12.5px] font-semibold leading-snug">{v.label}{out && ' · нет'}</span>
+                          <span className="flex items-baseline gap-1.5 tabular-nums">
+                            <span className={`text-[15px] font-extrabold ${vi.now < vi.base ? 'text-primary' : 'text-ink'}`}>{formatPrice(vi.now)}</span>
+                            {vi.now < vi.base && <span className="text-[11px] text-light line-through">{formatPrice(vi.base)}</span>}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <ComparePrices info={info} category={category} size="lg" />
+              <p className="mt-6 text-[12px] text-light leading-relaxed">
+                Оплачивать сразу не нужно: после оформления менеджер подтвердит наличие в чате заказа и пришлёт реквизиты для предоплаты.
+              </p>
             </div>
-          )}
-          <div className="hairline my-8" />
-          <PriceTag info={info} size="lg" />
-          <ComparePrices info={info} category={category} size="lg" />
-          <div className="mt-8 flex flex-col gap-3">
-            <button onClick={add} disabled={unavailable} className="btn-primary w-full">
-              {unavailable ? 'Нет в наличии' : inCart ? 'В корзине — оформить' : 'Добавить в корзину'}
-            </button>
-            <button onClick={() => { onClose(); askSeller(product.id); }} className="btn-outline w-full">
-              Спросить продавца
-            </button>
+            {/* A soft fade says there is more below without drawing a scrollbar */}
+            <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-bg to-transparent" />
           </div>
-          <p className="mt-auto pt-8 text-[12px] text-light leading-relaxed">
-            Оплачивать сразу не нужно: после оформления менеджер подтвердит наличие в чате заказа и пришлёт реквизиты для предоплаты.
-          </p>
+
+          <div className="shrink-0 border-t-2 border-ink/10 px-8 max-lg:px-6 max-sm:px-5 py-5 max-sm:py-4 flex items-center gap-3 flex-wrap lg:flex-nowrap">
+            <div className="mr-auto min-w-0">
+              <div className="flex items-baseline gap-2.5 flex-wrap">
+                <span className={`font-display text-[28px] max-sm:text-[26px] leading-none whitespace-nowrap ${discounted ? 'text-primary' : 'text-ink'}`}>{info.from ? 'от ' : ''}{formatPrice(info.now)}</span>
+                {discounted && <span className="text-[14px] text-light line-through tabular-nums">{formatPrice(info.base)}</span>}
+                {discounted && <span className="px-2.5 py-0.5 rounded-full bg-primary text-white text-[11px] font-bold">−{Math.round((1 - info.now / info.base) * 100)}%</span>}
+              </div>
+              {!discounted && !code && info.hasPromo && (
+                <div className="mt-1.5 text-[12px] font-semibold text-primary">С промокодом блогера дешевле</div>
+              )}
+            </div>
+            <div className="flex gap-2 shrink-0 max-sm:w-full">
+              <button onClick={add} disabled={unavailable} className="btn-primary max-sm:flex-1 !px-6">
+                {unavailable ? 'Нет в наличии' : inCart ? 'В корзине' : 'В корзину'}
+              </button>
+              <button
+                onClick={() => { onClose(); askSeller(product.id); }}
+                className="w-[50px] h-[50px] shrink-0 rounded-full bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun-soft cursor-pointer"
+                aria-label="Спросить продавца"
+                title="Спросить продавца"
+              >
+                <MessageCircle size={19} strokeWidth={2} />
+              </button>
+            </div>
+          </div>
         </div>
       </motion.div>
     </Overlay>

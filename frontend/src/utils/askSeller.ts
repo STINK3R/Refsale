@@ -9,5 +9,5 @@ export function askSeller(productId?: number) {
   const open = () => useSupportStore.getState().open({ startInNew: true, prefillProductId: productId ?? null });
   if (useAuthStore.getState().user) { open(); return; }
   runAfterAuth(open);
-  useAuthStore.getState().openAuth('register', 'Чтобы написать продавцу, создайте аккаунт — это полминуты, без подтверждения администратора.');
+  useAuthStore.getState().openAuth('register', 'Создайте аккаунт за полминуты — и сразу пишите продавцу. Ответ придёт сюда же, в чат.');
 }

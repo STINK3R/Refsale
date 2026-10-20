@@ -39,20 +39,22 @@ export default function Modal({ open, onClose, children, title, subtitle, maxWid
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 18 }}
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-            className={`bg-bg border border-line p-7 sm:p-10 w-full ${maxWidth} max-h-[94vh] overflow-y-auto relative`}
-            style={{ overscrollBehavior: 'contain' }}
+            className={`bg-bg border-2 border-ink rounded-t-[28px] sm:rounded-[28px] shadow-[0_8px_0_#111] w-full ${maxWidth} max-h-[94vh] flex flex-col overflow-hidden relative`}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <button
               onClick={onClose}
-              className="absolute top-5 right-5 text-muted hover:text-text transition-colors cursor-pointer z-10"
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun transition-colors cursor-pointer z-10"
               aria-label="Закрыть"
             >
-              <X size={20} strokeWidth={1.3} />
+              <X size={18} strokeWidth={2.2} />
             </button>
-            {title && <h2 className="font-display text-[30px] leading-tight text-text mb-2 pr-8">{title}</h2>}
-            {subtitle && <p className="text-sm text-muted mb-6">{subtitle}</p>}
-            {children}
+            {/* Only the content scrolls: the close button above stays in reach. */}
+            <div className="flex-1 min-h-0 overflow-y-auto modal-scroll p-7 sm:p-10" style={{ overscrollBehavior: 'contain' }}>
+              {title && <h2 className="font-display text-[26px] leading-tight text-ink mb-2 pr-12">{title}</h2>}
+              {subtitle && <p className="text-sm text-muted mb-6">{subtitle}</p>}
+              {children}
+            </div>
           </motion.div>
         </motion.div>
       )}

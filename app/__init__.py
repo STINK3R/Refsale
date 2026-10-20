@@ -3,6 +3,7 @@ RefSale — Flask Application Factory
 """
 
 import os
+import re
 import gzip as _gzip
 from io import BytesIO
 
@@ -66,6 +67,30 @@ def _bootstrap_admin_password():
         print(f"⚠️  Admin password bootstrap skipped: {e}")
 
 
+# Cooperative features this copy still carries but RefSale does not use:
+# the old checkout (no promo codes or sizes, guests allowed), quick orders,
+# subscriptions, VIP and seller shops, the public chat, the old sign-up and
+# counters that give away member names and sales figures. Closed so they cannot
+# be used around the store's own flow; remove an entry to bring a feature back
+# (the /vip stage will need the VIP ones).
+_LEGACY_ENDPOINTS = [
+    ("POST", re.compile(r"^/api/orders$")),
+    ("PATCH", re.compile(r"^/api/orders/\d+/(modify|cancel)$")),
+    ("*", re.compile(r"^/api/quick-order/")),
+    ("*", re.compile(r"^/api/promo/validate$")),
+    ("*", re.compile(r"^/api/subscriptions")),
+    ("*", re.compile(r"^/api/user/\d+/subscriptions$")),
+    ("*", re.compile(r"^/api/(members|turnover|product-order-counts)$")),
+    ("POST", re.compile(r"^/api/register$")),
+    ("*", re.compile(r"^/api/public-chat$")),
+    ("*", re.compile(r"^/api/(vip|seller)/")),
+]
+
+
+def _is_legacy_endpoint(method: str, path: str) -> bool:
+    return any((m == "*" or m == method) and rx.match(path) for m, rx in _LEGACY_ENDPOINTS)
+
+
 def create_app():
     app = Flask(__name__, static_folder=None)
     app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB
@@ -120,6 +145,13 @@ def create_app():
         if path.startswith("/api/admin") and path != "/api/admin/login":
             if not _verify_admin_token():
                 return jsonify({"error": "Unauthorized"}), 401
+        # The full catalog dump (suppliers' contacts, sellers' phones, promo
+        # prices) is for the admin panel only; the storefront uses
+        # /api/store/catalog.
+        if path == "/api/data" and not _verify_admin_token():
+            return jsonify({"error": "Unauthorized"}), 401
+        if _is_legacy_endpoint(request.method, path):
+            return jsonify({"error": "Not found"}), 404
 
     # ── Static file routes ─────────────────────────
     @app.route("/")

@@ -6,7 +6,7 @@ import { useAppStore, useAuthStore, useCartStore, useFavoritesStore, useNotifica
 import { useSupportStore } from '../../store/support';
 import { fetchOrderChatsUnread } from '../../api/client';
 import { useContacts, ContactBlock, ContactLinks, telHref } from '../ui/Contacts';
-import useScrollLock from '../../hooks/useScrollLock';
+import useScrollLock, { scrollPageToTop } from '../../hooks/useScrollLock';
 import Meerkat from '../mascot/Meerkat';
 
 
@@ -61,20 +61,23 @@ export default function Header() {
   const goToSection = useCallback((hash: string) => {
     setMenuOpen(false);
     const scroll = () => document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' });
-    if (location.pathname === '/') scroll();
-    else { navigate('/'); setTimeout(scroll, 150); }
+    // Wait for the menu to let go of the page: while it is open the body is
+    // pinned, and closing it restores the old offset over our scroll.
+    if (location.pathname === '/') setTimeout(scroll, 80);
+    else { navigate('/'); setTimeout(scroll, 250); }
   }, [location.pathname, navigate]);
 
   const openChats = () => {
     setMenuOpen(false);
-    if (!user) { openAuth('register', 'Чтобы написать продавцу, создайте аккаунт — это полминуты.'); return; }
+    if (!user) { openAuth('register', 'Создайте аккаунт за полминуты — и сразу пишите продавцу. Ответ придёт сюда же, в чат.'); return; }
     openSupport();
   };
 
   const pickCategory = (id: number) => {
     setActiveCategory(id);
     if (!isHome) navigate('/');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Instant: a smooth scroll gets cut short while the new category renders.
+    scrollPageToTop();
   };
 
   const solid = scrolled || !isHome;
@@ -191,16 +194,16 @@ export default function Header() {
             <motion.aside
               initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
               transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed top-0 left-0 bottom-0 z-[2500] w-[440px] max-w-[92vw] bg-bg border-r border-line flex flex-col"
+              className="fixed top-0 left-0 bottom-0 z-[2500] w-[440px] max-w-[92vw] bg-bg border-r-2 border-ink rounded-r-[28px] overflow-hidden flex flex-col"
             >
               <div className="flex items-center justify-between px-8 max-sm:px-6 h-[68px] border-b border-line shrink-0">
                 <span className="label">Меню</span>
-                <button onClick={() => setMenuOpen(false)} className="text-muted hover:text-text cursor-pointer" aria-label="Закрыть меню">
-                  <X size={20} strokeWidth={1.4} />
+                <button onClick={() => setMenuOpen(false)} className="w-10 h-10 rounded-full bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun transition-colors cursor-pointer" aria-label="Закрыть меню">
+                  <X size={18} strokeWidth={2.2} />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-8 max-sm:px-6 py-8">
+              <div className="flex-1 overflow-y-auto modal-scroll px-8 max-sm:px-6 py-8">
                 <nav className="flex flex-col">
                   <MenuItem n="01" onClick={() => goToSection('#catalog')}>Каталог</MenuItem>
                   <MenuItem n="02" to="/orders" badge={orderUnread > 0}>Сообщения и заказы</MenuItem>

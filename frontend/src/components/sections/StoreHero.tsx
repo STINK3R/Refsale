@@ -31,6 +31,10 @@ export default function StoreHero() {
   const slogan = category?.slogan?.trim();
   const intro = category?.intro?.trim() || DEFAULT_INTRO;
   const heroImage = category?.hero_image?.trim();
+  // Wide pictures (2:1, like the gadgets) hit the sides of the near-square
+  // phone card first and look small there, so they get a little more room.
+  const [wideFor, setWideFor] = useState<string | null>(null);
+  const wide = !!heroImage && wideFor === heroImage;
 
   // The plate's travelling copy in the header appears once this one is gone.
   const promoRef = useRef<HTMLDivElement>(null);
@@ -58,14 +62,18 @@ export default function StoreHero() {
             {category?.description?.trim() || 'Оригинальная продукция'}
           </span>
           {heroImage ? (
-            <div className="absolute inset-0 flex items-end justify-center px-[3%]">
+            <div className={`absolute inset-0 flex items-end justify-center ${wide ? 'px-[3%] max-sm:px-0' : 'px-[3%]'}`}>
               <img
                 src={heroImage}
                 srcSet={heroSrcSet(heroImage)}
                 sizes="(max-width: 1024px) 100vw, 1200px"
                 alt={category?.name || ''}
                 fetchPriority="high"
-                className="h-[96%] max-w-full w-auto object-contain object-bottom"
+                onLoad={(e) => {
+                  const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+                  if (h && w / h > 1.7) setWideFor(heroImage);
+                }}
+                className={`h-[96%] max-w-full w-auto object-contain object-bottom ${wide ? 'max-sm:scale-[1.08] max-sm:origin-bottom' : ''}`}
               />
             </div>
           ) : (
@@ -77,7 +85,7 @@ export default function StoreHero() {
                 width={1327}
                 height={965}
                 fetchPriority="high"
-                className="h-[82%] w-auto object-contain"
+                className="h-[82%] lg:h-[90%] w-auto object-contain"
               />
             </picture>
           )}
