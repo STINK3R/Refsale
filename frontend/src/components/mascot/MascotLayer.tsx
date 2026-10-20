@@ -1,72 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Meerkat from './Meerkat';
 import { useUiStore } from '../../store/ui';
 import { usePromoStore } from '../../store';
 
 /**
- * The meerkat that makes the site memorable, as the brief asks:
- * - on a touch screen it pops up where the screen was tapped, waving or jumping;
- * - on big moments (promo code applied, order placed) it comes out with a line.
- * It never takes clicks itself. "Reduce motion" users get only the big moments.
+ * The meerkat comes out with a line on the big moments: a promo code applied,
+ * an order placed. It never takes clicks itself. Elsewhere it sits still —
+ * in the menu, on product cards and in empty states.
  */
 export default function MascotLayer() {
-  const [tap] = useState(() => {
-    // localStorage.refsale_mascot = 'on' shows it anyway (for demos on such machines).
-    const forced = localStorage.getItem('refsale_mascot') === 'on';
-    if (!forced && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
-    return !window.matchMedia('(pointer: fine)').matches;
-  });
-
-  return (
-    <>
-      {tap && <TapMeerkat />}
-      <MascotMoments />
-    </>
-  );
-}
-
-interface Pop { id: number; x: number; y: number; pose: 'wave' | 'jump' }
-
-function TapMeerkat() {
-  const [pop, setPop] = useState<Pop | null>(null);
-  const last = useRef(0);
-  const nextId = useRef(0);
-
-  useEffect(() => {
-    let hide: ReturnType<typeof setTimeout> | undefined;
-    const down = (e: PointerEvent) => {
-      if (e.pointerType === 'mouse') return;
-      const now = Date.now();
-      if (now - last.current < 450) return;
-      last.current = now;
-      const id = ++nextId.current;
-      setPop({ id, x: e.clientX, y: e.clientY, pose: id % 2 ? 'wave' : 'jump' });
-      clearTimeout(hide);
-      hide = setTimeout(() => setPop(null), 1100);
-    };
-    window.addEventListener('pointerdown', down, { passive: true });
-    return () => { window.removeEventListener('pointerdown', down); clearTimeout(hide); };
-  }, []);
-
-  return (
-    <AnimatePresence>
-      {pop && (
-        <motion.div
-          key={pop.id}
-          aria-hidden="true"
-          initial={{ opacity: 0, scale: 0.4, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: -40 }}
-          exit={{ opacity: 0, scale: 0.6, y: -56 }}
-          transition={{ type: 'spring', stiffness: 380, damping: 18 }}
-          style={{ left: pop.x - 34, top: pop.y - 70 }}
-          className="fixed z-[5000] pointer-events-none"
-        >
-          <Meerkat pose={pop.pose} width={68} decorative eager />
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
+  return <MascotMoments />;
 }
 
 /** The meerkat with a speech bubble for a couple of seconds. */
