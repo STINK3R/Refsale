@@ -149,4 +149,4 @@ RefSale живёт на одном сервере с кооперативом. �
 - Кооператив и VIP как скрытые подвкладки `refsale.ru/kokonkoop` и `refsale.ru/vip` с доступом по галочке администратора.
 - Вход через VK и другие соцсети: сейчас вход только по email.
 - Реальные контакты (телефоны, почты, мессенджеры) — вносятся в админке, вкладка «Контакты сайта».
-- Логотип: сейчас временный знак в `frontend/public/logo.svg`.
+- Логотип — сурикат (исходник `img/mascot/logo.png`): в шапке `frontend/public/img/logo-meerkat.webp`, иконки вкладки и админки — `favicon.ico`, `favicon-32.png`, `icon-192.png`, `apple-touch-icon.png` в `frontend/public`.

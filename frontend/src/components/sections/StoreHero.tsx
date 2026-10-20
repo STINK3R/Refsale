@@ -214,7 +214,7 @@ export default function StoreHero() {
               <AnimatePresence mode="wait" initial={true}>
                 {!loading && (
                   <Slogan key={`slogan-${category?.id ?? 'default'}`}>
-                    {slogan || <>Любимые ароматы <mark className="bg-accent-strong px-2 rounded-xl text-ink">дешевле</mark>, чем в&nbsp;соцсетях</>}
+                    {slogan || 'Любимые ароматы дешевле, чем в соцсетях'}
                   </Slogan>
                 )}
               </AnimatePresence>

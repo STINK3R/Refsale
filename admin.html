@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Админ-панель — RefSale</title>
-    <link rel="icon" type="image/png" href="/logo.svg">
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -177,7 +178,7 @@
 <body>
 <div class="pass-gate" id="passGate">
     <div class="pass-box">
-        <div class="pass-logo-wrap"><img src="/logo.svg" class="pass-logo-img" alt=""><span class="pass-logo-text">RefSale</span></div>
+        <div class="pass-logo-wrap"><img src="/icon-192.png" class="pass-logo-img" alt=""><span class="pass-logo-text">RefSale</span></div>
         <div class="pass-icon"><i class="fas fa-shield-halved"></i></div>
         <div class="pass-title">Войти в панель</div>
         <div class="pass-sub">Введите логин и пароль администратора</div>
@@ -187,12 +188,12 @@
         <div class="pass-error" id="passError"><i class="fas fa-exclamation-circle"></i> Неверный логин или пароль</div>
     </div>
 </div>
-<div class="al-overlay hidden" id="alOverlay"><div class="al-logo"><img src="/logo.svg" class="al-logo-img" alt=""> RefSale</div><div class="al-bar"></div></div>
+<div class="al-overlay hidden" id="alOverlay"><div class="al-logo"><img src="/icon-192.png" class="al-logo-img" alt=""> RefSale</div><div class="al-bar"></div></div>
 <div id="adminToast" class="admin-toast"></div>
 <!-- Section Chooser (shown after login) -->
 <div id="sectionChooser" style="display:none;min-height:100vh;background:#F4F6F8;padding:40px 20px">
     <div style="max-width:700px;margin:0 auto;text-align:center">
-        <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px"><img src="/logo.svg" style="width:44px;height:44px;border-radius:10px;object-fit:cover"> <span style="font-size:20px;font-weight:700;color:var(--p)">RefSale</span></div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px"><img src="/icon-192.png" style="width:44px;height:44px;border-radius:10px;object-fit:cover"> <span style="font-size:20px;font-weight:700;color:var(--p)">RefSale</span></div>
         <div style="font-size:14px;color:#6B7280;margin-bottom:40px">Выберите раздел для управления</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:520px;margin:0 auto">
             <button onclick="enterSection('store')" class="section-card" style="position:relative;grid-column:1/-1;border-color:#D9B866;background:linear-gradient(135deg,#FFFDF7,#F7EED8)">
@@ -238,7 +239,7 @@
 </style>
 <div class="ac-hidden" id="adminContent" style="display:none">
 <header class="admin-header">
-    <div class="admin-logo"><img src="/logo.svg" class="pass-logo-img"> <span id="adminSectionLabel">Админ-панель</span></div>
+    <div class="admin-logo"><img src="/icon-192.png" class="pass-logo-img"> <span id="adminSectionLabel">Админ-панель</span></div>
     <nav class="admin-nav">
         <a href="#" onclick="backToChooser();return false"><i class="fas fa-th-large"></i> Разделы</a>
         <a href="#" onclick="window.location.href=window.location.protocol+'//'+window.location.hostname;return false"><i class="fas fa-arrow-left"></i> На сайт</a>

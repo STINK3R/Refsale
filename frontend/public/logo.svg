@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" fill="#0A0A0A"/>
-  <rect x="5.5" y="5.5" width="53" height="53" fill="none" stroke="#ECE8E1" stroke-opacity="0.35"/>
-  <text x="32" y="44" text-anchor="middle" font-family="Didot, 'Bodoni 72', 'Noto Serif Display', Georgia, serif" font-size="34" font-weight="300" fill="#ECE8E1">R</text>
-</svg>
