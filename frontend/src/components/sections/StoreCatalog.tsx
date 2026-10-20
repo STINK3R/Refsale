@@ -9,6 +9,8 @@ import { formatPrice } from '../../utils/format';
 import { priceInfo, availableVariants, type PriceInfo } from '../../utils/prices';
 import { askSeller } from '../../utils/askSeller';
 import Lightbox from '../ui/Lightbox';
+import Meerkat from '../mascot/Meerkat';
+
 import useScrollLock from '../../hooks/useScrollLock';
 import type { Category, Product, ProductVariant } from '../../types';
 
@@ -73,7 +75,7 @@ export default function StoreCatalog() {
   );
 
   return (
-    <section id="catalog" className="py-28 max-md:py-16">
+    <section id="catalog" className="pt-8 pb-24 max-md:pt-6 max-md:pb-14">
       <div className="max-w-[1440px] mx-auto px-8 max-sm:px-5">
         <div className="flex items-end justify-between gap-10 pb-6 max-md:flex-col max-md:items-stretch max-md:gap-5">
           <div>
@@ -127,7 +129,8 @@ export default function StoreCatalog() {
               ))}
             </div>
           ) : visible.length === 0 ? (
-            <div className="py-24 text-center">
+            <div className="py-16 text-center">
+              <Meerkat pose="thinking" width={130} decorative className="mx-auto mb-6" />
               <div className="font-display text-[28px] text-text">{debounced ? 'Ничего не нашлось' : 'Каталог скоро пополнится'}</div>
               <p className="text-[14px] text-muted mt-3">{debounced ? 'Попробуйте другое название или бренд' : 'Загляните чуть позже'}</p>
             </div>

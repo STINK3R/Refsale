@@ -1668,7 +1668,18 @@
                 <div class="form-group"><label>Магазин для сравнения 1</label><input type="text" id="editCCmp1" placeholder="Золотое Яблоко"></div>
                 <div class="form-group"><label>Магазин для сравнения 2</label><input type="text" id="editCCmp2" placeholder="Рандеву"></div>
             </div>
-            <div class="form-group"><label>Порядок во вкладках (меньше — левее)</label><input type="number" id="editCSort" step="1"></div>
+            <div class="form-row">
+                <div class="form-group"><label>Порядок во вкладках (меньше — левее)</label><input type="number" id="editCSort" step="1"></div>
+                <div class="form-group"><label>Цвет страницы</label>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <input type="color" id="editCAccent" style="width:52px;height:40px;padding:2px;cursor:pointer">
+                        <button type="button" class="btn btn-xs btn-secondary" onclick="document.getElementById('editCAccent').value='#FFE45C'">Жёлтый</button>
+                        <button type="button" class="btn btn-xs btn-secondary" onclick="document.getElementById('editCAccent').value='#F6D9C8'">Персик</button>
+                        <button type="button" class="btn btn-xs btn-secondary" onclick="document.getElementById('editCAccent').value='#DDF2B2'">Зелёный</button>
+                        <button type="button" class="btn btn-xs btn-secondary" onclick="document.getElementById('editCAccent').value='#C8E8FF'">Голубой</button>
+                    </div>
+                </div>
+            </div>
         </div>
         <div style="display:flex;gap:10px;margin-top:4px">
             <button class="btn btn-primary" onclick="saveCategoryEdit()"><i class="fas fa-save"></i> Сохранить</button>
@@ -2563,6 +2574,7 @@ function openEditCategory(id){
     document.getElementById('editCCmp1').value=c.compare_label_1||'';
     document.getElementById('editCCmp2').value=c.compare_label_2||'';
     document.getElementById('editCSort').value=c.sort_order??0;
+    document.getElementById('editCAccent').value=/^#[0-9a-fA-F]{6}$/.test(c.accent_color||'')?c.accent_color:'#FFE45C';
     setCategoryHero(c.hero_image||'');
     resetFileInput('editCHeroFile','editCHeroFileWrap');
     openModal('editCategoryModal');
@@ -2600,7 +2612,8 @@ async function saveCategoryEdit(){
             hero_image:document.getElementById('editCHero').value,
             compare_label_1:document.getElementById('editCCmp1').value.trim()||'Золотое Яблоко',
             compare_label_2:document.getElementById('editCCmp2').value.trim()||'Рандеву',
-            sort_order:parseInt(document.getElementById('editCSort').value)||0
+            sort_order:parseInt(document.getElementById('editCSort').value)||0,
+            accent_color:document.getElementById('editCAccent').value
         };
         const result=await updateCategory(id,updates);
         if(result){

@@ -33,7 +33,7 @@ export default function Footer() {
             </div>
           </div>
         </div>
-        <div className="mt-16 pt-6 border-t border-line flex items-center justify-between gap-4 text-[12px] text-light max-sm:flex-col max-sm:items-start">
+        <div className="mt-16 pt-6 border-t border-line flex items-center justify-between gap-4 text-[12px] text-ink/75 max-sm:flex-col max-sm:items-start">
           <span>© {year} RefSale · Только оригинальная продукция</span>
           <span className="tracking-[0.12em] uppercase">refsale.ru</span>
         </div>

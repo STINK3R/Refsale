@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useMotionValue, useSpring } from 'framer-motion';
-import Otter from './Otter';
+import Meerkat from './Meerkat';
+import { useUiStore } from '../../store/ui';
+import { usePromoStore } from '../../store';
 
 /**
- * The otter that makes the site memorable, as the brief asks:
- * - with a mouse it trails the cursor on a soft spring and hops on click;
- * - on a touch screen it pops up where the screen was tapped.
- * It never takes clicks itself and stays away for "reduce motion" users.
+ * The meerkat that makes the site memorable, as the brief asks:
+ * - with a mouse it peeks out next to the cursor on a soft spring and hops on click;
+ * - on a touch screen it pops up where the screen was tapped, waving or jumping;
+ * - on big moments (promo code applied, order placed) it comes out with a line.
+ * It never takes clicks itself. "Reduce motion" users get only the big moments.
  */
 export default function MascotLayer() {
   const [mode] = useState<'cursor' | 'tap' | null>(() => {
@@ -16,16 +19,20 @@ export default function MascotLayer() {
     return window.matchMedia('(pointer: fine)').matches ? 'cursor' : 'tap';
   });
 
-  if (mode === 'cursor') return <CursorOtter />;
-  if (mode === 'tap') return <TapOtter />;
-  return null;
+  return (
+    <>
+      {mode === 'cursor' && <CursorMeerkat />}
+      {mode === 'tap' && <TapMeerkat />}
+      <MascotMoments />
+    </>
+  );
 }
 
-const OFFSET = 18;
+const OFFSET = 16;
 
-function CursorOtter() {
-  const x = useMotionValue(-200);
-  const y = useMotionValue(-200);
+function CursorMeerkat() {
+  const x = useMotionValue(-300);
+  const y = useMotionValue(-300);
   const sx = useSpring(x, { stiffness: 140, damping: 18, mass: 0.6 });
   const sy = useSpring(y, { stiffness: 140, damping: 18, mass: 0.6 });
   const [visible, setVisible] = useState(false);
@@ -60,19 +67,18 @@ function CursorOtter() {
       <motion.div
         key={hop}
         initial={hop ? { y: 0, rotate: 0 } : false}
-        animate={hop ? { y: [0, -16, 0], rotate: [0, -8, 0] } : undefined}
+        animate={hop ? { y: [0, -14, 0], rotate: [0, -6, 0] } : undefined}
         transition={{ duration: 0.45, ease: 'easeOut' }}
-        className="drop-shadow-[0_3px_0_rgba(17,17,17,0.18)]"
       >
-        <Otter size={52} waving={hop % 2 === 1} />
+        <Meerkat pose="peek" width={70} decorative eager />
       </motion.div>
     </motion.div>
   );
 }
 
-interface Pop { id: number; x: number; y: number }
+interface Pop { id: number; x: number; y: number; pose: 'wave' | 'jump' }
 
-function TapOtter() {
+function TapMeerkat() {
   const [pop, setPop] = useState<Pop | null>(null);
   const last = useRef(0);
   const nextId = useRef(0);
@@ -84,7 +90,8 @@ function TapOtter() {
       const now = Date.now();
       if (now - last.current < 450) return;
       last.current = now;
-      setPop({ id: ++nextId.current, x: e.clientX, y: e.clientY });
+      const id = ++nextId.current;
+      setPop({ id, x: e.clientX, y: e.clientY, pose: id % 2 ? 'wave' : 'jump' });
       clearTimeout(hide);
       hide = setTimeout(() => setPop(null), 1100);
     };
@@ -99,13 +106,55 @@ function TapOtter() {
           key={pop.id}
           aria-hidden="true"
           initial={{ opacity: 0, scale: 0.4, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: -34 }}
-          exit={{ opacity: 0, scale: 0.6, y: -50 }}
+          animate={{ opacity: 1, scale: 1, y: -40 }}
+          exit={{ opacity: 0, scale: 0.6, y: -56 }}
           transition={{ type: 'spring', stiffness: 380, damping: 18 }}
-          style={{ left: pop.x - 30, top: pop.y - 50 }}
+          style={{ left: pop.x - 34, top: pop.y - 70 }}
           className="fixed z-[5000] pointer-events-none"
         >
-          <Otter size={60} waving />
+          <Meerkat pose={pop.pose} width={68} decorative eager />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/** The meerkat with a speech bubble for a couple of seconds. */
+function MascotMoments() {
+  const moment = useUiStore((s) => s.mascotMoment);
+  const showMascot = useUiStore((s) => s.showMascot);
+  const hideMascot = useUiStore((s) => s.hideMascot);
+
+  // A promo code switched on is worth a cool meerkat.
+  const code = usePromoStore((s) => s.code);
+  const prevCode = useRef(code);
+  useEffect(() => {
+    if (code && code !== prevCode.current) showMascot('sunglasses', 'Скидка включена! Цены уже ниже.');
+    prevCode.current = code;
+  }, [code, showMascot]);
+
+  useEffect(() => {
+    if (!moment) return;
+    const t = setTimeout(hideMascot, 2800);
+    return () => clearTimeout(t);
+  }, [moment, hideMascot]);
+
+  return (
+    <AnimatePresence>
+      {moment && (
+        <motion.div
+          key={moment.id}
+          role="status"
+          initial={{ opacity: 0, y: 60 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 60 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+          className="fixed z-[4500] bottom-0 inset-x-0 flex justify-center pointer-events-none"
+        >
+          <div className="flex items-end gap-2">
+            <Meerkat pose={moment.pose} width={110} decorative eager className="max-sm:w-[86px]" />
+            <div className="mb-16 max-sm:mb-12 px-4 py-2.5 rounded-2xl rounded-bl-sm bg-sun border-2 border-ink shadow-[0_4px_0_#111] text-[14px] max-sm:text-[13px] font-bold max-w-[220px]">
+              {moment.text}
+            </div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

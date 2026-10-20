@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Percent } from 'lucide-react';
+import { Percent } from 'lucide-react';
+import Meerkat from '../mascot/Meerkat';
+
 import { useAppStore, useFavoritesStore, usePromoStore } from '../../store';
 import { formatDate } from '../../utils/format';
 import PromoForm from '../promo/PromoForm';
@@ -36,7 +38,7 @@ export default function FavoritesPage() {
           <div className="py-24 text-center text-muted text-[14px]">Загружаем…</div>
         ) : groups.length === 0 ? (
           <div className="py-24 text-center">
-            <Heart size={32} strokeWidth={1.2} className="mx-auto text-light" />
+            <Meerkat pose="heart" width={150} decorative className="mx-auto" />
             <div className="font-display text-[28px] text-text mt-6">Здесь пока пусто</div>
             <p className="text-[14px] text-muted mt-3 mb-8">Нажмите на сердечко у товара, чтобы сохранить его</p>
             <Link to="/" className="btn-outline">Перейти в каталог</Link>

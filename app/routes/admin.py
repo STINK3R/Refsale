@@ -188,7 +188,7 @@ def api_admin_save_settings():
 # Each category is a page of its own on the storefront: picture, slogan,
 # "как это работает" text and the two shops its prices are compared with.
 _CATEGORY_COLS = {'name', 'description', 'hero_image', 'slogan', 'intro',
-                  'compare_label_1', 'compare_label_2', 'sort_order'}
+                  'compare_label_1', 'compare_label_2', 'sort_order', 'accent_color'}
 
 
 @bp.route("/api/admin/categories", methods=["POST"])

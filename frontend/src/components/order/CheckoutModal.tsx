@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 import Modal from '../ui/Modal';
 import { useAuthStore, useCartStore, useNotificationStore, usePromoStore, priceFor, promoKey, cartKey } from '../../store';
 import { createStoreOrder } from '../../api/client';
+import { useUiStore } from '../../store/ui';
 import { formatPrice } from '../../utils/format';
 
 const METHODS = [
@@ -19,6 +20,7 @@ export default function CheckoutModal() {
   const user = useAuthStore((s) => s.user);
   const { code, prices, clear: clearPromo } = usePromoStore();
   const show = useNotificationStore((s) => s.show);
+  const showMascot = useUiStore((s) => s.showMascot);
   const navigate = useNavigate();
 
   const [name, setName] = useState('');
@@ -58,6 +60,7 @@ export default function CheckoutModal() {
     clearCart();
     closeCheckout();
     show(`Заказ №${res.order.id} оформлен — менеджер ответит в чате`);
+    showMascot('jump', 'Ура, заказ оформлен! Менеджер уже в чате.');
     navigate(`/orders?order=${res.order.id}`);
   };
 

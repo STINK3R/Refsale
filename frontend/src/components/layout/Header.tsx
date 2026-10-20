@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, ShoppingBag, User, Package, Heart } from 'lucide-react';
@@ -7,8 +7,7 @@ import { useSupportStore } from '../../store/support';
 import { fetchOrderChatsUnread } from '../../api/client';
 import { useContacts, ContactBlock, ContactLinks, telHref } from '../ui/Contacts';
 import useScrollLock from '../../hooks/useScrollLock';
-import PromoDock from '../promo/PromoDock';
-import Otter from '../mascot/Otter';
+import Meerkat from '../mascot/Meerkat';
 
 
 export default function Header() {
@@ -20,7 +19,7 @@ export default function Header() {
   const show = useNotificationStore((s) => s.show);
   const contacts = useContacts();
   const favCount = useFavoritesStore((s) => s.ids.length);
-  const { categories, activeCategoryId, setActiveCategory } = useAppStore();
+  const { categories, activeCategoryId, setActiveCategory, loading: catalogLoading } = useAppStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [orderUnread, setOrderUnread] = useState(0);
@@ -28,6 +27,19 @@ export default function Header() {
   const navigate = useNavigate();
   const isHome = location.pathname === '/';
   useScrollLock(menuOpen);
+
+  // Its height changes with the category tabs and the contact bar, so the
+  // page reads it from --header-h instead of guessing.
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const set = () => document.documentElement.style.setProperty('--header-h', `${el.offsetHeight}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -69,7 +81,7 @@ export default function Header() {
 
   return (
     <>
-      <header className="fixed top-0 inset-x-0 z-[1000]">
+      <header ref={headerRef} className="fixed top-0 inset-x-0 z-[1000]">
         {/* Utility bar: both contact pairs, as the brief asks */}
         <div className="hidden lg:block bg-sun border-b-2 border-ink">
           <div className="max-w-[1440px] mx-auto px-8 h-9 flex items-center justify-between max-xl:justify-center gap-8 text-[12px] text-ink/80 whitespace-nowrap">
@@ -77,7 +89,7 @@ export default function Header() {
             <div className="flex items-center gap-8">
               {contacts.map((c) => (
                 <div key={c.label} className="flex items-center gap-3">
-                  <span className="label !text-[10px] !text-light">{c.label}</span>
+                  <span className="label !text-[10px] !text-ink/70">{c.label}</span>
                   {c.phone && <a href={telHref(c.phone)} className="text-text hover:text-primary transition-colors">{c.phone}</a>}
                   {c.email && <a href={`mailto:${c.email}`} className="hover:text-text transition-colors">{c.email}</a>}
                   <ContactLinks pair={c} size={13} />
@@ -140,6 +152,13 @@ export default function Header() {
           </div>
 
           {/* Category pages: each switches the hero, products and reviews */}
+          {/* While the catalog loads, the row is held open with placeholders so
+              the page below does not jump when the tabs arrive. */}
+          {isHome && catalogLoading && categories.length === 0 && (
+            <div aria-hidden="true" className="max-w-[1440px] mx-auto px-8 max-sm:px-4 pb-3 flex sm:justify-center gap-2 overflow-hidden">
+              {[112, 176, 64, 160].map((w) => <span key={w} className="shrink-0 h-9 rounded-full bg-ink/[0.06]" style={{ width: w }} />)}
+            </div>
+          )}
           {isHome && categories.length > 1 && (
             <div className="max-w-[1440px] mx-auto px-8 max-sm:px-4 pb-3 flex sm:justify-center gap-2 overflow-x-auto scrollbar-hide">
               {categories.map((c) => {
@@ -149,7 +168,7 @@ export default function Header() {
                     key={c.id}
                     onClick={() => pickCategory(c.id)}
                     aria-current={active ? 'page' : undefined}
-                    className={`shrink-0 h-9 px-4 rounded-full border-2 text-[12.5px] font-bold whitespace-nowrap cursor-pointer transition-colors ${active ? 'bg-sun border-ink text-ink' : 'bg-card border-line text-muted hover:border-ink hover:text-ink'}`}
+                    className={`shrink-0 h-9 px-4 rounded-full border-2 text-[12.5px] font-bold whitespace-nowrap cursor-pointer transition-colors ${active ? 'bg-accent border-ink text-ink' : 'bg-card border-line text-muted hover:border-ink hover:text-ink'}`}
                   >
                     {c.name}
                   </button>
@@ -157,7 +176,6 @@ export default function Header() {
               })}
             </div>
           )}
-          {isHome && <PromoDock />}
         </div>
       </header>
 
@@ -213,7 +231,7 @@ export default function Header() {
 
                 {/* The otter lives in the menu too, as the brief places it */}
                 <div className="mt-10 flex items-end gap-3">
-                  <Otter size={84} className="shrink-0" />
+                  <Meerkat pose="thumbs-up" width={92} className="shrink-0" decorative />
                   <div className="relative mb-8 px-4 py-3 rounded-2xl rounded-bl-sm bg-sun border-2 border-ink text-[13px] font-semibold leading-snug">
                     Привет! Введите промокод блогера — и все цены станут ниже.
                   </div>
@@ -244,7 +262,7 @@ function NavItem({ to, onClick, children }: { to?: string; onClick?: () => void;
 function MenuItem({ n, to, onClick, children, badge }: { n: string; to?: string; onClick?: () => void; children: React.ReactNode; badge?: boolean }) {
   const inner = (
     <>
-      <span className="text-[11px] text-light tabular-nums w-7 pt-3">{n}</span>
+      <span className="text-[11px] text-muted tabular-nums w-7 pt-3">{n}</span>
       <span className="font-display text-[30px] max-sm:text-[26px] leading-[1.25] text-text group-hover:translate-x-1.5 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]">{children}</span>
       {badge && <span className="ml-2 mt-4 w-1.5 h-1.5 rounded-full bg-primary" />}
     </>

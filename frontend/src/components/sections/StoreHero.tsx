@@ -13,6 +13,12 @@ const FACTS = [
   { n: '03', title: 'Промокод — ещё ниже', text: 'Слово от вашего блогера снижает цену на весь каталог сразу.', tone: 'bg-primary text-white' },
 ];
 
+/** Built-in pictures ship in three widths: /img/hero-eda-1000.webp → 640/1000/1400. */
+function heroSrcSet(url: string): string | undefined {
+  const m = url.match(/^(\/img\/hero-[a-z0-9-]+)-(?:640|1000|1400)\.webp$/);
+  return m ? `${m[1]}-640.webp 640w, ${m[1]}-1000.webp 1000w, ${m[1]}-1400.webp 1400w` : undefined;
+}
+
 const DEFAULT_INTRO = 'Оригинальные товары по ценам ниже крупных магазинов. С промокодом от вашего блогера цена станет ещё ниже — сразу на всех товарах.';
 
 /**
@@ -38,19 +44,30 @@ export default function StoreHero() {
   }, [setHeroPromoVisible]);
 
   return (
-    <section className="relative pt-[148px] max-lg:pt-[112px] pb-20 max-md:pb-12">
+    <section className="relative pt-[calc(var(--header-h,140px)+20px)] pb-10 max-md:pb-6">
       <div className="max-w-[1200px] mx-auto px-8 max-sm:px-4">
         {/* 1. Category photo */}
         <motion.div
-          key={heroImage || 'default'}
-          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: EASE }}
-          className="relative overflow-hidden rounded-[36px] max-sm:rounded-[26px] border-2 border-ink bg-[radial-gradient(ellipse_at_60%_40%,#FFF6C2_0%,#FFE14D_55%,#FFC700_100%)] aspect-[21/9] max-md:aspect-[4/3]"
+          key={`photo-${heroImage || 'default'}`}
+          // No fade-in: this picture is the page's largest paint, and an
+          // opacity animation would hold it back on slow phones.
+          initial={false}
+          className="relative overflow-hidden rounded-[36px] max-sm:rounded-[26px] border-2 border-ink accent-card aspect-[21/9] max-md:aspect-[4/3]"
         >
           <span className="absolute top-5 left-5 max-sm:top-3.5 max-sm:left-3.5 z-[1] px-4 py-2 rounded-full bg-card border-2 border-ink text-[11px] font-bold uppercase tracking-[0.12em] text-ink">
             {category?.description?.trim() || 'Оригинальная продукция'}
           </span>
           {heroImage ? (
-            <img src={heroImage} alt={category?.name || ''} fetchPriority="high" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 flex items-end justify-center px-[3%]">
+              <img
+                src={heroImage}
+                srcSet={heroSrcSet(heroImage)}
+                sizes="(max-width: 1024px) 100vw, 1200px"
+                alt={category?.name || ''}
+                fetchPriority="high"
+                className="h-[96%] max-w-full w-auto object-contain object-bottom"
+              />
+            </div>
           ) : (
             <picture className="absolute inset-0 flex items-end justify-center">
               <source type="image/webp" srcSet="/img/hero-640.webp 640w, /img/hero-1000.webp 1000w, /img/hero-1327.webp 1327w" sizes="(max-width: 1024px) 100vw, 1200px" />
@@ -60,7 +77,7 @@ export default function StoreHero() {
                 width={1327}
                 height={965}
                 fetchPriority="high"
-                className="h-[96%] w-auto object-contain"
+                className="h-[82%] w-auto object-contain"
               />
             </picture>
           )}
@@ -73,7 +90,7 @@ export default function StoreHero() {
 
         {/* 3. Slogan */}
         <motion.h1
-          key={category?.id ?? 'default'}
+          key={`slogan-${category?.id ?? 'default'}`}
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.06, ease: EASE }}
           className="mt-12 max-sm:mt-9 text-center font-display text-[clamp(34px,6vw,84px)] leading-[1.02] text-ink max-w-[1000px] mx-auto"
         >

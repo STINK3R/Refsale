@@ -9,6 +9,8 @@ export interface Category {
   /** The two shops this category's prices are compared with. */
   compare_label_1?: string;
   compare_label_2?: string;
+  /** The page's accent colour, e.g. #DDF2B2 for food. */
+  accent_color?: string;
   created_at?: string;
 }
 

@@ -4,6 +4,8 @@ import { useCartStore, useAuthStore, usePromoStore, priceFor, promoKey, cartKey,
 import { formatPrice } from '../../utils/format';
 import useScrollLock from '../../hooks/useScrollLock';
 import PromoForm from '../promo/PromoForm';
+import Meerkat from '../mascot/Meerkat';
+
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -49,6 +51,7 @@ export default function CartSidebar() {
             <div className="flex-1 overflow-y-auto px-8 max-sm:px-5">
               {items.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center py-20">
+                  <Meerkat pose="cart" width={150} decorative className="mb-6" />
                   <div className="font-display text-[30px] text-text">Корзина пуста</div>
                   <p className="text-[14px] text-muted mt-3 mb-8 max-w-[260px]">Выберите аромат или средство ухода в каталоге</p>
                   <button onClick={() => { closeSidebar(); document.querySelector('#catalog')?.scrollIntoView({ behavior: 'smooth' }); }} className="btn-outline">

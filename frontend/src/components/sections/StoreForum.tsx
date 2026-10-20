@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import Meerkat from '../mascot/Meerkat';
 import { Loader2, MessagesSquare, Send, User } from 'lucide-react';
 import { useAuthStore } from '../../store';
 import { API_BASE } from '../../api/client';
@@ -72,7 +73,8 @@ export default function StoreForum() {
   return (
     <section className="pt-28 pb-16 max-sm:pt-24">
       <div className="max-w-[860px] mx-auto px-5">
-        <div className="mb-6">
+        <div className="mb-6 relative pr-28 max-sm:pr-20">
+          <Meerkat pose="laptop" width={110} decorative className="absolute right-0 bottom-0 max-sm:w-[80px]" />
           <div className="label mb-2">Сообщество</div>
           <h1 className="font-display text-[44px] leading-none text-text max-sm:text-[34px]">Общий форум</h1>
           <p className="text-sm text-muted mt-3">Обсуждаем ароматы, делимся находками и советуем друг другу уход.</p>

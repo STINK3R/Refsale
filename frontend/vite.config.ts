@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       target: 'es2020',
+      // Fonts stay separate files: the CSP allows fonts from 'self' only, so a
+      // tiny font inlined as a data: URI would be blocked in production.
+      assetsInlineLimit: (file: string) => (/\.woff2?$/.test(file) ? false : undefined),
       cssMinify: true,
       rollupOptions: {
         output: {

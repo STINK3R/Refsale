@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import Meerkat from '../mascot/Meerkat';
 import { Package, Loader2, Send, ArrowLeft, MessageCircle, LogIn, ChevronDown, Check, X, BadgePercent } from 'lucide-react';
 import { useAuthStore, useNotificationStore } from '../../store';
 import { fetchUserOrderChats, fetchOrderMessages, sendOrderMessage, cancelStoreOrder } from '../../api/client';
@@ -103,9 +104,7 @@ export default function OrdersPage() {
   if (!user) {
     return (
       <div className="max-w-lg mx-auto px-5 pt-[170px] max-lg:pt-[120px] pb-24 text-center">
-        <div className="w-16 h-16 bg-primary/10 border border-primary/25 flex items-center justify-center mx-auto mb-5">
-          <Package size={28} className="text-primary" />
-        </div>
+        <Meerkat pose="boxes" width={150} decorative className="mx-auto mb-5" />
         <h1 className="font-display text-[38px] leading-none text-text mb-3">Сообщения и заказы</h1>
         <p className="text-sm text-muted mb-7">Войдите, чтобы видеть свои заказы, их статусы и чат с менеджером.</p>
         <button onClick={() => openAuth('login')} className="btn-primary px-8 h-12 text-[15px]"><LogIn size={17} /> Войти</button>
@@ -127,7 +126,7 @@ export default function OrdersPage() {
               <div className="flex justify-center py-16"><Loader2 className="animate-spin text-primary" /></div>
             ) : chats.length === 0 ? (
               <div className="text-center py-16 px-6 text-[13px] text-muted leading-relaxed">
-                <Package size={36} className="mx-auto mb-3 text-primary/40" />
+                <Meerkat pose="boxes" width={110} decorative className="mx-auto mb-4" />
                 Заказов пока нет. После оформления здесь появится чат с менеджером и статусы.
               </div>
             ) : chats.map((c) => {

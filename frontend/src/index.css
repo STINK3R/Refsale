@@ -14,6 +14,10 @@
   --color-ivory: #FFD60A;
   --color-sun: #FFD60A;
   --color-sun-soft: #FFF0A8;
+  /* Follows the open category (set from App): the photo card, the active
+     tab and product tiles take it on. */
+  --color-accent: #FFE45C;
+  --color-accent-deep: #F5C800;
   --color-muted: #5C5647;
   --color-light: #8E8774;
   --color-border: #EFE2B6;
@@ -154,7 +158,10 @@ body {
   }
   /* Product photo backdrop: a soft sunny spot on white */
   .tile-bg {
-    background: radial-gradient(ellipse at 50% 42%, #FFFFFF 0%, #FFF6D1 62%, #FFEDA6 100%);
+    background: radial-gradient(ellipse at 50% 42%, #FFFFFF 0%, color-mix(in srgb, var(--color-accent) 35%, #FFFFFF) 62%, color-mix(in srgb, var(--color-accent) 70%, #FFFFFF) 100%);
+  }
+  .accent-card {
+    background: radial-gradient(ellipse at 58% 38%, #FFFFFF 0%, var(--color-accent) 58%, var(--color-accent-deep) 100%);
   }
   .bar-blur {
     background: rgba(255, 251, 235, 0.88);

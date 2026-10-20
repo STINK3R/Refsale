@@ -60,6 +60,8 @@ _STORE_COLUMNS = [
     "ALTER TABLE coop_categories ADD COLUMN compare_label_1 VARCHAR(100) DEFAULT 'Золотое Яблоко'",
     "ALTER TABLE coop_categories ADD COLUMN compare_label_2 VARCHAR(100) DEFAULT 'Рандеву'",
     "ALTER TABLE coop_categories ADD COLUMN sort_order INTEGER DEFAULT 0",
+    # The page's accent: the photo card, the active tab and product tiles
+    "ALTER TABLE coop_categories ADD COLUMN accent_color VARCHAR(20) DEFAULT ''",
     "ALTER TABLE coop_reviews ADD COLUMN category_id INTEGER DEFAULT NULL",
     # Accounts
     "ALTER TABLE coop_users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE",
@@ -281,7 +283,7 @@ def store_catalog():
         with get_db() as cur:
             cur.execute("""
                 SELECT id, name, description, hero_image, slogan, intro,
-                       compare_label_1, compare_label_2
+                       compare_label_1, compare_label_2, accent_color
                 FROM coop_categories ORDER BY sort_order ASC, created_at ASC
             """)
             cats = _rows_to_list(cur.fetchall())

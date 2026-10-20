@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import Meerkat from '../mascot/Meerkat';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, ChevronLeft, Plus, Package, Check, HelpCircle } from 'lucide-react';
 import { useAuthStore, useAppStore, usePromoStore } from '../../store';
@@ -197,12 +198,12 @@ export default function SupportChatModal() {
             className="fixed inset-0 z-[3100] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none"
           >
             <div
-              className="pointer-events-auto w-full max-w-lg bg-bg border border-line overflow-hidden flex flex-col"
+              className="pointer-events-auto w-full max-w-lg bg-bg border-2 border-ink sm:rounded-[24px] overflow-hidden flex flex-col"
               style={{ height: '100dvh', maxHeight: 'min(640px, 100dvh)' }}
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center gap-3 px-5 py-3.5 bg-gradient-to-r from-primary to-primary-dark text-ink shrink-0">
+              <div className="flex items-center gap-3 px-5 py-3 bg-sun border-b-2 border-ink text-ink shrink-0">
                 {activeTicket && (
                   <button
                     onClick={() => { setActiveTicket(null); setMessages([]); }}
@@ -211,6 +212,7 @@ export default function SupportChatModal() {
                     <ChevronLeft size={16} />
                   </button>
                 )}
+                {!activeTicket && <Meerkat pose="phone" width={40} decorative className="-my-1" />}
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-[15px] truncate">
                     {activeTicket ? unescapeHtml(activeTicket.subject) : 'Чаты с продавцом'}

@@ -11,6 +11,8 @@ import Notification from './components/ui/Notification';
 import SupportWidget from './components/support/SupportWidget';
 import SupportChatModal from './components/support/SupportChatModal';
 import MascotLayer from './components/mascot/MascotLayer';
+import PromoDock from './components/promo/PromoDock';
+import useCategoryAccent from './hooks/useCategoryAccent';
 
 const AuthModal = lazy(() => import('./components/auth/AuthModal'));
 const ForgotPassword = lazy(() => import('./components/auth/ForgotPassword'));
@@ -55,6 +57,7 @@ function App() {
   const revalidatePromo = usePromoStore((s) => s.revalidate);
   const { pathname } = useLocation();
   useReferralLink();
+  useCategoryAccent();
 
   useEffect(() => {
     void loadData();
@@ -74,6 +77,7 @@ function App() {
             <StoreCatalog />
             <Reviews />
             <About />
+            <PromoDock />
           </main>
         } />
         <Route path="/forums" element={<Suspense fallback={<PageFallback />}><StoreForum /></Suspense>} />

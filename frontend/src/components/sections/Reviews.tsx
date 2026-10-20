@@ -4,6 +4,8 @@ import { ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { useAppStore, useAuthStore, useNotificationStore } from '../../store';
 import { addReview } from '../../api/client';
 import ImageUploader from '../ui/ImageUploader';
+import Meerkat from '../mascot/Meerkat';
+
 import AttachedImages from '../ui/AttachedImages';
 import { formatDate, unescapeHtml } from '../../utils/format';
 import type { Review } from '../../types';
@@ -111,6 +113,7 @@ export default function Reviews() {
             </div>
           ) : (
             <div className="border-t border-line pt-10">
+              <Meerkat pose="heart" width={120} decorative className="mb-5" />
               <p className="font-display text-[28px] text-text">Отзывов пока нет.</p>
               <p className="text-[14px] text-muted mt-3">Станьте первым, кто поделится впечатлениями о покупке.</p>
             </div>

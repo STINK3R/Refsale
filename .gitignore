@@ -43,3 +43,7 @@ pgdata/
 
 # Duplicate files
 logo VIP.png
+
+# Picture sources (big PNGs) stay local; the site uses the webp copies in frontend/public
+img/mascot/
+img/hero-*.png

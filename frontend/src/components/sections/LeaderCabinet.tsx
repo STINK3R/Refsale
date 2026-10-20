@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Meerkat from '../mascot/Meerkat';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Copy, Crown, Eye, Loader2, Send, X, Link2, MessageCircle, Package, Wallet, Clock, CheckCircle2, TrendingUp, LogIn } from 'lucide-react';
 import { useAuthStore, useNotificationStore } from '../../store';
@@ -86,9 +87,12 @@ export default function LeaderCabinet() {
   return (
     <div className="max-w-[1240px] mx-auto px-5 pt-[150px] max-lg:pt-[104px] pb-16">
       <div className="flex items-end justify-between gap-4 flex-wrap mb-8">
-        <div>
-          <div className="label mb-2 flex items-center gap-2"><Crown size={13} /> Кабинет лидера мнений</div>
-          <h1 className="font-display text-[44px] leading-none text-text max-sm:text-[34px]">{overview.leader.name}</h1>
+        <div className="flex items-end gap-4">
+          <Meerkat pose="laptop" width={96} decorative className="max-sm:w-[70px]" />
+          <div>
+            <div className="label mb-2 flex items-center gap-2"><Crown size={13} /> Кабинет лидера мнений</div>
+            <h1 className="font-display text-[44px] leading-none text-text max-sm:text-[34px]">{overview.leader.name}</h1>
+          </div>
         </div>
         <span className={`inline-flex items-center gap-2 px-4 py-2 text-[12px] border ${overview.leader.can_write ? 'border-primary/40 text-primary-light bg-primary/10' : 'border-ink/10 text-muted bg-ink/[0.04]'}`}>
           {overview.leader.can_write ? <><MessageCircle size={14} /> Можно писать покупателям и вести заказы</> : <><Eye size={14} /> Режим просмотра</>}
