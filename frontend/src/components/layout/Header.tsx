@@ -164,7 +164,7 @@ export default function Header() {
               the page below does not jump when the tabs arrive. */}
           {isHome && catalogLoading && categories.length === 0 && (
             <div aria-hidden="true" className="max-w-[1440px] mx-auto px-8 max-sm:px-4 pb-3 flex sm:justify-center gap-2 overflow-hidden">
-              {[112, 176, 64, 160].map((w) => <span key={w} className="shrink-0 h-9 rounded-full bg-ink/[0.06]" style={{ width: w }} />)}
+              {[112, 176, 64, 160].map((w) => <span key={w} className="shrink-0 h-9 rounded-ctl-sm bg-ink/[0.06]" style={{ width: w }} />)}
             </div>
           )}
           {isHome && categories.length > 1 && (
@@ -176,7 +176,7 @@ export default function Header() {
                     key={c.id}
                     onClick={() => pickCategory(c.id)}
                     aria-current={active ? 'page' : undefined}
-                    className={`shrink-0 h-9 px-4 rounded-full border-2 text-[12.5px] font-bold whitespace-nowrap cursor-pointer transition-[color,border-color] ${active ? 'bg-accent-strong border-ink text-ink' : 'bg-card border-line text-muted hover:border-ink hover:text-ink'}`}
+                    className={`shrink-0 h-9 px-4 rounded-ctl-sm border-2 text-[12.5px] font-bold whitespace-nowrap cursor-pointer transition-[color,border-color] ${active ? 'bg-accent-strong border-ink text-ink' : 'bg-card border-line text-muted hover:border-ink hover:text-ink'}`}
                   >
                     {c.name}
                   </button>
@@ -203,7 +203,7 @@ export default function Header() {
             >
               <div className="flex items-center justify-between px-8 max-sm:px-6 h-[68px] border-b border-line shrink-0">
                 <span className="label">Меню</span>
-                <button onClick={() => setMenuOpen(false)} className="w-10 h-10 rounded-full bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun transition-colors cursor-pointer" aria-label="Закрыть меню">
+                <button onClick={() => setMenuOpen(false)} className="w-10 h-10 rounded-ctl-sm bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun transition-colors cursor-pointer" aria-label="Закрыть меню">
                   <X size={18} strokeWidth={2.2} />
                 </button>
               </div>

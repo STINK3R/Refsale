@@ -91,7 +91,7 @@ export default function StoreCatalog() {
               value={query}
               onChange={(e) => onSearch(e.target.value)}
               placeholder={category ? `Поиск: ${category.name.toLowerCase()}` : 'Поиск товаров'}
-              className="field !h-12 !rounded-full !pl-11 !border-2 !border-ink"
+              className="field !h-12 !pl-11 !border-2 !border-ink"
               aria-label="Поиск товаров"
             />
           </label>
@@ -125,7 +125,7 @@ export default function StoreCatalog() {
             <div className="grid grid-cols-4 gap-5 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:gap-3">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="animate-pulse rounded-[22px] border-2 border-line p-2">
-                  <div className="aspect-square rounded-[16px] bg-tile" />
+                  <div className="aspect-square rounded-[12px] max-sm:rounded-[9px] bg-tile" />
                   <div className="h-3.5 bg-ink/[0.05] w-3/4 mt-5" />
                   <div className="h-3.5 bg-ink/[0.05] w-1/3 mt-3" />
                 </div>
@@ -199,7 +199,7 @@ function Tab({ active, onClick, children, count }: { active: boolean; onClick: (
   return (
     <button
       onClick={onClick}
-      className={`shrink-0 h-9 px-4 rounded-full border-2 whitespace-nowrap cursor-pointer transition-colors text-[13px] font-bold ${active ? 'bg-ink border-ink text-sun' : 'bg-card border-line text-muted hover:border-ink hover:text-ink'}`}
+      className={`shrink-0 h-9 px-4 rounded-ctl-sm border-2 whitespace-nowrap cursor-pointer transition-colors text-[13px] font-bold ${active ? 'bg-ink border-ink text-sun' : 'bg-card border-line text-muted hover:border-ink hover:text-ink'}`}
     >
       {children}
       {count != null && <span className="ml-1.5 text-[11px] opacity-60">{count}</span>}
@@ -300,12 +300,12 @@ function CartStepper({ line, size = 'sm', className = '' }: { line: CartItem; si
   const last = line.qty <= 1;
   const lg = size === 'lg';
   const icon = lg ? 17 : 14;
-  const side = `${lg ? 'w-[42px]' : 'w-8'} h-full shrink-0 rounded-full flex items-center justify-center text-ink hover:bg-sun transition-colors cursor-pointer disabled:opacity-35 disabled:pointer-events-none`;
+  const side = `${lg ? 'w-[42px] rounded-[11px]' : 'w-8 rounded-ctl-xs'} h-full shrink-0 flex items-center justify-center text-ink hover:bg-sun transition-colors cursor-pointer disabled:opacity-35 disabled:pointer-events-none`;
   const name = `«${line.name}${line.variant_label ? ` — ${line.variant_label}` : ''}»`;
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.25, ease: EASE }}
-      className={`${lg ? 'h-[50px]' : 'h-10'} rounded-full border-2 border-ink bg-card flex items-center p-[3px] ${className}`}
+      className={`${lg ? 'h-[50px] rounded-ctl-md' : 'h-10 rounded-ctl-sm'} border-2 border-ink bg-card flex items-center p-[3px] ${className}`}
     >
       <button
         onClick={() => { changeQty(key, -1); if (last) show(`${name} убран из корзины`); }}
@@ -317,7 +317,7 @@ function CartStepper({ line, size = 'sm', className = '' }: { line: CartItem; si
       </button>
       <button
         onClick={openSidebar}
-        className={`flex-1 min-w-0 h-full px-1 rounded-full font-bold tabular-nums whitespace-nowrap text-ink hover:text-primary transition-colors cursor-pointer ${lg ? 'text-[14px]' : 'text-[12.5px] max-sm:text-[12px]'}`}
+        className={`flex-1 min-w-0 h-full px-1 rounded-ctl-xs font-bold tabular-nums whitespace-nowrap text-ink hover:text-primary transition-colors cursor-pointer ${lg ? 'text-[14px]' : 'text-[12.5px] max-sm:text-[12px]'}`}
         title="Открыть корзину"
       >
         {lg ? `В корзине · ${line.qty}` : <><span className="max-sm:hidden">В корзине · </span>{line.qty}<span className="sm:hidden"> шт</span></>}
@@ -375,7 +375,7 @@ export const ProductCard = memo(function ProductCard({ product, index, onOpen, o
       transition={{ duration: 0.8, delay: (index % 4) * 0.06, ease: EASE }}
       className="group flex flex-col bg-card rounded-[22px] max-sm:rounded-[18px] border-2 border-ink p-2 hover:-translate-y-1 hover:shadow-[0_6px_0_#111] transition-all duration-300"
     >
-      <div className="relative aspect-square overflow-hidden rounded-[16px] max-sm:rounded-[12px] tile-bg">
+      <div className="relative aspect-square overflow-hidden rounded-[12px] max-sm:rounded-[9px] tile-bg">
         <button onClick={onOpen} className="absolute inset-0 cursor-pointer" aria-label={`Подробнее: ${product.name}`}>
           {product.image_url ? (
             <img
@@ -413,14 +413,14 @@ export const ProductCard = memo(function ProductCard({ product, index, onOpen, o
           ) : !unavailable && (
             <button
               onClick={add}
-              className={`flex-1 h-10 rounded-full border-2 border-ink flex items-center justify-center gap-1 text-[12.5px] max-sm:text-[12px] font-bold whitespace-nowrap cursor-pointer transition-colors ${inCart ? 'bg-card text-ink' : 'bg-sun text-ink hover:bg-ink hover:text-sun'}`}
+              className={`flex-1 h-10 rounded-ctl-sm border-2 border-ink flex items-center justify-center gap-1 text-[12.5px] max-sm:text-[12px] font-bold whitespace-nowrap cursor-pointer transition-colors ${inCart ? 'bg-card text-ink' : 'bg-sun text-ink hover:bg-ink hover:text-sun'}`}
             >
               {hasVariants ? <><span className="max-sm:hidden">Выбрать объём</span><span className="sm:hidden">Объёмы</span></> : inCart ? <><Check size={14} strokeWidth={2.4} /> В корзине</> : <><Plus size={14} strokeWidth={2.4} /> В корзину</>}
             </button>
           )}
           <button
             onClick={() => askSeller(product.id)}
-            className={`${unavailable ? 'flex-1' : 'w-10 max-sm:hidden'} h-10 rounded-full flex items-center justify-center gap-1.5 border-2 border-ink bg-card text-ink hover:bg-sun-soft cursor-pointer`}
+            className={`${unavailable ? 'flex-1' : 'w-10 max-sm:hidden'} h-10 rounded-ctl-sm flex items-center justify-center gap-1.5 border-2 border-ink bg-card text-ink hover:bg-sun-soft cursor-pointer`}
             aria-label="Связаться с продавцом"
           >
             <MessageCircle size={14} strokeWidth={1.4} />{unavailable && <span className="text-[10.5px] uppercase tracking-[0.12em]">Спросить</span>}
@@ -482,7 +482,7 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
         // and the close button, price and buttons never leave the screen.
         className="relative w-full max-w-[1040px] h-[min(92dvh,720px)] max-md:h-[92dvh] bg-bg border-2 border-ink rounded-t-[28px] sm:rounded-[28px] shadow-[0_8px_0_#111] flex flex-col md:grid md:grid-cols-2"
       >
-        <button onClick={onClose} className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-card border-2 border-ink text-ink flex items-center justify-center cursor-pointer hover:bg-sun" aria-label="Закрыть">
+        <button onClick={onClose} className="absolute top-4 right-4 z-10 w-10 h-10 rounded-ctl-sm bg-card border-2 border-ink text-ink flex items-center justify-center cursor-pointer hover:bg-sun" aria-label="Закрыть">
           <X size={18} strokeWidth={2.2} />
         </button>
 
@@ -494,15 +494,15 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
               corner products never reach, so it covers nothing. */}
           <Meerkat pose="peek" width={132} decorative className="absolute -bottom-[6px] left-6 max-md:-bottom-[4px] max-md:left-4 max-md:w-[96px] pointer-events-none" />
           {images.length > 0 && (
-            <button onClick={() => setZoom(true)} className="absolute top-4 left-4 w-9 h-9 rounded-full bg-card/90 border-2 border-ink text-ink flex items-center justify-center cursor-pointer hover:bg-sun" aria-label="Открыть фото">
+            <button onClick={() => setZoom(true)} className="absolute top-4 left-4 w-9 h-9 rounded-ctl-sm bg-card/90 border-2 border-ink text-ink flex items-center justify-center cursor-pointer hover:bg-sun" aria-label="Открыть фото">
               <Maximize2 size={15} strokeWidth={2} />
             </button>
           )}
           {images.length > 1 && (
-            <div className="absolute bottom-4 right-4 flex items-center gap-2 px-1.5 py-1 rounded-full bg-card/90 border-2 border-ink text-ink">
-              <button onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-sun cursor-pointer" aria-label="Предыдущее фото"><ChevronLeft size={16} strokeWidth={2.2} /></button>
+            <div className="absolute bottom-4 right-4 flex items-center gap-2 px-1 py-1 rounded-ctl-sm bg-card/90 border-2 border-ink text-ink">
+              <button onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)} className="w-7 h-7 rounded-[6px] flex items-center justify-center hover:bg-sun cursor-pointer" aria-label="Предыдущее фото"><ChevronLeft size={16} strokeWidth={2.2} /></button>
               <span className="text-[12px] font-bold tabular-nums">{idx + 1} / {images.length}</span>
-              <button onClick={() => setIdx((i) => (i + 1) % images.length)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-sun cursor-pointer" aria-label="Следующее фото"><ChevronRight size={16} strokeWidth={2.2} /></button>
+              <button onClick={() => setIdx((i) => (i + 1) % images.length)} className="w-7 h-7 rounded-[6px] flex items-center justify-center hover:bg-sun cursor-pointer" aria-label="Следующее фото"><ChevronRight size={16} strokeWidth={2.2} /></button>
             </div>
           )}
           {zoom && <Lightbox images={images} startIndex={idx} alt={product.name} onClose={() => setZoom(false)} />}
@@ -578,7 +578,7 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
               )}
               <button
                 onClick={() => { onClose(); askSeller(product.id); }}
-                className="w-[50px] h-[50px] shrink-0 rounded-full bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun-soft cursor-pointer"
+                className="w-[50px] h-[50px] shrink-0 rounded-ctl-md bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun-soft cursor-pointer"
                 aria-label="Спросить продавца"
                 title="Спросить продавца"
               >

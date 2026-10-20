@@ -134,7 +134,7 @@ export default function Reviews() {
               onClick={(e) => e.stopPropagation()}
               className="relative w-full max-w-lg bg-bg border-2 border-ink rounded-t-[28px] sm:rounded-[28px] shadow-[0_8px_0_#111] max-h-[92vh] flex flex-col overflow-hidden"
             >
-              <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun transition-colors cursor-pointer" aria-label="Закрыть">
+              <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 w-10 h-10 rounded-ctl-sm bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun transition-colors cursor-pointer" aria-label="Закрыть">
                 <X size={18} strokeWidth={2.2} />
               </button>
               <div className="flex-1 min-h-0 overflow-y-auto modal-scroll p-10 max-sm:p-6">

@@ -44,7 +44,7 @@ export default function Modal({ open, onClose, children, title, subtitle, maxWid
           >
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun transition-colors cursor-pointer z-10"
+              className="absolute top-4 right-4 w-10 h-10 rounded-ctl-sm bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun transition-colors cursor-pointer z-10"
               aria-label="Закрыть"
             >
               <X size={18} strokeWidth={2.2} />

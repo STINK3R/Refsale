@@ -33,6 +33,17 @@
   --font-sans: 'Golos Text', 'Helvetica Neue', Arial, sans-serif;
   --font-display: 'Unbounded', 'Golos Text', Arial, sans-serif;
   --ease-luxe: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Corners of controls: about a third of the height, on a 2px step (close to
+     Material's 8/12/16 scale). Anything set inside a rounded box takes the
+     box's radius minus the gap between their edges (border + padding), so the
+     two curves stay parallel - e.g. the 44px button in the 56px promo plate:
+     18 - 6 = 12. Tags, badges and toasts stay pills; that is how they read
+     apart from buttons. */
+  --radius-ctl-xs: 8px;   /* up to 32px: icon buttons, chips inside controls */
+  --radius-ctl-sm: 12px;  /* 36-40px: card buttons, tabs, icon buttons */
+  --radius-ctl: 14px;     /* 44-48px: fields, search, the promo dock */
+  --radius-ctl-md: 16px;  /* 50px: the main buttons */
+  --radius-ctl-lg: 18px;  /* 56px: the promo plate */
 }
 
 /* Registered so the accent can glide from one category's colour to the next
@@ -127,7 +138,7 @@ body {
     gap: 0.6rem;
     height: 50px;
     padding: 0 1.9rem;
-    border-radius: 999px;
+    border-radius: var(--radius-ctl-md);
     font-size: 12.5px;
     font-weight: 700;
     letter-spacing: 0.1em;
@@ -153,8 +164,8 @@ body {
   .btn-outline:hover:not(:disabled) { background: var(--color-sun-soft); }
   .btn-primary:disabled,
   .btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn-sm { height: 40px; padding: 0 1.1rem; font-size: 11px; box-shadow: none; }
-  .btn-icon { width: 38px; height: 38px; padding: 0; }
+  .btn-sm { height: 40px; padding: 0 1.1rem; font-size: 11px; box-shadow: none; border-radius: var(--radius-ctl-sm); }
+  .btn-icon { width: 38px; height: 38px; padding: 0; border-radius: var(--radius-ctl-sm); }
 
   /* Text link with an underline that draws on hover */
   .link-line {
@@ -214,7 +225,7 @@ body {
     height: 48px;
     background: var(--color-card);
     border: 1.5px solid var(--color-line);
-    border-radius: 14px;
+    border-radius: var(--radius-ctl);
     color: var(--color-text);
     padding: 0 1rem;
     font-family: inherit;

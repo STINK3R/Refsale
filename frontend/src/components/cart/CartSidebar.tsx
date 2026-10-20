@@ -43,7 +43,7 @@ export default function CartSidebar() {
           >
             <div className="flex items-center justify-between px-8 max-sm:px-5 h-[68px] border-b border-line shrink-0">
               <span className="label !text-text">Корзина{count ? ` · ${count}` : ''}</span>
-              <button onClick={closeSidebar} className="w-10 h-10 rounded-full bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun transition-colors cursor-pointer" aria-label="Закрыть корзину">
+              <button onClick={closeSidebar} className="w-10 h-10 rounded-ctl-sm bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun transition-colors cursor-pointer" aria-label="Закрыть корзину">
                 <X size={18} strokeWidth={2.2} />
               </button>
             </div>

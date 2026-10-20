@@ -228,7 +228,7 @@ function OrderThread({ chat, userId, userName, onBack }: { chat: OrderChatSummar
     <>
       <div className="shrink-0 border-b border-ink/[0.07] px-4 py-3.5 space-y-3">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="sm:hidden w-8 h-8 rounded-full bg-ink/5 flex items-center justify-center text-muted cursor-pointer" aria-label="Назад"><ArrowLeft size={16} /></button>
+          <button onClick={onBack} className="sm:hidden w-8 h-8 rounded-ctl-xs bg-ink/5 flex items-center justify-center text-muted cursor-pointer" aria-label="Назад"><ArrowLeft size={16} /></button>
           <div className="flex-1 min-w-0">
             <div className="font-display text-[24px] leading-none text-text">Заказ #{chat.order_id}</div>
             <div className="text-[12px] text-muted mt-1">{formatPrice(chat.total)} · чат с менеджером</div>

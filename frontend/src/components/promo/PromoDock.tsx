@@ -42,7 +42,7 @@ export default function PromoDock() {
                 </div>
                 <button
                   onClick={() => setOpen(false)}
-                  className="shrink-0 w-11 h-11 mt-1.5 max-sm:mt-0.5 rounded-full bg-card border-2 border-ink flex items-center justify-center cursor-pointer hover:bg-sun"
+                  className="shrink-0 w-11 h-11 mt-1.5 max-sm:mt-0.5 rounded-ctl bg-card border-2 border-ink flex items-center justify-center cursor-pointer hover:bg-sun"
                   aria-label="Свернуть"
                 >
                   <X size={18} strokeWidth={2.4} />
@@ -54,9 +54,9 @@ export default function PromoDock() {
                 initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.25, ease: EASE }}
                 onClick={() => setOpen(true)}
-                className={`h-12 max-sm:h-11 pl-1.5 pr-5 rounded-full border-2 border-ink shadow-[0_4px_0_#111] flex items-center gap-2.5 text-[13px] font-bold cursor-pointer ${code ? 'bg-primary text-white' : 'bg-card text-ink hover:bg-sun-soft'}`}
+                className={`h-12 max-sm:h-11 pl-1.5 pr-5 rounded-ctl-md max-sm:rounded-ctl border-2 border-ink shadow-[0_4px_0_#111] flex items-center gap-2.5 text-[13px] font-bold cursor-pointer ${code ? 'bg-primary text-white' : 'bg-card text-ink hover:bg-sun-soft'}`}
               >
-                <span className={`w-8 h-8 rounded-full flex items-center justify-center ${code ? 'bg-sun text-ink' : 'bg-primary text-white'}`}>
+                <span className={`w-8 h-8 rounded-ctl-xs flex items-center justify-center ${code ? 'bg-sun text-ink' : 'bg-primary text-white'}`}>
                   {code ? <Check size={16} strokeWidth={2.6} /> : <Percent size={16} strokeWidth={2.6} />}
                 </span>
                 {code ? <>Промокод {code}</> : 'Есть промокод?'}

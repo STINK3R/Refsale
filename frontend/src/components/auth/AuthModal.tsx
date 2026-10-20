@@ -60,14 +60,14 @@ export default function AuthModal() {
 
   return (
     <Modal open={authModalOpen} onClose={closeAuth}>
-      <div className="inline-flex p-1 mb-7 mr-12 rounded-full bg-surface border-2 border-line" role="tablist">
+      <div className="inline-flex p-1 mb-7 mr-12 rounded-[18px] bg-surface border-2 border-line" role="tablist">
         {(['register', 'login'] as const).map((t) => (
           <button
             key={t}
             role="tab"
             aria-selected={authTab === t}
             onClick={() => switchTab(t)}
-            className={`h-9 px-5 rounded-full text-[13px] font-bold cursor-pointer transition-colors ${authTab === t ? 'bg-sun text-ink border-2 border-ink' : 'text-muted hover:text-ink border-2 border-transparent'}`}
+            className={`h-9 px-5 rounded-ctl-sm text-[13px] font-bold cursor-pointer transition-colors ${authTab === t ? 'bg-sun text-ink border-2 border-ink' : 'text-muted hover:text-ink border-2 border-transparent'}`}
           >
             {t === 'register' ? 'Регистрация' : 'Вход'}
           </button>

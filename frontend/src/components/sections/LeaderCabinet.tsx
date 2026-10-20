@@ -246,7 +246,7 @@ function Drawer({ title, subtitle, onClose, children, footer }: { title: string;
             <div className="font-display text-[28px] leading-none text-text">{title}</div>
             {subtitle && <div className="text-[12px] text-muted mt-2">{subtitle}</div>}
           </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-full bg-ink/5 border border-ink/10 flex items-center justify-center text-muted hover:text-text cursor-pointer shrink-0" aria-label="Закрыть"><X size={18} /></button>
+          <button onClick={onClose} className="w-9 h-9 rounded-ctl-sm bg-ink/5 border border-ink/10 flex items-center justify-center text-muted hover:text-text cursor-pointer shrink-0" aria-label="Закрыть"><X size={18} /></button>
         </div>
         {children}
         {footer}

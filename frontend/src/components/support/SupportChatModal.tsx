@@ -207,7 +207,7 @@ export default function SupportChatModal() {
                 {activeTicket && (
                   <button
                     onClick={() => { setActiveTicket(null); setMessages([]); }}
-                    className="w-7 h-7 rounded-full bg-ink/20 flex items-center justify-center hover:bg-ink/30 transition cursor-pointer"
+                    className="w-7 h-7 rounded-ctl-xs bg-ink/20 flex items-center justify-center hover:bg-ink/30 transition cursor-pointer"
                   >
                     <ChevronLeft size={16} />
                   </button>
@@ -223,7 +223,7 @@ export default function SupportChatModal() {
                 </div>
                 <button
                   onClick={close}
-                  className="w-7 h-7 rounded-full bg-ink/20 flex items-center justify-center hover:bg-ink/30 transition cursor-pointer"
+                  className="w-7 h-7 rounded-ctl-xs bg-ink/20 flex items-center justify-center hover:bg-ink/30 transition cursor-pointer"
                 >
                   <X size={16} />
                 </button>

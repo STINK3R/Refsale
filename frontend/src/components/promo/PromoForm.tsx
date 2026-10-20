@@ -35,8 +35,8 @@ export default function PromoForm({ variant = 'box', onApplied, floatingError = 
     const from = label || (leaderName ? `от ${leaderName}` : '');
     if (pill) {
       return (
-        <div className="flex items-center gap-3 h-14 max-sm:h-12 pl-2 pr-5 rounded-full bg-primary text-white border-2 border-ink shadow-[0_4px_0_#111]">
-          <span className="w-10 h-10 max-sm:w-8 max-sm:h-8 rounded-full bg-sun text-ink flex items-center justify-center shrink-0">
+        <div className="flex items-center gap-3 h-14 max-sm:h-12 pl-2 pr-5 rounded-ctl-lg max-sm:rounded-ctl-md bg-primary text-white border-2 border-ink shadow-[0_4px_0_#111]">
+          <span className="w-10 h-10 max-sm:w-8 max-sm:h-8 rounded-[10px] max-sm:rounded-ctl-xs bg-sun text-ink flex items-center justify-center shrink-0">
             <Check size={18} strokeWidth={2.4} />
           </span>
           <div className="min-w-0 flex-1 leading-tight">
@@ -53,7 +53,7 @@ export default function PromoForm({ variant = 'box', onApplied, floatingError = 
       );
     }
     return (
-      <div className={`flex items-center gap-4 ${line ? 'py-4 border-b border-line' : 'h-12 px-4 border border-line rounded-full bg-card'}`}>
+      <div className={`flex items-center gap-4 ${line ? 'py-4 border-b border-line' : 'h-12 px-4 border border-line rounded-ctl bg-card'}`}>
         <Check size={line ? 18 : 15} strokeWidth={1.8} className="text-primary shrink-0" />
         <div className="min-w-0 flex-1 leading-snug">
           <div className={`${line ? 'text-[15px]' : 'text-[13px]'} text-text truncate`}>
@@ -76,9 +76,9 @@ export default function PromoForm({ variant = 'box', onApplied, floatingError = 
       <div className="relative">
         <form
           onSubmit={(e) => { e.preventDefault(); void submit(); }}
-          className={`flex items-center gap-2 h-14 max-sm:h-12 pl-2 pr-1.5 rounded-full bg-card border-2 shadow-[0_4px_0_#111] ${error ? 'border-danger' : 'border-ink'}`}
+          className={`flex items-center gap-2 h-14 max-sm:h-12 pl-2 pr-1.5 rounded-ctl-lg max-sm:rounded-ctl-md bg-card border-2 shadow-[0_4px_0_#111] ${error ? 'border-danger' : 'border-ink'}`}
         >
-          <span className="w-10 h-10 max-sm:w-8 max-sm:h-8 rounded-full bg-primary text-white flex items-center justify-center shrink-0" aria-hidden="true">
+          <span className="w-10 h-10 max-sm:w-8 max-sm:h-8 rounded-[10px] max-sm:rounded-ctl-xs bg-primary text-white flex items-center justify-center shrink-0" aria-hidden="true">
             <Percent size={18} strokeWidth={2.4} />
           </span>
           <input
@@ -94,7 +94,7 @@ export default function PromoForm({ variant = 'box', onApplied, floatingError = 
             type="submit"
             disabled={checking || !value.trim()}
             aria-label="Применить промокод"
-            className="h-11 max-sm:h-9 px-5 max-sm:px-3.5 rounded-full bg-ink text-sun text-[12px] font-bold uppercase tracking-[0.08em] flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-default shrink-0"
+            className="h-11 max-sm:h-9 px-5 max-sm:px-3.5 rounded-ctl-sm max-sm:rounded-[10px] bg-ink text-sun text-[12px] font-bold uppercase tracking-[0.08em] flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-default shrink-0"
           >
             {checking ? <Loader2 size={16} className="animate-spin" /> : <><span className="max-sm:hidden">Применить</span><ArrowRight size={16} strokeWidth={2.2} /></>}
           </button>
@@ -114,7 +114,7 @@ export default function PromoForm({ variant = 'box', onApplied, floatingError = 
         onSubmit={(e) => { e.preventDefault(); void submit(); }}
         className={`flex items-center gap-4 transition-colors ${line
           ? `border-b-2 ${error ? 'border-danger/70' : 'border-line focus-within:border-text'}`
-          : `h-12 pl-5 pr-1 rounded-full bg-card border-2 ${error ? 'border-danger/70' : 'border-line focus-within:border-ink'}`}`}
+          : `h-12 pl-5 pr-1 rounded-ctl bg-card border-2 ${error ? 'border-danger/70' : 'border-line focus-within:border-ink'}`}`}
       >
         <input
           value={value}
@@ -128,7 +128,7 @@ export default function PromoForm({ variant = 'box', onApplied, floatingError = 
         <button
           type="submit"
           disabled={checking || !value.trim()}
-          className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] cursor-pointer disabled:cursor-default transition-colors ${line ? 'text-text disabled:text-light' : 'h-9 px-4 rounded-full bg-ink text-sun disabled:opacity-50'}`}
+          className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] cursor-pointer disabled:cursor-default transition-colors ${line ? 'text-text disabled:text-light' : 'h-9 px-4 rounded-ctl-xs bg-ink text-sun disabled:opacity-50'}`}
         >
           {checking ? <Loader2 size={15} className="animate-spin" /> : <>Применить <ArrowRight size={14} strokeWidth={2} /></>}
         </button>

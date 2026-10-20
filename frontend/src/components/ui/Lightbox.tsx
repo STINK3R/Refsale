@@ -114,20 +114,20 @@ export default function Lightbox({ images, startIndex = 0, alt = '', onClose }: 
         </span>
         <div className="flex items-center gap-1">
           <button onClick={() => zoomBy(1 / 1.4)} disabled={scale <= MIN_SCALE} title="Уменьшить" aria-label="Уменьшить"
-            className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/15 disabled:opacity-30 transition-colors cursor-pointer bg-transparent border-none text-white">
+            className="w-10 h-10 rounded-ctl-sm flex items-center justify-center hover:bg-white/15 disabled:opacity-30 transition-colors cursor-pointer bg-transparent border-none text-white">
             <ZoomOut size={20} />
           </button>
           <span className="text-xs w-12 text-center tabular-nums">{Math.round(scale * 100)}%</span>
           <button onClick={() => zoomBy(1.4)} disabled={scale >= MAX_SCALE} title="Увеличить" aria-label="Увеличить"
-            className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/15 disabled:opacity-30 transition-colors cursor-pointer bg-transparent border-none text-white">
+            className="w-10 h-10 rounded-ctl-sm flex items-center justify-center hover:bg-white/15 disabled:opacity-30 transition-colors cursor-pointer bg-transparent border-none text-white">
             <ZoomIn size={20} />
           </button>
           <button onClick={reset} disabled={scale === 1} title="Сбросить" aria-label="Сбросить масштаб"
-            className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/15 disabled:opacity-30 transition-colors cursor-pointer bg-transparent border-none text-white">
+            className="w-10 h-10 rounded-ctl-sm flex items-center justify-center hover:bg-white/15 disabled:opacity-30 transition-colors cursor-pointer bg-transparent border-none text-white">
             <RotateCcw size={18} />
           </button>
           <button onClick={onClose} title="Закрыть" aria-label="Закрыть"
-            className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/15 transition-colors cursor-pointer bg-transparent border-none text-white ml-1">
+            className="w-10 h-10 rounded-ctl-sm flex items-center justify-center hover:bg-white/15 transition-colors cursor-pointer bg-transparent border-none text-white ml-1">
             <X size={22} />
           </button>
         </div>
@@ -161,11 +161,11 @@ export default function Lightbox({ images, startIndex = 0, alt = '', onClose }: 
         {images.length > 1 && (
           <>
             <button onClick={() => go(-1)} aria-label="Предыдущее фото"
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur flex items-center justify-center text-white transition-colors cursor-pointer border-none">
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-ctl bg-white/15 hover:bg-white/25 backdrop-blur flex items-center justify-center text-white transition-colors cursor-pointer border-none">
               <ChevronLeft size={24} />
             </button>
             <button onClick={() => go(1)} aria-label="Следующее фото"
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur flex items-center justify-center text-white transition-colors cursor-pointer border-none">
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-ctl bg-white/15 hover:bg-white/25 backdrop-blur flex items-center justify-center text-white transition-colors cursor-pointer border-none">
               <ChevronRight size={24} />
             </button>
           </>
