@@ -5,7 +5,7 @@ stays. Runs inside the backend container:
     docker compose exec -T backend python - < scripts/set_category_looks.py
 """
 from app.db import get_db
-from app.routes.store import ensure_store_schema
+from app.schema import ensure_schema
 
 # name fragment (lower case) → (accent colour, hero picture shipped in frontend/public/img)
 LOOKS = [
@@ -17,7 +17,7 @@ LOOKS = [
 
 
 def main():
-    ensure_store_schema()
+    ensure_schema()
     with get_db() as cur:
         cur.execute("SELECT id, name, accent_color, hero_image FROM coop_categories")
         for c in cur.fetchall():

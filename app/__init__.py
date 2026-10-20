@@ -3,36 +3,14 @@ RefSale — Flask Application Factory
 """
 
 import os
-import re
 import gzip as _gzip
 from io import BytesIO
 
-from flask import Flask, request, send_from_directory, g
+from flask import Flask, request, send_from_directory
 from flask_cors import CORS
 
 from .config import UPLOAD_DIR, FRONTEND_DIST, BASE_DIR
-from .auth import admin_token_refresh, ADMIN_TOKEN_REFRESH, _create_admin_token, _verify_admin_token
-
-
-def _bootstrap_schema():
-    """Idempotent columns added after the initial schema."""
-    from .db import get_db
-    migrations = [
-        # Token revocation on password change.
-        "ALTER TABLE coop_users ADD COLUMN password_changed_at TIMESTAMPTZ DEFAULT NULL",
-        # Photo attachments: a JSON array of /uploads/... urls.
-        "ALTER TABLE coop_reviews ADD COLUMN images TEXT DEFAULT '[]'",
-        "ALTER TABLE coop_support_messages ADD COLUMN images TEXT DEFAULT '[]'",
-        "ALTER TABLE coop_order_messages ADD COLUMN images TEXT DEFAULT '[]'",
-    ]
-    try:
-        with get_db() as cur:
-            for sql in migrations:
-                cur.execute(
-                    f"DO $$ BEGIN {sql}; EXCEPTION WHEN duplicate_column THEN NULL; END $$;"
-                )
-    except Exception as e:
-        print(f"⚠️  Schema migration skipped: {e}")
+from .auth import admin_token_refresh, _verify_admin_token
 
 
 def _bootstrap_admin_password():
@@ -65,30 +43,6 @@ def _bootstrap_admin_password():
             print("=" * 62)
     except Exception as e:
         print(f"⚠️  Admin password bootstrap skipped: {e}")
-
-
-# Cooperative features this copy still carries but RefSale does not use:
-# the old checkout (no promo codes or sizes, guests allowed), quick orders,
-# subscriptions, VIP and seller shops, the public chat, the old sign-up and
-# counters that give away member names and sales figures. Closed so they cannot
-# be used around the store's own flow; remove an entry to bring a feature back
-# (the /vip stage will need the VIP ones).
-_LEGACY_ENDPOINTS = [
-    ("POST", re.compile(r"^/api/orders$")),
-    ("PATCH", re.compile(r"^/api/orders/\d+/(modify|cancel)$")),
-    ("*", re.compile(r"^/api/quick-order/")),
-    ("*", re.compile(r"^/api/promo/validate$")),
-    ("*", re.compile(r"^/api/subscriptions")),
-    ("*", re.compile(r"^/api/user/\d+/subscriptions$")),
-    ("*", re.compile(r"^/api/(members|turnover|product-order-counts)$")),
-    ("POST", re.compile(r"^/api/register$")),
-    ("*", re.compile(r"^/api/public-chat$")),
-    ("*", re.compile(r"^/api/(vip|seller)/")),
-]
-
-
-def _is_legacy_endpoint(method: str, path: str) -> bool:
-    return any((m == "*" or m == method) and rx.match(path) for m, rx in _LEGACY_ENDPOINTS)
 
 
 def create_app():
@@ -145,13 +99,6 @@ def create_app():
         if path.startswith("/api/admin") and path != "/api/admin/login":
             if not _verify_admin_token():
                 return jsonify({"error": "Unauthorized"}), 401
-        # The full catalog dump (suppliers' contacts, sellers' phones, promo
-        # prices) is for the admin panel only; the storefront uses
-        # /api/store/catalog.
-        if path == "/api/data" and not _verify_admin_token():
-            return jsonify({"error": "Unauthorized"}), 401
-        if _is_legacy_endpoint(request.method, path):
-            return jsonify({"error": "Not found"}), 404
 
     # ── Static file routes ─────────────────────────
     @app.route("/")
@@ -160,7 +107,7 @@ def create_app():
 
     # Client-side routes of the SPA. Anything else that is not a real file or
     # an API call stays a 404 instead of silently rendering the storefront.
-    _SPA_ROOTS = {"forums", "orders", "cabinet", "about", "favorites"}
+    _SPA_ROOTS = {"forums", "orders", "cabinet", "favorites"}
 
     @app.route("/<path:spa_path>")
     def serve_spa(spa_path):
@@ -196,20 +143,18 @@ def create_app():
     # ── Register blueprints ────────────────────────
     from .routes.public import bp as public_bp
     from .routes.admin import bp as admin_bp
-    from .routes.vip import bp as vip_bp
     from .routes.support import bp as support_bp
     from .routes.order_chat import bp as order_chat_bp
-    from .routes.store import bp as store_bp, ensure_store_schema
+    from .routes.store import bp as store_bp
+    from .schema import ensure_schema
 
     app.register_blueprint(public_bp)
     app.register_blueprint(admin_bp)
-    app.register_blueprint(vip_bp)
     app.register_blueprint(support_bp)
     app.register_blueprint(order_chat_bp)
     app.register_blueprint(store_bp)
 
-    _bootstrap_schema()
-    ensure_store_schema()
+    ensure_schema()
     _bootstrap_admin_password()
 
     return app

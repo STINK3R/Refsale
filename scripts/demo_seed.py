@@ -11,8 +11,7 @@ import json
 import secrets
 
 from app.db import get_db
-from app.routes.order_chat import _ensure_table as ensure_order_chat
-from app.routes.store import ensure_store_schema
+from app.schema import ensure_schema
 from app.utils import hash_password
 
 MARKER = "demo_seeded"
@@ -68,12 +67,11 @@ def _user(cur, name, email, phone, password):
 
 
 def main():
-    ensure_store_schema()
+    ensure_schema()
     password = secrets.token_urlsafe(9)
     hashed = hash_password(password)
 
     with get_db() as cur:
-        ensure_order_chat(cur)
         cur.execute("SELECT 1 FROM coop_settings WHERE key = %s", (MARKER,))
         if cur.fetchone():
             print("Тестовые данные уже есть, второй раз не добавляю.")

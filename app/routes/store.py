@@ -42,93 +42,6 @@ MAX_PRICE = 100_000_000  # well inside NUMERIC(12,2)
 
 
 # ══════════════════════════════════════════════════
-# SCHEMA
-# ══════════════════════════════════════════════════
-_STORE_COLUMNS = [
-    # Catalog
-    "ALTER TABLE coop_products ADD COLUMN promo_price NUMERIC(12,2) DEFAULT NULL",
-    "ALTER TABLE coop_products ADD COLUMN requires_variant BOOLEAN DEFAULT FALSE",
-    "ALTER TABLE coop_products ADD COLUMN requires_subscription BOOLEAN DEFAULT FALSE",
-    "ALTER TABLE coop_products ADD COLUMN is_adult BOOLEAN DEFAULT FALSE",
-    # The same item at two other shops, for the "сравните цены" line
-    "ALTER TABLE coop_products ADD COLUMN compare_price_1 NUMERIC(12,2) DEFAULT NULL",
-    "ALTER TABLE coop_products ADD COLUMN compare_price_2 NUMERIC(12,2) DEFAULT NULL",
-    # A category is a page of its own: picture, slogan, "как это работает"
-    # and which two shops its prices are compared with.
-    "ALTER TABLE coop_categories ADD COLUMN hero_image TEXT DEFAULT ''",
-    "ALTER TABLE coop_categories ADD COLUMN slogan TEXT DEFAULT ''",
-    "ALTER TABLE coop_categories ADD COLUMN intro TEXT DEFAULT ''",
-    "ALTER TABLE coop_categories ADD COLUMN compare_label_1 VARCHAR(100) DEFAULT 'Золотое Яблоко'",
-    "ALTER TABLE coop_categories ADD COLUMN compare_label_2 VARCHAR(100) DEFAULT 'Рандеву'",
-    "ALTER TABLE coop_categories ADD COLUMN sort_order INTEGER DEFAULT 0",
-    # The page's accent: the photo card, the active tab and product tiles
-    "ALTER TABLE coop_categories ADD COLUMN accent_color VARCHAR(20) DEFAULT ''",
-    "ALTER TABLE coop_reviews ADD COLUMN category_id INTEGER DEFAULT NULL",
-    # Accounts
-    "ALTER TABLE coop_users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE",
-    "ALTER TABLE coop_users ADD COLUMN is_leader BOOLEAN DEFAULT FALSE",
-    "ALTER TABLE coop_users ADD COLUMN leader_can_write BOOLEAN DEFAULT FALSE",
-    # Orders
-    "ALTER TABLE coop_orders ADD COLUMN promo_code VARCHAR(50) DEFAULT NULL",
-    "ALTER TABLE coop_orders ADD COLUMN discount_amount NUMERIC(12,2) DEFAULT 0",
-    "ALTER TABLE coop_orders ADD COLUMN ref_promo_id INTEGER DEFAULT NULL",
-    "ALTER TABLE coop_orders ADD COLUMN leader_id INTEGER DEFAULT NULL",
-    "ALTER TABLE coop_orders ADD COLUMN leader_reward NUMERIC(12,2) DEFAULT 0",
-    "ALTER TABLE coop_orders ADD COLUMN contact_method VARCHAR(30) DEFAULT ''",
-    "ALTER TABLE coop_orders ADD COLUMN confirmed_at TIMESTAMPTZ DEFAULT NULL",
-    "ALTER TABLE coop_orders ADD COLUMN status_changed_at TIMESTAMPTZ DEFAULT NULL",
-    # Pre-order questions ("Связь с продавцом") attributed to a leader
-    "ALTER TABLE coop_support_tickets ADD COLUMN promo_code VARCHAR(50) DEFAULT NULL",
-    "ALTER TABLE coop_support_tickets ADD COLUMN leader_id INTEGER DEFAULT NULL",
-]
-
-
-def ensure_store_schema():
-    """Idempotent: tables and columns the storefront relies on."""
-    try:
-        with get_db() as cur:
-            for sql in _STORE_COLUMNS:
-                cur.execute(
-                    f"DO $$ BEGIN {sql}; EXCEPTION WHEN duplicate_column THEN NULL; END $$;"
-                )
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS ref_promos (
-                    id SERIAL PRIMARY KEY,
-                    code VARCHAR(50) NOT NULL UNIQUE,
-                    label VARCHAR(255) DEFAULT '',
-                    leader_id INTEGER REFERENCES coop_users(id) ON DELETE SET NULL,
-                    reward_amount NUMERIC(12,2) DEFAULT 0,
-                    is_active BOOLEAN DEFAULT TRUE,
-                    max_uses INTEGER DEFAULT NULL,
-                    current_uses INTEGER DEFAULT 0,
-                    expires_at TIMESTAMPTZ DEFAULT NULL,
-                    created_at TIMESTAMPTZ DEFAULT NOW()
-                )
-            """)
-            # Volume / packaging options of one product, each with its own prices
-            # ("50 мл, тестер"), so the catalog needs no card per bottle size.
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS ref_product_variants (
-                    id SERIAL PRIMARY KEY,
-                    product_id INTEGER NOT NULL REFERENCES coop_products(id) ON DELETE CASCADE,
-                    label VARCHAR(200) NOT NULL,
-                    price NUMERIC(12,2) NOT NULL,
-                    promo_price NUMERIC(12,2) DEFAULT NULL,
-                    compare_price_1 NUMERIC(12,2) DEFAULT NULL,
-                    compare_price_2 NUMERIC(12,2) DEFAULT NULL,
-                    is_available BOOLEAN DEFAULT TRUE,
-                    sort_order INTEGER DEFAULT 0
-                )
-            """)
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_variants_product ON ref_product_variants(product_id)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_ref_promos_leader ON ref_promos(leader_id)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_leader ON coop_orders(leader_id)")
-            cur.execute("CREATE INDEX IF NOT EXISTS idx_tickets_leader ON coop_support_tickets(leader_id)")
-    except Exception as e:
-        print(f"⚠️  Store schema bootstrap skipped: {e}")
-
-
-# ══════════════════════════════════════════════════
 # HELPERS
 # ══════════════════════════════════════════════════
 def _promos_enabled(cur) -> bool:
@@ -193,19 +106,7 @@ def _mask_buyers(messages: list) -> list:
     return messages
 
 
-def _parse_items(raw):
-    if isinstance(raw, list):
-        return raw
-    try:
-        val = json.loads(raw or "[]")
-        return val if isinstance(val, list) else []
-    except Exception:
-        return []
-
-
 def _post_system_message(cur, order_id: int, text: str):
-    from .order_chat import _ensure_table
-    _ensure_table(cur)
     cur.execute(
         "INSERT INTO coop_order_messages (order_id, sender_type, sender_name, text) "
         "VALUES (%s, 'admin', %s, %s)",
@@ -526,7 +427,14 @@ def store_create_order():
                 "подтвердит наличие, сроки доставки и пришлёт реквизиты для предоплаты. "
                 "После оплаты заказ будет подтверждён и вы увидите его статусы."
             )
-            cur.execute("UPDATE coop_users SET phone = %s WHERE id = %s AND (phone IS NULL OR phone = '')", (phone, uid))
+            # Remember the phone on the account only if no other account has it:
+            # phones are unique, and a clash must not fail the whole order.
+            cur.execute(
+                """UPDATE coop_users SET phone = %s
+                   WHERE id = %s AND (phone IS NULL OR phone = '')
+                     AND NOT EXISTS (SELECT 1 FROM coop_users WHERE phone = %s AND id <> %s)""",
+                (phone, uid, phone, uid)
+            )
             cur.execute("SELECT email, full_name FROM coop_users WHERE id = %s", (uid,))
             buyer = cur.fetchone() or {}
 
@@ -647,8 +555,6 @@ def leader_orders():
         return err
     try:
         with get_db() as cur:
-            from .order_chat import _ensure_table
-            _ensure_table(cur)
             cur.execute("""
                 SELECT o.id, o.full_name, o.status, o.total, o.discount_amount, o.items, o.promo_code,
                        o.leader_reward, o.created_at, o.confirmed_at, o.status_changed_at,
@@ -819,8 +725,6 @@ def admin_store_orders():
     status = request.args.get("status") or ""
     try:
         with get_db() as cur:
-            from .order_chat import _ensure_table
-            _ensure_table(cur)
             sql = """
                 SELECT o.*, u.email AS user_email, l.full_name AS leader_name,
                        (SELECT text FROM coop_order_messages m WHERE m.order_id = o.id ORDER BY m.id DESC LIMIT 1) AS last_text,
@@ -934,10 +838,6 @@ def admin_store_update_product(pid):
     except Exception as e:
         print(f"[/api/admin/store/products/{pid}] {e}")
         return jsonify({"error": "Ошибка сервера"}), 500
-
-
-# ── Product variants (volume / packaging) ─────────
-_VARIANT_FIELDS = ("label", "price", "promo_price", "compare_price_1", "compare_price_2", "is_available")
 
 
 @bp.route("/api/admin/store/products/<int:pid>/variants")

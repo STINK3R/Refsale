@@ -136,11 +136,15 @@ export default function StoreCatalog() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-4 gap-5 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:gap-3">
+              <motion.div
+                key={`grid-${categoryId ?? 'all'}-${subcategory ?? 'all'}`}
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: EASE }}
+                className="grid grid-cols-4 gap-5 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:gap-3"
+              >
                 {visible.map((p, i) => (
                   <ProductCard key={p.id} product={p} index={i} onOpen={() => setSelected(p)} onNeedVariant={() => setVariantFor(p)} />
                 ))}
-              </div>
+              </motion.div>
               {filtered.length > shown && (
                 <div className="text-center mt-16">
                   <button onClick={() => setShown((n) => n + PAGE)} className="btn-outline">
@@ -443,7 +447,7 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
           ) : <Monogram big />}
           {/* The meerkat peeking up from behind the photo's bottom edge — the
               corner products never reach, so it covers nothing. */}
-          <Meerkat pose="peek" width={132} decorative className="absolute -bottom-[10px] left-6 max-md:-bottom-[7px] max-md:left-4 max-md:w-[96px] pointer-events-none" />
+          <Meerkat pose="peek" width={132} decorative className="absolute -bottom-[6px] left-6 max-md:-bottom-[4px] max-md:left-4 max-md:w-[96px] pointer-events-none" />
           {images.length > 0 && (
             <button onClick={() => setZoom(true)} className="absolute top-4 left-4 w-9 h-9 rounded-full bg-card/90 border-2 border-ink text-ink flex items-center justify-center cursor-pointer hover:bg-sun" aria-label="Открыть фото">
               <Maximize2 size={15} strokeWidth={2} />

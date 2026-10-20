@@ -21,27 +21,6 @@ bp = Blueprint('order_chat', __name__)
 # Statuses after which the chat is read-only.
 CLOSED_STATUSES = ('done', 'cancelled')
 
-_CREATE_TABLE_SQL = (
-    "CREATE TABLE IF NOT EXISTS coop_order_messages ("
-    "id SERIAL PRIMARY KEY, "
-    "order_id INTEGER REFERENCES coop_orders(id) ON DELETE CASCADE, "
-    "sender_type VARCHAR(10) DEFAULT 'user', "
-    "sender_name VARCHAR(255) DEFAULT '', "
-    "text TEXT NOT NULL, "
-    "created_at TIMESTAMPTZ DEFAULT NOW())"
-)
-
-
-def _ensure_table(cur):
-    cur.execute(_CREATE_TABLE_SQL)
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_order_messages_order ON coop_order_messages(order_id)")
-    # Tracks when the buyer last opened the thread — drives the unread badge.
-    cur.execute(
-        "CREATE TABLE IF NOT EXISTS coop_order_chat_seen ("
-        "order_id INTEGER PRIMARY KEY REFERENCES coop_orders(id) ON DELETE CASCADE, "
-        "seen_at TIMESTAMPTZ DEFAULT NOW())"
-    )
-
 
 # ── Buyer (public) ─────────────────────────────────────
 @bp.route("/api/orders/<int:order_id>/messages", methods=["GET"])
@@ -52,7 +31,6 @@ def get_order_messages(order_id):
         return err
     try:
         with get_db() as cur:
-            _ensure_table(cur)
             cur.execute("SELECT user_id, status FROM coop_orders WHERE id = %s", (order_id,))
             order = cur.fetchone()
             if not order:
@@ -90,7 +68,6 @@ def post_order_message(order_id):
         return jsonify({"error": "Напишите сообщение"}), 400
     try:
         with get_db() as cur:
-            _ensure_table(cur)
             cur.execute("SELECT user_id, status FROM coop_orders WHERE id = %s", (order_id,))
             order = cur.fetchone()
             if not order:
@@ -119,7 +96,6 @@ def list_user_order_chats(user_id):
         return err
     try:
         with get_db() as cur:
-            _ensure_table(cur)
             cur.execute(
                 """
                 SELECT o.id AS order_id, o.status, o.total, o.items, o.created_at,
@@ -155,7 +131,6 @@ def order_chats_unread_count(user_id):
         return err
     try:
         with get_db() as cur:
-            _ensure_table(cur)
             cur.execute(
                 """
                 SELECT COUNT(*) AS cnt FROM coop_orders o
@@ -184,7 +159,6 @@ def admin_list_order_chats():
     """Orders that have at least one chat message, newest activity first."""
     try:
         with get_db() as cur:
-            _ensure_table(cur)
             cur.execute(
                 """
                 SELECT o.id AS order_id, o.full_name, o.status, o.user_id,
@@ -212,7 +186,6 @@ def admin_list_order_chats():
 def admin_get_order_messages(order_id):
     try:
         with get_db() as cur:
-            _ensure_table(cur)
             cur.execute("SELECT status, full_name FROM coop_orders WHERE id = %s", (order_id,))
             order = cur.fetchone()
             cur.execute(
@@ -239,7 +212,6 @@ def admin_post_order_message(order_id):
         return jsonify({"error": "Напишите сообщение"}), 400
     try:
         with get_db() as cur:
-            _ensure_table(cur)
             cur.execute("SELECT status FROM coop_orders WHERE id = %s", (order_id,))
             order = cur.fetchone()
             if not order:

@@ -40,14 +40,10 @@ export interface Product {
   description?: string;
   category_id: number | null;
   subcategory_id?: number | null;
-  supplier_id: number | null;
   badge?: string | null;
   image_url?: string | null;
   images?: ProductImage[];
   is_available: boolean;
-  product_type?: 'piece' | 'box' | 'subscription';
-  box_size?: number | null;
-  requires_subscription?: boolean;
   requires_variant?: boolean;
   /** True when the admin set a lower price for promo-code holders. */
   has_promo_price?: boolean;
@@ -56,11 +52,6 @@ export interface Product {
   /** When present, the buyer picks one and its price applies. */
   variants?: ProductVariant[];
   is_adult?: boolean;
-  pack_quantity?: number | null;
-  pack_weight_kg?: number | null;
-  is_subscription?: boolean;
-  subscription_days?: number | null;
-  subscription_category_id?: number | null;
   created_at?: string;
 }
 
@@ -72,24 +63,6 @@ export interface Subcategory {
   created_at?: string;
 }
 
-export interface Supplier {
-  id: number;
-  name: string;
-  delivery_day?: string;
-  delivery_note?: string;
-  assembly_date?: string;
-  contact_phone?: string;
-  contact_telegram?: string;
-}
-
-export interface MusicTrack {
-  id: number;
-  title: string;
-  artist?: string;
-  url: string;
-  sort_order: number;
-}
-
 export interface User {
   id: number;
   full_name: string;
@@ -97,14 +70,8 @@ export interface User {
   email?: string;
   address: string;
   telegram_username?: string;
-  telegram_chat_id?: string;
-  is_approved?: boolean;
-  is_vip?: boolean;
-  is_seller?: boolean;
-  is_vip_seller?: boolean;
   is_leader?: boolean;
   leader_can_write?: boolean;
-  admin_note?: string;
   created_at?: string;
 }
 
@@ -114,9 +81,6 @@ export interface CartItem {
   price: number | null;
   image_url?: string | null;
   qty: number;
-  product_type?: 'piece' | 'box' | 'subscription' | string;
-  box_size?: number | null;
-  subscription_id?: number | null;
   /** Buyer's note for "уточните вариант" products (volume, shade…). */
   variant_comment?: string;
   /** Chosen volume / packaging; one product can sit in the cart once per variant. */
@@ -149,8 +113,6 @@ export interface Order {
   discount_amount?: number;
   user_id: number | null;
   created_at?: string;
-  can_modify?: boolean;
-  is_vip?: boolean;
 }
 
 export interface Review {
@@ -163,37 +125,6 @@ export interface Review {
   created_at: string;
   /** JSON array of /uploads/... urls as stored by the API. */
   images?: string | string[] | null;
-}
-
-export interface Admin {
-  id: number;
-  username: string;
-  display_name?: string;
-  password?: string;
-  created_at?: string;
-}
-
-export interface Subscription {
-  id: number;
-  category_id: number;
-  name: string;
-  price: number;
-  duration_days: number;
-  description?: string;
-  image_url?: string | null;
-  is_active: boolean;
-}
-
-export interface UserSubscription {
-  id: number;
-  user_id: number;
-  subscription_id: number;
-  purchased_at: string;
-  expires_at: string;
-  is_active: boolean;
-  name?: string;
-  category_id?: number;
-  description?: string;
 }
 
 export interface SupportTicket {

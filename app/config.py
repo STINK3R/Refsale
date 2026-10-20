@@ -47,8 +47,6 @@ UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 FRONTEND_DIST = os.path.join(BASE_DIR, "frontend", "dist")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# ── Business constants ──
-DEVELOPMENT_FEE = 200  # рублей
 
 # ── Startup log ──
 if not SMTP_ENABLED:

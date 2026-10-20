@@ -80,20 +80,6 @@ services:
         aliases:
           - refsale-web
 
-  bot:
-    build:
-      context: .
-      dockerfile: Dockerfile.bot
-    restart: always
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      TELEGRAM_ADMIN_CHAT_IDS: ${TELEGRAM_ADMIN_CHAT_IDS:-}
-      WEBSITE_URL: ${WEBSITE_URL:-http://localhost}
-
   adminer:
     image: adminer:latest
     restart: always

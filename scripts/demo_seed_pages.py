@@ -7,7 +7,7 @@ container like scripts/demo_seed.py:
 Runs once: a marker in coop_settings stops a second run.
 """
 from app.db import get_db
-from app.routes.store import ensure_store_schema
+from app.schema import ensure_schema
 
 MARKER = "demo_pages_seeded"
 
@@ -83,7 +83,7 @@ def _round100(x):
 
 
 def main():
-    ensure_store_schema()
+    ensure_schema()
     with get_db() as cur:
         cur.execute("SELECT 1 FROM coop_settings WHERE key = %s", (MARKER,))
         if cur.fetchone():

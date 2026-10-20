@@ -1,8 +1,7 @@
 """
-Shared utilities: rate limiting, password hashing, address normalization, security.
+Shared utilities: rate limiting, password hashing, input sanitizing, safe SQL helpers.
 """
 
-import re as _re
 import time
 import hashlib
 import html as _html
@@ -17,7 +16,6 @@ from flask import request
 _rate_store: dict[str, list[float]] = defaultdict(list)
 RATE_LIMIT = 30  # general requests per minute per IP
 RATE_LIMIT_AUTH = 5  # login/register attempts per minute per IP
-RATE_LIMIT_EMAIL = 3  # email send attempts per minute per IP
 
 # ── Brute-force protection ────────────────────
 _login_fails: dict[str, list[float]] = defaultdict(list)  # ip -> timestamps of failed logins
@@ -50,11 +48,6 @@ def rate_limited(limit: int = RATE_LIMIT, bucket: str = "general") -> bool:
 def rate_limited_auth() -> bool:
     """Stricter rate limiter for auth endpoints (login/register)."""
     return rate_limited(RATE_LIMIT_AUTH, "auth")
-
-
-def rate_limited_email() -> bool:
-    """Rate limiter for email sending endpoints."""
-    return rate_limited(RATE_LIMIT_EMAIL, "email")
 
 
 def check_brute_force() -> bool:
@@ -110,52 +103,6 @@ def verify_password(pw: str, stored_hash: str) -> bool:
     return hashlib.sha256(pw.encode()).hexdigest() == stored_hash
 
 
-def _legacy_sha256(pw: str) -> str:
-    """Legacy SHA-256 hash for backward compat checks only."""
-    return hashlib.sha256(pw.encode()).hexdigest()
-
-
-# ── Address normalization ─────────────────────
-def _normalize_address_part(part: str) -> str:
-    s = part.strip().lower()
-    s = s.replace('.', ' ').replace(',', ' ')
-    prefixes = [
-        r'^дом\s*', r'^д\s*', r'^улица\s*', r'^ул\s*',
-        r'^город\s*', r'^гор\s*', r'^г\s*',
-        r'^проспект\s*', r'^пр-кт\s*', r'^пр\s*',
-        r'^переулок\s*', r'^пер\s*',
-        r'^бульвар\s*', r'^б-р\s*',
-        r'^шоссе\s*', r'^ш\s*',
-    ]
-    for prefix in prefixes:
-        s = _re.sub(prefix, '', s, count=1)
-    return s.strip()
-
-
-def normalize_address_key(address: str) -> str:
-    parts = [p.strip() for p in address.split(',') if p.strip()]
-    normalized = []
-    for p in parts[:3]:
-        normalized.append(_normalize_address_part(p))
-    return ', '.join(normalized)
-
-
-def _find_forum_by_normalized_address(cur, address: str):
-    target_key = normalize_address_key(address)
-    if not target_key:
-        return None
-    try:
-        cur.execute("SELECT * FROM coop_forums WHERE address_key NOT IN ('general', 'social')")
-        forums = cur.fetchall()
-        for f in (forums or []):
-            existing_key = normalize_address_key(f.get("address_key", ""))
-            if existing_key == target_key:
-                return dict(f)
-    except:
-        pass
-    return None
-
-
 # ── SQL Injection Prevention ──────────────────
 import re as _re_sql
 
@@ -204,23 +151,6 @@ def sanitize_string(s: str, max_len: int = 500) -> str:
     # Escape HTML to prevent stored XSS
     s = _html.escape(s, quote=True)
     return s
-
-
-def escape_html(s: str) -> str:
-    """Escape HTML special characters to prevent XSS."""
-    if not isinstance(s, str):
-        return ''
-    return _html.escape(s, quote=True)
-
-
-def sanitize_input(d: dict, text_fields: set = None, max_len: int = 500) -> dict:
-    """Sanitize all string values in a dict for safe storage."""
-    result = {}
-    for k, v in d.items():
-        if isinstance(v, str):
-            v = sanitize_string(v, max_len)
-        result[k] = v
-    return result
 
 
 # ══════════════════════════════════════════════════
@@ -286,29 +216,6 @@ def validate_upload(file, allowed_extensions: set = None) -> tuple[bool, str]:
     file.filename = safe_name
 
     return True, ""
-
-
-def _ensure_local_forum(cur, address: str):
-    if not address:
-        return
-    parts = [p.strip() for p in address.split(',') if p.strip()]
-    address_key = ', '.join(parts[:3])
-    if not address_key:
-        return
-    try:
-        cur.execute("SELECT id FROM coop_forums WHERE address_key = %s LIMIT 1", (address_key,))
-        if cur.fetchone():
-            return
-        normalized_match = _find_forum_by_normalized_address(cur, address_key)
-        if normalized_match:
-            return
-        cur.execute(
-            "INSERT INTO coop_forums (name, address_key, description) VALUES (%s, %s, %s)",
-            (address_key, address_key, f"Форум для адреса: {address_key}")
-        )
-        print(f"✅ Created local forum for: {address_key}")
-    except Exception as e:
-        print(f"⚠️ Forum creation error for '{address_key}': {e}")
 
 
 # ── Attached photos ────────────────────────────

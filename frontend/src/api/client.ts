@@ -1,4 +1,4 @@
-import type { Category, Subcategory, Product, Supplier, MusicTrack, User, Order, Review, Admin } from '../types';
+import type { Category, Subcategory, Product, User, Order, Review } from '../types';
 import { setToken } from './authToken';
 
 export const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -28,51 +28,9 @@ function _patch<T = unknown>(path: string, body: unknown): Promise<T> {
   });
 }
 
-function _del(path: string): Promise<unknown> {
-  return _api(path, { method: 'DELETE' });
-}
-
-// ==================== PUBLIC DATA ====================
-interface AllData {
-  categories: Category[];
-  products: Product[];
-  suppliers: Supplier[];
-  music: MusicTrack[];
-  subcategories: Subcategory[];
-}
-
-export async function loadAllData(): Promise<AllData> {
-  const [data, subcategories] = await Promise.all([
-    _api<AllData>('/api/data'),
-    _api<Subcategory[]>('/api/subcategories').catch(() => []),
-  ]);
-  return {
-    categories: data.categories || [],
-    products: data.products || [],
-    suppliers: data.suppliers || [],
-    music: data.music || [],
-    subcategories: subcategories || [],
-  };
-}
-
 // ==================== SETTINGS ====================
 export async function fetchSettings(): Promise<Record<string, string>> {
   return _api<Record<string, string>>('/api/settings').catch(() => ({}));
-}
-
-// ==================== AUTH ====================
-export async function registerUser(
-  full_name: string, phone: string, email: string, address: string,
-  password: string, telegram_username: string,
-  email_verified?: boolean, referral_code?: string
-): Promise<{ user?: User; error?: string }> {
-  try {
-    const res = await _post<{ user?: User; token?: string }>('/api/register', { full_name, phone, email, address, password, telegram_username, email_verified: !!email_verified, referral_code: referral_code || '' });
-    if (res.token) setToken(res.token);
-    return res;
-  } catch (e: unknown) {
-    return { error: (e as Error).message };
-  }
 }
 
 export async function loginUser(email: string, password: string): Promise<{ user?: User; error?: string }> {
@@ -122,39 +80,6 @@ export async function resetPassword(token: string, new_password: string): Promis
   }
 }
 
-// ==================== ORDERS ====================
-export async function createOrder(order: Partial<Order>): Promise<Order | null> {
-  try {
-    return await _post('/api/orders', order);
-  } catch {
-    return null;
-  }
-}
-
-export async function fetchUserOrders(userId: number): Promise<Order[]> {
-  try {
-    return await _api(`/api/user/${userId}/orders`);
-  } catch {
-    return [];
-  }
-}
-
-export async function cancelOrder(orderId: number): Promise<{ ok?: boolean; error?: string }> {
-  try {
-    return await _patch(`/api/orders/${orderId}/cancel`, {});
-  } catch (e: unknown) {
-    return { error: (e as Error).message };
-  }
-}
-
-export async function modifyOrder(orderId: number, items: string, total: number): Promise<{ ok?: boolean; error?: string }> {
-  try {
-    return await _patch(`/api/orders/${orderId}/modify`, { items, total });
-  } catch (e: unknown) {
-    return { error: (e as Error).message };
-  }
-}
-
 // ==================== REVIEWS ====================
 export async function fetchReviews(categoryId?: number | null): Promise<Review[]> {
   try {
@@ -172,91 +97,6 @@ export async function addReview(review: { user_id: number; text: string; rating:
   }
 }
 
-// ==================== ADMIN ====================
-export async function loginAdmin(username: string, password: string): Promise<Admin | null> {
-  try {
-    const d = await _post<{ admin: Admin }>('/api/admin/login', { username, password });
-    return d.admin || null;
-  } catch {
-    return null;
-  }
-}
-
-interface AdminData {
-  categories: Category[];
-  products: Product[];
-  orders: Order[];
-  suppliers: Supplier[];
-  music: MusicTrack[];
-  admins: Admin[];
-  users: User[];
-}
-
-export async function fetchAdminData(): Promise<AdminData> {
-  return _api('/api/admin/data');
-}
-
-export async function addCategory(cat: Partial<Category>): Promise<Category | null> {
-  try { return await _post('/api/admin/categories', cat); } catch { return null; }
-}
-export async function updateCategory(id: number, updates: Partial<Category>): Promise<Category | null> {
-  try { return await _patch(`/api/admin/categories/${id}`, updates); } catch { return null; }
-}
-export async function deleteCategory(id: number): Promise<boolean> {
-  try { await _del(`/api/admin/categories/${id}`); return true; } catch { return false; }
-}
-
-export async function addProduct(product: Partial<Product>): Promise<Product | null> {
-  try { return await _post('/api/admin/products', product); } catch { return null; }
-}
-export async function updateProduct(id: number, updates: Partial<Product>): Promise<Product | null> {
-  try { return await _patch(`/api/admin/products/${id}`, updates); } catch { return null; }
-}
-export async function deleteProduct(id: number): Promise<boolean> {
-  try { await _del(`/api/admin/products/${id}`); return true; } catch { return false; }
-}
-
-export async function fetchOrders(): Promise<Order[]> {
-  try { return await _api('/api/admin/orders'); } catch { return []; }
-}
-export async function updateOrderStatus(id: number, status: string): Promise<Order | null> {
-  try { return await _patch(`/api/admin/orders/${id}`, { status }); } catch { return null; }
-}
-export async function deleteOrder(id: number): Promise<boolean> {
-  try { await _del(`/api/admin/orders/${id}`); return true; } catch { return false; }
-}
-
-export async function addSupplier(supplier: Partial<Supplier>): Promise<Supplier | null> {
-  try { return await _post('/api/admin/suppliers', supplier); } catch { return null; }
-}
-export async function updateSupplier(id: number, updates: Partial<Supplier>): Promise<Supplier | null> {
-  try { return await _patch(`/api/admin/suppliers/${id}`, updates); } catch { return null; }
-}
-export async function deleteSupplier(id: number): Promise<boolean> {
-  try { await _del(`/api/admin/suppliers/${id}`); return true; } catch { return false; }
-}
-
-export async function addMusic(track: Partial<MusicTrack>): Promise<MusicTrack | null> {
-  try { return await _post('/api/admin/music', track); } catch { return null; }
-}
-export async function deleteMusic(id: number): Promise<boolean> {
-  try { await _del(`/api/admin/music/${id}`); return true; } catch { return false; }
-}
-
-export async function addAdmin(admin: Partial<Admin>): Promise<Admin | null> {
-  try { return await _post('/api/admin/admins', admin); } catch { return null; }
-}
-export async function deleteAdmin(id: number): Promise<boolean> {
-  try { await _del(`/api/admin/admins/${id}`); return true; } catch { return false; }
-}
-
-export async function approveUser(id: number): Promise<boolean> {
-  try { await _patch(`/api/admin/users/${id}/approve`, {}); return true; } catch { return false; }
-}
-export async function deleteUser(id: number): Promise<boolean> {
-  try { await _del(`/api/admin/users/${id}`); return true; } catch { return false; }
-}
-
 export async function uploadFile(file: File, prefix: string, userId?: number): Promise<string | null> {
   const form = new FormData();
   form.append('file', file);
@@ -271,41 +111,6 @@ export async function uploadFile(file: File, prefix: string, userId?: number): P
   } catch {
     return null;
   }
-}
-
-// ==================== SUBSCRIPTIONS ====================
-export async function fetchSubscriptions(): Promise<import('../types').Subscription[]> {
-  try { return await _api('/api/subscriptions'); } catch { return []; }
-}
-
-export interface ProductSubscription {
-  id: number;
-  user_id: number;
-  product_id: number;
-  category_id: number | null;
-  purchased_at: string;
-  expires_at: string;
-  name?: string;
-  description?: string;
-  image_url?: string | null;
-}
-
-export interface UserSubscriptionsResponse {
-  plan_subscriptions: import('../types').UserSubscription[];
-  product_subscriptions: ProductSubscription[];
-}
-
-export async function fetchUserSubscriptions(userId: number): Promise<UserSubscriptionsResponse> {
-  try {
-    const data = await _api(`/api/user/${userId}/subscriptions`);
-    // Handle both old (array) and new (object) response formats
-    if (Array.isArray(data)) return { plan_subscriptions: data, product_subscriptions: [] };
-    return data as UserSubscriptionsResponse;
-  } catch { return { plan_subscriptions: [], product_subscriptions: [] }; }
-}
-
-export async function purchaseSubscription(userId: number, subscriptionId: number): Promise<unknown> {
-  return _post('/api/subscriptions/purchase', { user_id: userId, subscription_id: subscriptionId });
 }
 
 // ==================== SUPPORT ====================
@@ -344,118 +149,6 @@ export async function sendOrderMessage(orderId: number, data: { user_id: number;
 
 export async function fetchOrderChatsUnread(userId: number): Promise<number> {
   try { const d = await _api<{ count: number }>(`/api/user/${userId}/order-chats/unread-count`); return d.count || 0; } catch { return 0; }
-}
-
-export async function fetchStats(): Promise<{ turnover: number; members: number }> {
-  try {
-    const d = await _api<{ turnover: number; members: number }>('/api/turnover');
-    return { turnover: d.turnover || 0, members: d.members || 0 };
-  } catch {
-    return { turnover: 0, members: 0 };
-  }
-}
-
-export async function fetchMembers(): Promise<{ name: string }[]> {
-  try {
-    return await _api('/api/members');
-  } catch {
-    return [];
-  }
-}
-
-// ==================== PROMO CODES ====================
-export async function validatePromoCode(code: string, userId?: number): Promise<{ valid?: boolean; discount_amount?: number; min_order_amount?: number; code?: string; promo_id?: number; error?: string }> {
-  try {
-    return await _post('/api/promo/validate', { code, user_id: userId });
-  } catch (e: unknown) {
-    return { error: (e as Error).message };
-  }
-}
-
-// ==================== EMAIL VERIFICATION ====================
-export async function sendEmailVerificationCode(email: string): Promise<{ success?: boolean; error?: string }> {
-  try {
-    return await _post('/api/email/send-code', { email });
-  } catch (e: unknown) {
-    return { error: (e as Error).message };
-  }
-}
-
-export async function verifyEmailCode(email: string, code: string): Promise<{ verified?: boolean; error?: string }> {
-  try {
-    return await _post('/api/email/verify-code', { email, code });
-  } catch (e: unknown) {
-    return { error: (e as Error).message };
-  }
-}
-
-// ==================== REFERRALS ====================
-export async function generateReferralCode(userId: number): Promise<{ referral_code?: string; error?: string }> {
-  try {
-    return await _post(`/api/user/${userId}/referral-code`, {});
-  } catch (e: unknown) {
-    return { error: (e as Error).message };
-  }
-}
-
-export interface ReferralReward {
-  id: number;
-  referrer_id: number;
-  referred_id: number;
-  promo_id: number | null;
-  promo_code?: string;
-  discount_amount?: number;
-  reward_amount: number;
-  is_claimed: boolean;
-  created_at: string;
-}
-
-export interface InvitedUser {
-  id: number;
-  full_name: string;
-  created_at: string;
-  has_purchased: boolean;
-}
-
-export interface ReferralStats {
-  referral_code: string | null;
-  referral_count: number;
-  purchased_count: number;
-  milestone: number;
-  invited_users: InvitedUser[];
-  rewards: ReferralReward[];
-}
-
-export async function fetchReferralStats(userId: number): Promise<ReferralStats> {
-  try {
-    return await _api(`/api/user/${userId}/referral-stats`);
-  } catch {
-    return { referral_code: null, referral_count: 0, purchased_count: 0, milestone: 5, invited_users: [], rewards: [] };
-  }
-}
-
-// ==================== QUICK ORDER ====================
-export async function validateQuickOrderCode(code: string): Promise<{ valid?: boolean; code?: string; error?: string }> {
-  try {
-    return await _post('/api/quick-order/validate', { code });
-  } catch (e: unknown) {
-    return { error: (e as Error).message };
-  }
-}
-
-export async function submitQuickOrder(data: {
-  code: string;
-  guest_name: string;
-  contact_type: 'phone' | 'telegram';
-  contact_value: string;
-  items: { id: number; name: string; qty: number; price: number }[];
-  total: number;
-}): Promise<{ id?: number; error?: string }> {
-  try {
-    return await _post('/api/quick-order/submit', data);
-  } catch (e: unknown) {
-    return { error: (e as Error).message };
-  }
 }
 
 // ==================== STOREFRONT ====================

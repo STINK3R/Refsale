@@ -34,6 +34,12 @@
   --ease-luxe: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Registered so the accent can glide from one category's colour to the next
+   instead of snapping (useCategoryAccent sets them on <html>). */
+@property --color-accent { syntax: '<color>'; inherits: true; initial-value: #FFE45C; }
+@property --color-accent-deep { syntax: '<color>'; inherits: true; initial-value: #F5C800; }
+html { transition: --color-accent 0.6s ease, --color-accent-deep 0.6s ease; }
+
 * {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
