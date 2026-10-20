@@ -25,7 +25,7 @@ export default function Modal({ open, onClose, children, title, subtitle, maxWid
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-6"
+          className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-ink/45 p-0 sm:p-6"
           onMouseDown={(e) => { mouseDownTarget.current = e.target; }}
           onMouseUp={(e) => {
             if (e.target === e.currentTarget && mouseDownTarget.current === e.currentTarget) {

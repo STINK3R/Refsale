@@ -33,7 +33,7 @@ export default function CartSidebar() {
     <AnimatePresence>
       {sidebarOpen && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} className="fixed inset-0 z-[2000] bg-black/70" onClick={closeSidebar} />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} className="fixed inset-0 z-[2000] bg-ink/45" onClick={closeSidebar} />
           <motion.aside
             initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
             transition={{ duration: 0.55, ease: EASE }}
@@ -62,10 +62,10 @@ export default function CartSidebar() {
                   const discounted = unit < (Number(item.price) || 0);
                   return (
                     <div key={key} className="flex gap-5 py-6 border-b border-line last:border-b-0">
-                      <div className="w-[88px] h-[110px] shrink-0 bg-[radial-gradient(ellipse_at_50%_42%,#1C1C1C_0%,#121212_70%)] flex items-center justify-center">
+                      <div className="w-[88px] h-[110px] shrink-0 tile-bg flex items-center justify-center">
                         {item.image_url
                           ? <img src={item.image_url} alt="" className="w-full h-full object-contain p-2" />
-                          : <span className="font-display text-[36px] text-white/[0.07]">R</span>}
+                          : <span className="font-display text-[36px] text-ink/[0.07]">R</span>}
                       </div>
                       <div className="flex-1 min-w-0 flex flex-col">
                         <div className="text-[14px] leading-snug text-text line-clamp-2">{item.name}</div>

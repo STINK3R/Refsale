@@ -7,10 +7,10 @@ import StoreHero from './components/sections/StoreHero';
 import StoreCatalog from './components/sections/StoreCatalog';
 import About from './components/sections/About';
 import Reviews from './components/sections/Reviews';
-import PromoBar from './components/promo/PromoBar';
 import Notification from './components/ui/Notification';
 import SupportWidget from './components/support/SupportWidget';
 import SupportChatModal from './components/support/SupportChatModal';
+import MascotLayer from './components/mascot/MascotLayer';
 
 const AuthModal = lazy(() => import('./components/auth/AuthModal'));
 const ForgotPassword = lazy(() => import('./components/auth/ForgotPassword'));
@@ -72,9 +72,8 @@ function App() {
           <main className="relative">
             <StoreHero />
             <StoreCatalog />
-            <About />
             <Reviews />
-            <PromoBar />
+            <About />
           </main>
         } />
         <Route path="/forums" element={<Suspense fallback={<PageFallback />}><StoreForum /></Suspense>} />
@@ -94,6 +93,7 @@ function App() {
       <Notification />
       <SupportWidget />
       <SupportChatModal />
+      <MascotLayer />
     </>
   );
 }

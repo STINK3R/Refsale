@@ -23,7 +23,7 @@ const CLOSED = new Set(['done', 'cancelled']);
 export function statusTone(status: string) {
   if (status === 'cancelled') return 'text-danger bg-danger/10 border-danger/25';
   if (status === 'done') return 'text-success bg-success/10 border-success/25';
-  if (status === 'new') return 'text-muted bg-white/[0.05] border-white/10';
+  if (status === 'new') return 'text-muted bg-ink/[0.05] border-ink/10';
   return 'text-primary-light bg-primary/12 border-primary/30';
 }
 
@@ -53,7 +53,7 @@ export function StatusTrack({ status }: { status: string }) {
     <div className="flex items-center gap-1.5">
       {STATUS_STEPS.map((s, i) => (
         <div key={s} className="flex-1 min-w-0">
-          <div className={`h-1.5 rounded-full ${i <= reached ? 'bg-primary' : 'bg-white/10'}`} />
+          <div className={`h-1.5 rounded-full ${i <= reached ? 'bg-primary' : 'bg-ink/10'}`} />
           <div className={`mt-1.5 text-[10.5px] truncate ${i <= reached ? 'text-primary-light font-semibold' : 'text-light'}`}>{STATUS_LABEL[s]}</div>
         </div>
       ))}
@@ -106,7 +106,7 @@ export default function OrdersPage() {
         <div className="w-16 h-16 bg-primary/10 border border-primary/25 flex items-center justify-center mx-auto mb-5">
           <Package size={28} className="text-primary" />
         </div>
-        <h1 className="font-display text-[38px] leading-none text-text mb-3">Статусы заказов</h1>
+        <h1 className="font-display text-[38px] leading-none text-text mb-3">Сообщения и заказы</h1>
         <p className="text-sm text-muted mb-7">Войдите, чтобы видеть свои заказы, их статусы и чат с менеджером.</p>
         <button onClick={() => openAuth('login')} className="btn-primary px-8 h-12 text-[15px]"><LogIn size={17} /> Войти</button>
       </div>
@@ -121,7 +121,7 @@ export default function OrdersPage() {
       </div>
 
       <div className="bg-card border border-line overflow-hidden flex h-[calc(100dvh-220px)] min-h-[480px] max-h-[760px]">
-        <aside className={`w-full sm:w-[340px] sm:min-w-[340px] sm:border-r border-white/[0.07] flex-col ${selected ? 'hidden sm:flex' : 'flex'}`}>
+        <aside className={`w-full sm:w-[340px] sm:min-w-[340px] sm:border-r border-ink/[0.07] flex-col ${selected ? 'hidden sm:flex' : 'flex'}`}>
           <div className="flex-1 min-h-0 overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
             {loading ? (
               <div className="flex justify-center py-16"><Loader2 className="animate-spin text-primary" /></div>
@@ -137,7 +137,7 @@ export default function OrdersPage() {
                 <button
                   key={c.order_id}
                   onClick={() => openChat(c)}
-                  className={`w-full text-left px-4 py-3.5 border-b border-white/[0.05] cursor-pointer transition-colors ${active ? 'bg-primary/10' : 'hover:bg-white/[0.03]'}`}
+                  className={`w-full text-left px-4 py-3.5 border-b border-ink/[0.05] cursor-pointer transition-colors ${active ? 'bg-primary/10' : 'hover:bg-ink/[0.03]'}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[14px] font-semibold text-text flex items-center gap-2">
@@ -227,9 +227,9 @@ function OrderThread({ chat, userId, userName, onBack }: { chat: OrderChatSummar
 
   return (
     <>
-      <div className="shrink-0 border-b border-white/[0.07] px-4 py-3.5 space-y-3">
+      <div className="shrink-0 border-b border-ink/[0.07] px-4 py-3.5 space-y-3">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="sm:hidden w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-muted cursor-pointer" aria-label="Назад"><ArrowLeft size={16} /></button>
+          <button onClick={onBack} className="sm:hidden w-8 h-8 rounded-full bg-ink/5 flex items-center justify-center text-muted cursor-pointer" aria-label="Назад"><ArrowLeft size={16} /></button>
           <div className="flex-1 min-w-0">
             <div className="font-display text-[24px] leading-none text-text">Заказ #{chat.order_id}</div>
             <div className="text-[12px] text-muted mt-1">{formatPrice(chat.total)} · чат с менеджером</div>
@@ -261,12 +261,12 @@ function OrderThread({ chat, userId, userName, onBack }: { chat: OrderChatSummar
       </div>
 
       {closed ? (
-        <div className="shrink-0 px-4 py-3.5 border-t border-white/[0.07] text-center text-[12px] text-muted flex items-center justify-center gap-1.5">
+        <div className="shrink-0 px-4 py-3.5 border-t border-ink/[0.07] text-center text-[12px] text-muted flex items-center justify-center gap-1.5">
           {status === 'done' ? <Check size={14} className="text-success" /> : <X size={14} className="text-danger" />}
           Заказ {STATUS_LABEL[status].toLowerCase()} — чат закрыт
         </div>
       ) : (
-        <div className="shrink-0 px-3.5 py-3 border-t border-white/[0.07]">
+        <div className="shrink-0 px-3.5 py-3 border-t border-ink/[0.07]">
           {images.length > 0 && <div className="mb-2"><ImageUploader value={images} onChange={setImages} userId={userId} prefix="orderchat" max={4} compact /></div>}
           <div className="flex items-center gap-2">
             {images.length === 0 && <ImageUploader value={images} onChange={setImages} userId={userId} prefix="orderchat" max={4} compact />}
@@ -314,8 +314,8 @@ export function Bubble({ msg, mineType = 'user' }: { msg: OrderChatMessage; mine
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[80%] px-3.5 py-2.5 text-[13.5px] leading-relaxed ${
-        mine ? 'bg-white/[0.06] border border-line text-text rounded-br-md'
-          : 'bg-white/[0.05] border border-white/[0.08] text-text rounded-bl-md'
+        mine ? 'bg-ink/[0.06] border border-line text-text rounded-br-md'
+          : 'bg-ink/[0.05] border border-ink/[0.08] text-text rounded-bl-md'
       }`}>
         {!mine && <div className="text-[10.5px] font-bold mb-0.5 text-primary">{who}</div>}
         <div className="whitespace-pre-line break-words">{unescapeHtml(msg.text)}</div>

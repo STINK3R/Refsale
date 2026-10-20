@@ -15,7 +15,7 @@ export default function Notification() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            className={`px-5 py-3 text-[13px] text-center shadow-[0_18px_40px_rgba(0,0,0,0.5)] ${n.type === 'error' ? 'bg-danger text-white' : 'bg-ivory text-ink'}`}
+            className={`px-5 py-3 rounded-full border-2 border-ink text-[13px] font-semibold text-center shadow-[0_6px_0_#111] ${n.type === 'error' ? 'bg-danger text-white' : 'bg-ivory text-ink'}`}
           >
             {n.text}
           </motion.div>

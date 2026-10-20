@@ -1,29 +1,32 @@
 @import "tailwindcss";
 
-/* RefSale design system.
-   Quiet luxury: near-black, warm white, one muted champagne accent used
-   sparingly. Typography and photography carry the brand — no gradients,
-   glows or glass on content. Sharp geometry, 1px hairlines. */
+/* RefSale design system — a bright landing, not a quiet shop.
+   Warm white page, sunny yellow for buttons and plates (the "Скидка по коду"
+   logo), black type, and a hot pink kept for discounts and the promo code.
+   Chunky display type, pill buttons, soft rounded tiles. */
 @theme {
-  --color-bg: #0A0A0A;
-  --color-card: #111111;
-  --color-surface: #161616;
-  --color-tile: #131313;
-  --color-text: #ECE8E1;
-  --color-ivory: #ECE8E1;
-  --color-muted: #8F8A82;
-  --color-light: #5F5B55;
-  --color-border: #242424;
-  --color-line: rgba(236, 232, 225, 0.12);
-  --color-primary: #C6A769;
-  --color-primary-light: #DCC79A;
-  --color-primary-dark: #9C8048;
-  --color-secondary: #9C8048;
-  --color-ink: #0A0A0A;
-  --color-danger: #E5484D;
-  --color-success: #4CB782;
+  --color-bg: #FFFBEB;
+  --color-card: #FFFFFF;
+  --color-surface: #FFF4CF;
+  --color-tile: #FFF1C2;
+  --color-text: #111111;
+  /* "ivory" is the filled-button colour throughout the components */
+  --color-ivory: #FFD60A;
+  --color-sun: #FFD60A;
+  --color-sun-soft: #FFF0A8;
+  --color-muted: #5C5647;
+  --color-light: #8E8774;
+  --color-border: #EFE2B6;
+  --color-line: rgba(17, 17, 17, 0.12);
+  --color-primary: #E8186D;
+  --color-primary-light: #FF4F93;
+  --color-primary-dark: #C40F58;
+  --color-secondary: #7C3AED;
+  --color-ink: #111111;
+  --color-danger: #E11D48;
+  --color-success: #16A34A;
   --font-sans: 'Golos Text', 'Helvetica Neue', Arial, sans-serif;
-  --font-display: 'Noto Serif Display', 'Times New Roman', serif;
+  --font-display: 'Unbounded', 'Golos Text', Arial, sans-serif;
   --ease-luxe: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -35,7 +38,7 @@
 html {
   overflow-x: clip;
   background: var(--color-bg);
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
@@ -53,26 +56,26 @@ body {
   a { text-decoration: none; color: inherit; }
 }
 
-::selection { background: rgba(198, 167, 105, 0.35); color: #fff; }
+::selection { background: var(--color-sun); color: var(--color-ink); }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2E2E2E; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #444; }
+::-webkit-scrollbar-thumb { background: #E9D98F; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #D9C25A; }
 
 /* Component classes sit in a layer so utilities can still override them. */
 @layer components {
   /* ── Type ─────────────────────────────────────────── */
   .font-display {
     font-family: var(--font-display);
-    font-weight: 300;
-    letter-spacing: -0.01em;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
-  /* Small uppercase label — the workhorse of luxury UI */
+  /* Small uppercase label */
   .label {
     font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.16em;
+    font-weight: 600;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--color-muted);
     line-height: 1.4;
@@ -86,32 +89,35 @@ body {
     align-items: center;
     justify-content: center;
     gap: 0.6rem;
-    height: 48px;
-    padding: 0 1.75rem;
-    border-radius: 2px;
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.14em;
+    height: 50px;
+    padding: 0 1.9rem;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     white-space: nowrap;
     cursor: pointer;
-    transition: background-color 0.3s var(--ease-luxe), color 0.3s var(--ease-luxe), border-color 0.3s var(--ease-luxe), opacity 0.3s;
+    transition: background-color 0.3s var(--ease-luxe), color 0.3s var(--ease-luxe), border-color 0.3s var(--ease-luxe), transform 0.2s var(--ease-luxe), opacity 0.3s;
   }
+  .btn-primary:active:not(:disabled),
+  .btn-outline:active:not(:disabled) { transform: scale(0.97); }
   .btn-primary {
-    background: var(--color-ivory);
+    background: var(--color-sun);
     color: var(--color-ink);
-    border: 1px solid var(--color-ivory);
+    border: 2px solid var(--color-ink);
+    box-shadow: 0 4px 0 var(--color-ink);
   }
-  .btn-primary:hover:not(:disabled) { background: #fff; border-color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--color-ink); color: var(--color-sun); }
   .btn-outline {
-    background: transparent;
+    background: var(--color-card);
     color: var(--color-text);
-    border: 1px solid var(--color-line);
+    border: 2px solid var(--color-ink);
   }
-  .btn-outline:hover:not(:disabled) { border-color: var(--color-text); }
+  .btn-outline:hover:not(:disabled) { background: var(--color-sun-soft); }
   .btn-primary:disabled,
   .btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn-sm { height: 38px; padding: 0 1rem; font-size: 11px; }
+  .btn-sm { height: 40px; padding: 0 1.1rem; font-size: 11px; box-shadow: none; }
   .btn-icon { width: 38px; height: 38px; padding: 0; }
 
   /* Text link with an underline that draws on hover */
@@ -144,10 +150,14 @@ body {
   .panel {
     background: var(--color-card);
     border: 1px solid var(--color-border);
+    border-radius: 20px;
   }
-  /* Header over imagery only — the one place translucency earns its keep */
+  /* Product photo backdrop: a soft sunny spot on white */
+  .tile-bg {
+    background: radial-gradient(ellipse at 50% 42%, #FFFFFF 0%, #FFF6D1 62%, #FFEDA6 100%);
+  }
   .bar-blur {
-    background: rgba(10, 10, 10, 0.78);
+    background: rgba(255, 251, 235, 0.88);
     -webkit-backdrop-filter: blur(14px) saturate(120%);
     backdrop-filter: blur(14px) saturate(120%);
   }
@@ -157,9 +167,9 @@ body {
   .field {
     width: 100%;
     height: 48px;
-    background: transparent;
-    border: 1px solid var(--color-line);
-    border-radius: 2px;
+    background: var(--color-card);
+    border: 1.5px solid var(--color-line);
+    border-radius: 14px;
     color: var(--color-text);
     padding: 0 1rem;
     font-family: inherit;
@@ -168,13 +178,13 @@ body {
   textarea.field { height: auto; padding: 0.8rem 1rem; line-height: 1.5; }
   select.field { padding-right: 2rem; }
   .field::placeholder { color: var(--color-light); }
-  .field:focus { outline: none; border-color: var(--color-text); }
+  .field:focus { outline: none; border-color: var(--color-ink); box-shadow: 0 0 0 3px var(--color-sun-soft); }
   /* Underline-only input for the hero promo field */
   .field-line {
     width: 100%;
     background: transparent;
     border: none;
-    border-bottom: 1px solid var(--color-line);
+    border-bottom: 2px solid var(--color-line);
     border-radius: 0;
     color: var(--color-text);
     padding: 0.9rem 0;
@@ -200,7 +210,7 @@ input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--color-text);
-  -webkit-box-shadow: 0 0 0 1000px #121212 inset;
+  -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset;
   transition: background-color 9999s ease-in-out 0s;
 }
 

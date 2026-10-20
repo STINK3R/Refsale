@@ -66,21 +66,21 @@ export default function FavoritesPage() {
 function PromoStatus() {
   const { code, expiresAt } = usePromoStore();
   return (
-    <div className="mt-10 border border-line p-8 max-sm:p-5 grid grid-cols-[auto_1fr] gap-x-6 gap-y-4 items-start max-sm:grid-cols-1">
-      <span className="w-12 h-12 rounded-full border border-primary/40 text-primary flex items-center justify-center max-sm:hidden">
-        <Percent size={20} strokeWidth={1.5} />
+    <div className="mt-10 rounded-[28px] border-2 border-ink bg-sun shadow-[0_6px_0_#111] p-8 max-sm:p-5 grid grid-cols-[auto_1fr] gap-x-6 gap-y-4 items-start max-sm:grid-cols-1">
+      <span className="w-14 h-14 rounded-full bg-primary text-white border-2 border-ink flex items-center justify-center max-sm:hidden">
+        <Percent size={24} strokeWidth={2.4} />
       </span>
       <div>
-        <div className="label !text-primary">Скидка</div>
+        <div className="font-display text-[22px] text-ink">Скидка</div>
         {code ? (
-          <p className="mt-2 text-[16px] text-text">
-            Ваш промокод <span className="tracking-[0.1em] text-primary">{code}</span>{' '}
+          <p className="mt-2 text-[16px] font-semibold text-ink">
+            Ваш промокод <span className="px-2 py-0.5 rounded-full bg-primary text-white tracking-[0.06em]">{code}</span>{' '}
             {expiresAt ? <>действует до {formatDate(expiresAt)}</> : 'действует без ограничения по сроку'} — цены ниже уже со скидкой.
           </p>
         ) : (
           <>
-            <p className="mt-2 text-[16px] text-text">Введите промокод, чтобы применить скидку ко всем товарам</p>
-            <div className="mt-5 max-w-[440px]"><PromoForm variant="box" /></div>
+            <p className="mt-2 text-[16px] font-semibold text-ink">Введите промокод, чтобы применить скидку ко всем товарам</p>
+            <div className="mt-5 max-w-[520px]"><PromoForm variant="pill" /></div>
           </>
         )}
       </div>

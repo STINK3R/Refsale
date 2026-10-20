@@ -5,7 +5,7 @@ export default function Footer() {
   const contacts = useContacts();
   const year = new Date().getFullYear();
   return (
-    <footer className="border-t border-line bg-black">
+    <footer className="border-t-2 border-ink bg-sun">
       <div className="max-w-[1440px] mx-auto px-8 max-sm:px-5 pt-20 pb-28 max-md:pt-14">
         <div className="grid grid-cols-12 gap-x-8 gap-y-12">
           <div className="col-span-4 max-lg:col-span-12">
@@ -21,7 +21,8 @@ export default function Footer() {
               <li><a href="/#about" className="text-muted hover:text-text transition-colors">О нас</a></li>
               <li><a href="/#reviews" className="text-muted hover:text-text transition-colors">Отзывы</a></li>
               <li><Link to="/forums" className="text-muted hover:text-text transition-colors">Форум</Link></li>
-              <li><Link to="/orders" className="text-muted hover:text-text transition-colors">Статусы заказов</Link></li>
+              <li><Link to="/favorites" className="text-muted hover:text-text transition-colors">Избранное</Link></li>
+              <li><Link to="/orders" className="text-muted hover:text-text transition-colors">Сообщения и заказы</Link></li>
             </ul>
           </div>
           <div className="col-span-6 max-lg:col-span-8 max-sm:col-span-12">

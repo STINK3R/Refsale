@@ -183,7 +183,7 @@ export default function SupportChatModal() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-[3000] backdrop-blur-sm"
+            className="fixed inset-0 bg-ink/45 z-[3000] backdrop-blur-sm"
             onClick={close}
           />
           <motion.div
@@ -206,7 +206,7 @@ export default function SupportChatModal() {
                 {activeTicket && (
                   <button
                     onClick={() => { setActiveTicket(null); setMessages([]); }}
-                    className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition cursor-pointer"
+                    className="w-7 h-7 rounded-full bg-ink/20 flex items-center justify-center hover:bg-ink/30 transition cursor-pointer"
                   >
                     <ChevronLeft size={16} />
                   </button>
@@ -221,7 +221,7 @@ export default function SupportChatModal() {
                 </div>
                 <button
                   onClick={close}
-                  className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition cursor-pointer"
+                  className="w-7 h-7 rounded-full bg-ink/20 flex items-center justify-center hover:bg-ink/30 transition cursor-pointer"
                 >
                   <X size={16} />
                 </button>

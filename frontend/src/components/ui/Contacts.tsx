@@ -87,7 +87,7 @@ export function ContactBlock({ pair }: { pair: ContactPair }) {
     <div>
       <div className="label mb-3">{pair.label}</div>
       {pair.phone && (
-        <a href={telHref(pair.phone)} className="block font-display text-[22px] leading-tight text-text hover:text-white transition-colors">{pair.phone}</a>
+        <a href={telHref(pair.phone)} className="block font-display text-[22px] leading-tight text-text hover:text-primary transition-colors">{pair.phone}</a>
       )}
       {pair.email && (
         <a href={`mailto:${pair.email}`} className="block mt-1.5 text-[14px] text-muted hover:text-text transition-colors break-all">{pair.email}</a>

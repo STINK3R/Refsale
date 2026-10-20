@@ -75,18 +75,18 @@ export default function StoreCatalog() {
   return (
     <section id="catalog" className="py-28 max-md:py-16">
       <div className="max-w-[1440px] mx-auto px-8 max-sm:px-5">
-        <div className="flex items-end justify-between gap-10 pb-8 border-b border-line max-md:flex-col max-md:items-stretch max-md:gap-6">
+        <div className="flex items-end justify-between gap-10 pb-6 max-md:flex-col max-md:items-stretch max-md:gap-5">
           <div>
             <div className="label mb-5">Каталог</div>
-            <h2 className="font-display text-[clamp(38px,4.4vw,64px)] leading-[1.02] text-text">{category?.name || 'Каталог'}</h2>
+            <h2 className="font-display text-[clamp(34px,4.4vw,60px)] leading-[1.02] text-ink">{category?.name || 'Каталог'}</h2>
           </div>
           <label className="relative w-[340px] max-md:w-full block">
-            <Search size={16} strokeWidth={1.4} className="absolute left-0 top-1/2 -translate-y-1/2 text-muted" />
+            <Search size={18} strokeWidth={2.2} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink" />
             <input
               value={query}
               onChange={(e) => onSearch(e.target.value)}
               placeholder={category ? `Поиск: ${category.name.toLowerCase()}` : 'Поиск товаров'}
-              className="field-line !pl-7"
+              className="field !h-12 !rounded-full !pl-11 !border-2 !border-ink"
               aria-label="Поиск товаров"
             />
           </label>
@@ -94,7 +94,7 @@ export default function StoreCatalog() {
 
         <div className="flex items-center justify-between gap-6 pt-6 max-md:flex-col max-md:items-start max-md:gap-4">
           {!debounced && subs.length > 0 ? (
-            <div className="flex gap-8 overflow-x-auto scrollbar-hide max-w-full">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide max-w-full">
               <Tab active={subcategory === null} onClick={() => { setSubcategory(null); setShown(PAGE); }} count={inCategory.length}>Все</Tab>
               {subs.map((s) => (
                 <Tab
@@ -108,21 +108,21 @@ export default function StoreCatalog() {
               ))}
             </div>
           ) : <div className="text-[13px] text-muted">{debounced ? `Найдено: ${filtered.length}` : ''}</div>}
-          <div className="text-[12px] text-muted shrink-0">
+          <div className="text-[13px] font-semibold text-muted shrink-0">
             {promoCode
-              ? <>Цены по промокоду <span className="text-primary tracking-[0.1em]">{promoCode}</span> · {promoCount} {plural(promoCount, 'позиция', 'позиции', 'позиций')} дешевле</>
+              ? <>Цены по промокоду <span className="px-2 py-0.5 rounded-full bg-primary text-white tracking-[0.06em]">{promoCode}</span> · {promoCount} {plural(promoCount, 'позиция', 'позиции', 'позиций')} дешевле</>
               : 'Цены без промокода — с ним будет дешевле'}
           </div>
         </div>
 
         <div className="mt-12">
           {loading ? (
-            <div className="grid grid-cols-4 gap-x-6 gap-y-14 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:gap-x-3 max-sm:gap-y-10">
+            <div className="grid grid-cols-4 gap-5 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:gap-3">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="aspect-[4/5] bg-tile" />
-                  <div className="h-3.5 bg-white/[0.05] w-3/4 mt-5" />
-                  <div className="h-3.5 bg-white/[0.05] w-1/3 mt-3" />
+                <div key={i} className="animate-pulse rounded-[22px] border-2 border-line p-2">
+                  <div className="aspect-square rounded-[16px] bg-tile" />
+                  <div className="h-3.5 bg-ink/[0.05] w-3/4 mt-5" />
+                  <div className="h-3.5 bg-ink/[0.05] w-1/3 mt-3" />
                 </div>
               ))}
             </div>
@@ -133,7 +133,7 @@ export default function StoreCatalog() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-4 gap-x-6 gap-y-14 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:gap-x-3 max-sm:gap-y-10">
+              <div className="grid grid-cols-4 gap-5 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:gap-3">
                 {visible.map((p, i) => (
                   <ProductCard key={p.id} product={p} index={i} onOpen={() => setSelected(p)} onNeedVariant={() => setVariantFor(p)} />
                 ))}
@@ -189,11 +189,10 @@ function Tab({ active, onClick, children, count }: { active: boolean; onClick: (
   return (
     <button
       onClick={onClick}
-      className={`relative shrink-0 pb-2 whitespace-nowrap cursor-pointer transition-colors text-[13px] uppercase tracking-[0.12em] ${active ? 'text-text' : 'text-muted hover:text-text'}`}
+      className={`shrink-0 h-9 px-4 rounded-full border-2 whitespace-nowrap cursor-pointer transition-colors text-[13px] font-bold ${active ? 'bg-ink border-ink text-sun' : 'bg-card border-line text-muted hover:border-ink hover:text-ink'}`}
     >
       {children}
-      {count != null && <sup className="ml-1 text-[10px] text-light tracking-normal">{count}</sup>}
-      <span className={`absolute left-0 right-0 bottom-0 h-px bg-text transition-transform duration-500 origin-left ${active ? 'scale-x-100' : 'scale-x-0'}`} />
+      {count != null && <span className="ml-1.5 text-[11px] opacity-60">{count}</span>}
     </button>
   );
 }
@@ -210,21 +209,21 @@ export function PriceTag({ info, size = 'md' }: { info: PriceInfo; size?: 'md' |
     return (
       <div>
         <div className="flex items-baseline gap-4 flex-wrap">
-          <span className="font-display text-[40px] leading-none text-text">{pre}{formatPrice(now)}</span>
+          <span className={`font-display text-[38px] leading-none ${discounted ? 'text-primary' : 'text-ink'}`}>{pre}{formatPrice(now)}</span>
           {discounted && <span className="text-[16px] text-light line-through">{formatPrice(base)}</span>}
-          {discounted && <span className="label !text-primary">−{Math.round((1 - now / base) * 100)}% по промокоду</span>}
+          {discounted && <span className="px-3 py-1 rounded-full bg-primary text-white text-[12px] font-bold">−{Math.round((1 - now / base) * 100)}% по промокоду</span>}
         </div>
         {!discounted && !code && hasPromo && (
-          <div className="text-[13px] text-muted mt-3">С промокодом от блогера эта позиция дешевле</div>
+          <div className="text-[13px] font-semibold text-primary mt-3">С промокодом от блогера эта позиция дешевле</div>
         )}
       </div>
     );
   }
   return (
     <div className="flex items-baseline gap-2.5 flex-wrap">
-      <span className="text-[15px] text-text tabular-nums">{pre}{formatPrice(now)}</span>
+      <span className={`text-[17px] max-sm:text-[15px] font-extrabold tabular-nums ${discounted ? 'text-primary' : 'text-ink'}`}>{pre}{formatPrice(now)}</span>
       {discounted && <span className="text-[13px] text-light line-through tabular-nums">{formatPrice(base)}</span>}
-      {!discounted && !code && hasPromo && <span className="text-[11px] text-primary/90">дешевле с промокодом</span>}
+      {!discounted && !code && hasPromo && <span className="block w-full text-[11px] font-semibold text-primary">дешевле с промокодом</span>}
     </div>
   );
 }
@@ -238,7 +237,7 @@ export function ComparePrices({ info, category, size = 'md' }: { info: PriceInfo
   if (!rows.length) return null;
   if (size === 'lg') {
     return (
-      <div className="mt-5 grid gap-1.5">
+      <div className="mt-5 grid gap-1.5 p-4 rounded-2xl bg-surface">
         <div className="label !text-[10px]">В других магазинах</div>
         {rows.map((r) => (
           <div key={r.label} className="flex justify-between gap-4 text-[14px]">
@@ -250,9 +249,12 @@ export function ComparePrices({ info, category, size = 'md' }: { info: PriceInfo
     );
   }
   return (
-    <div className="mt-1.5 text-[11px] leading-snug text-light">
-      {rows.map((r, i) => (
-        <span key={r.label}>{i > 0 && ' · '}{r.label} <span className="line-through tabular-nums">{formatPrice(Number(r.price))}</span></span>
+    <div className="mt-1.5 grid gap-0.5 text-[11px] leading-snug text-muted">
+      {rows.map((r) => (
+        <div key={r.label} className="flex justify-between gap-2">
+          <span className="truncate">{r.label}</span>
+          <span className="line-through tabular-nums shrink-0">{formatPrice(Number(r.price))}</span>
+        </div>
       ))}
     </div>
   );
@@ -297,7 +299,7 @@ export function FavoriteButton({ productId, className = '' }: { productId: numbe
 function Monogram({ big }: { big?: boolean }) {
   return (
     <div className="absolute inset-0 flex items-center justify-center">
-      <span className={`font-display text-white/[0.06] ${big ? 'text-[140px]' : 'text-[88px]'}`}>R</span>
+      <span className={`font-display text-ink/[0.06] ${big ? 'text-[140px]' : 'text-[88px]'}`}>R</span>
     </div>
   );
 }
@@ -314,7 +316,6 @@ export const ProductCard = memo(function ProductCard({ product, index, onOpen, o
   const info = priceInfo(product, null, prices);
   const pct = info.now < info.base ? Math.round((1 - info.now / info.base) * 100) : 0;
   const hasVariants = (product.variants || []).length > 0;
-  const addLabel = hasVariants ? 'Выбрать объём' : inCart ? 'В корзине — открыть' : 'Добавить в корзину';
 
   return (
     <motion.article
@@ -322,9 +323,9 @@ export const ProductCard = memo(function ProductCard({ product, index, onOpen, o
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-30px' }}
       transition={{ duration: 0.8, delay: (index % 4) * 0.06, ease: EASE }}
-      className="group"
+      className="group flex flex-col bg-card rounded-[22px] max-sm:rounded-[18px] border-2 border-ink p-2 hover:-translate-y-1 hover:shadow-[0_6px_0_#111] transition-all duration-300"
     >
-      <div className="relative aspect-[4/5] overflow-hidden bg-[radial-gradient(ellipse_at_50%_42%,#1C1C1C_0%,#121212_68%)]">
+      <div className="relative aspect-square overflow-hidden rounded-[16px] max-sm:rounded-[12px] tile-bg">
         <button onClick={onOpen} className="absolute inset-0 cursor-pointer" aria-label={`Подробнее: ${product.name}`}>
           {product.image_url ? (
             <img
@@ -335,53 +336,39 @@ export const ProductCard = memo(function ProductCard({ product, index, onOpen, o
             />
           ) : <Monogram />}
         </button>
-        <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
-          <span className="label !text-[10px] !text-text/80">
-            {unavailable ? 'Нет в наличии' : product.badge && BADGES[product.badge] ? BADGES[product.badge] : ''}
-          </span>
-          <div className="flex items-center gap-3">
-            {pct > 0 && !unavailable && <span className="label !text-[10px] !text-primary">−{pct}%</span>}
-            <span className="pointer-events-auto"><FavoriteButton productId={product.id} /></span>
+        <div className="absolute top-2.5 left-2.5 right-2.5 flex justify-between items-start gap-2 pointer-events-none">
+          <div className="flex flex-wrap gap-1">
+            {(unavailable || (product.badge && BADGES[product.badge])) && (
+              <span className="px-2.5 py-1 rounded-full bg-card border-2 border-ink text-[10px] font-bold uppercase tracking-[0.06em]">
+                {unavailable ? 'Нет в наличии' : BADGES[product.badge as string]}
+              </span>
+            )}
+            {pct > 0 && !unavailable && <span className="px-2.5 py-1 rounded-full bg-primary text-white text-[11px] font-extrabold">−{pct}%</span>}
           </div>
+          <span className="pointer-events-auto w-9 h-9 rounded-full bg-card/90 flex items-center justify-center"><FavoriteButton productId={product.id} /></span>
         </div>
-        {!unavailable && (
-          <button
-            onClick={add}
-            className="max-lg:hidden absolute inset-x-0 bottom-0 h-12 bg-ivory text-ink text-[11px] font-medium uppercase tracking-[0.16em] translate-y-full group-hover:translate-y-0 focus-visible:translate-y-0 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer"
-          >
-            {addLabel}
-          </button>
-        )}
       </div>
 
-      <div className="pt-5">
-        <button onClick={onOpen} className="block text-left text-[14px] max-sm:text-[13px] leading-snug text-text line-clamp-2 min-h-[2.75em] cursor-pointer hover:text-white">
+      <div className="px-2 pt-3 pb-1 flex flex-col flex-1">
+        <button onClick={onOpen} className="block text-left text-[14px] max-sm:text-[13px] font-semibold leading-snug text-ink line-clamp-2 min-h-[2.75em] cursor-pointer hover:text-primary">
           {product.name}
         </button>
-        <div className="mt-2 flex items-center justify-between gap-3">
+        <div className="mt-2">
           <PriceTag info={info} />
-          <button
-            onClick={() => askSeller(product.id)}
-            className="max-lg:hidden shrink-0 text-muted hover:text-text transition-colors cursor-pointer"
-            title="Связаться с продавцом"
-            aria-label="Связаться с продавцом"
-          >
-            <MessageCircle size={16} strokeWidth={1.4} />
-          </button>
         </div>
         <ComparePrices info={info} category={category} />
-        <div className="lg:hidden mt-3 flex gap-1.5">
+        <div className="mt-auto pt-3 flex gap-1.5">
           {!unavailable && (
             <button
               onClick={add}
-              className={`flex-1 h-9 flex items-center justify-center gap-1.5 text-[10.5px] uppercase tracking-[0.12em] border cursor-pointer transition-colors ${inCart ? 'border-line text-text' : 'border-ivory bg-ivory text-ink'}`}
+              className={`flex-1 h-10 rounded-full border-2 border-ink flex items-center justify-center gap-1 text-[12.5px] max-sm:text-[12px] font-bold whitespace-nowrap cursor-pointer transition-colors ${inCart ? 'bg-card text-ink' : 'bg-sun text-ink hover:bg-ink hover:text-sun'}`}
             >
-              {hasVariants ? 'Выбрать объём' : inCart ? <><Check size={13} strokeWidth={1.6} /> В корзине</> : <><Plus size={13} strokeWidth={1.6} /> В корзину</>}
+              {hasVariants ? <><span className="max-sm:hidden">Выбрать объём</span><span className="sm:hidden">Объёмы</span></> : inCart ? <><Check size={14} strokeWidth={2.4} /> В корзине</> : <><Plus size={14} strokeWidth={2.4} /> В корзину</>}
             </button>
           )}
           <button
             onClick={() => askSeller(product.id)}
-            className={`${unavailable ? 'flex-1' : 'w-9'} h-9 flex items-center justify-center gap-1.5 border border-line text-muted hover:text-text cursor-pointer`}
+            className={`${unavailable ? 'flex-1' : 'w-10 max-sm:hidden'} h-10 rounded-full flex items-center justify-center gap-1.5 border-2 border-ink bg-card text-ink hover:bg-sun-soft cursor-pointer`}
             aria-label="Связаться с продавцом"
           >
             <MessageCircle size={14} strokeWidth={1.4} />{unavailable && <span className="text-[10.5px] uppercase tracking-[0.12em]">Спросить</span>}
@@ -397,7 +384,7 @@ function Overlay({ onClose, children }: { onClose: () => void; children: React.R
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}
-      className="fixed inset-0 z-[3000] bg-black/80 flex items-end sm:items-center justify-center sm:p-6"
+      className="fixed inset-0 z-[3000] bg-ink/45 flex items-end sm:items-center justify-center sm:p-6"
       onClick={onClose}
     >
       {children}
@@ -436,12 +423,12 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
         initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
         transition={{ duration: 0.5, ease: EASE }}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-[1040px] max-h-[94vh] overflow-y-auto bg-bg border border-line grid grid-cols-2 max-md:grid-cols-1"
+        className="relative w-full max-w-[1040px] max-h-[94vh] overflow-y-auto bg-bg border-2 border-ink rounded-t-[28px] sm:rounded-[28px] grid grid-cols-2 max-md:grid-cols-1"
       >
-        <button onClick={onClose} className="absolute top-5 right-5 z-10 text-muted hover:text-text cursor-pointer" aria-label="Закрыть">
+        <button onClick={onClose} className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-card border-2 border-ink text-ink flex items-center justify-center cursor-pointer hover:bg-sun" aria-label="Закрыть">
           <X size={22} strokeWidth={1.3} />
         </button>
-        <div className="relative aspect-[4/5] max-md:aspect-square bg-[radial-gradient(ellipse_at_50%_42%,#1E1E1E_0%,#121212_70%)]">
+        <div className="relative aspect-[4/5] max-md:aspect-square tile-bg">
           {images.length ? (
             <img src={images[idx]} alt={product.name} onClick={() => setZoom(true)} className="absolute inset-0 w-full h-full object-contain p-[10%] cursor-zoom-in" />
           ) : <Monogram big />}
@@ -464,7 +451,7 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
             <div className="label">{product.badge && BADGES[product.badge] ? BADGES[product.badge] : 'Оригинал'}</div>
             <FavoriteButton productId={product.id} />
           </div>
-          <h3 className="font-display text-[38px] max-sm:text-[30px] leading-[1.08] text-text mt-4 pr-6">{product.name}</h3>
+          <h3 className="font-display text-[32px] max-sm:text-[24px] leading-[1.1] text-ink mt-4 pr-6">{product.name}</h3>
           {product.description && (
             <p className="mt-6 text-[15px] text-muted leading-[1.75] whitespace-pre-line">{product.description}</p>
           )}
@@ -482,11 +469,11 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
                       role="radio"
                       aria-checked={active}
                       onClick={() => setVariantId(v.id)}
-                      className={`flex items-center justify-between gap-4 px-4 py-3 border text-left cursor-pointer transition-colors ${active ? 'border-primary text-text' : 'border-line text-muted hover:text-text'} ${out ? 'opacity-50' : ''}`}
+                      className={`flex items-center justify-between gap-4 px-4 py-3 rounded-2xl border-2 text-left cursor-pointer transition-colors ${active ? 'border-ink bg-sun text-ink font-bold' : 'border-line bg-card text-muted hover:border-ink hover:text-ink'} ${out ? 'opacity-50' : ''}`}
                     >
                       <span className="text-[14px]">{v.label}{out && ' · нет в наличии'}</span>
                       <span className="flex items-baseline gap-2 tabular-nums">
-                        <span className="text-[14px] text-text">{formatPrice(vi.now)}</span>
+                        <span className={`text-[14px] font-bold ${vi.now < vi.base ? 'text-primary' : 'text-ink'}`}>{formatPrice(vi.now)}</span>
                         {vi.now < vi.base && <span className="text-[12px] text-light line-through">{formatPrice(vi.base)}</span>}
                       </span>
                     </button>
@@ -530,10 +517,10 @@ function VariantModal({ product, onClose }: { product: Product; onClose: () => v
       <motion.div
         initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} transition={{ duration: 0.4, ease: EASE }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-bg border border-line p-10 max-sm:p-6"
+        className="w-full max-w-md bg-bg border-2 border-ink rounded-t-[28px] sm:rounded-[28px] p-10 max-sm:p-6"
       >
         <div className="label">Уточните вариант</div>
-        <h3 className="font-display text-[30px] leading-tight text-text mt-3">{product.name}</h3>
+        <h3 className="font-display text-[24px] leading-tight text-ink mt-3">{product.name}</h3>
         <p className="text-[14px] text-muted mt-3 mb-6">Напишите, какой вариант нужен: объём, оттенок, концентрация.</p>
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="Например: 100 мл, EDP" className="field resize-none" autoFocus />
         <div className="flex gap-3 mt-6">

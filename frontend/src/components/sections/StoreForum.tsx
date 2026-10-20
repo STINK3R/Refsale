@@ -91,7 +91,7 @@ export default function StoreForum() {
               const mine = user ? p.user_id === user.id : p.user_name === nick;
               return (
                 <div key={p.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[78%] px-4 py-2.5 ${mine ? 'bg-primary/15 border border-primary/25 rounded-br-md' : 'bg-white/[0.04] border border-white/[0.07] rounded-bl-md'}`}>
+                  <div className={`max-w-[78%] px-4 py-2.5 ${mine ? 'bg-primary/15 border border-primary/25 rounded-br-md' : 'bg-ink/[0.04] border border-ink/[0.07] rounded-bl-md'}`}>
                     <div className="text-[11px] font-semibold text-primary/90 mb-0.5">{unescapeHtml(p.user_name)}</div>
                     <div className="text-[14px] text-text leading-relaxed break-words whitespace-pre-line">{unescapeHtml(p.text)}</div>
                     <div className="text-[10px] text-light mt-1 text-right">
@@ -102,14 +102,14 @@ export default function StoreForum() {
               );
             })}
           </div>
-          <div className="border-t border-white/[0.07] p-3">
+          <div className="border-t border-ink/[0.07] p-3">
             {!user && (
               <div className="flex items-center gap-2 px-2 pb-2 text-[12px] text-muted">
                 <User size={13} className="text-primary" /> Вы пишете как
                 <input
                   value={nick}
                   onChange={(e) => { const v = e.target.value.slice(0, 20); setNick(v); localStorage.setItem(NICK_KEY, v); }}
-                  className="bg-transparent border-b border-white/15 text-text px-1 w-32 outline-none"
+                  className="bg-transparent border-b border-ink/15 text-text px-1 w-32 outline-none"
                   aria-label="Ваш ник"
                 />
               </div>

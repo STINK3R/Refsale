@@ -50,7 +50,7 @@ export default function SupportWidget() {
         runAfterAuth(() => openSupport());
         useAuthStore.getState().openAuth('register', 'Чтобы написать продавцу, создайте аккаунт — это полминуты, без подтверждения администратора.');
       }}
-      className="fixed bottom-5 right-5 max-sm:right-3 max-sm:bottom-3 z-[1500] btn-primary !h-11 !px-5 max-sm:!w-11 max-sm:!px-0 shadow-[0_18px_40px_rgba(0,0,0,0.55)]"
+      className="fixed bottom-5 right-5 max-sm:right-3 max-sm:bottom-3 z-[1500] btn-primary !h-11 !px-5 max-sm:!w-11 max-sm:!px-0"
       aria-label="Написать продавцу"
     >
       <MessageCircle size={16} strokeWidth={1.6} className="shrink-0" />

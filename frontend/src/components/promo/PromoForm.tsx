@@ -1,18 +1,22 @@
 import { useState } from 'react';
-import { ArrowRight, Check, Loader2 } from 'lucide-react';
+import { ArrowRight, Check, Loader2, Percent } from 'lucide-react';
 import { useNotificationStore, usePromoStore } from '../../store';
 
 /**
- * Promo word input. "line" sits in the hero as an underlined field; "box" is
- * the compact framed version for the floating bar and the cart. Once a code
- * works, every price on the site switches to было/стало.
+ * Promo word input.
+ * - "pill": the big yellow plate under the category photo and in the dock that
+ *   follows the visitor down the page;
+ * - "line": an underlined field;
+ * - "box": the compact framed version for the cart and favourites.
+ * Once a code works, every price on the site switches to было/стало.
  */
-export default function PromoForm({ variant = 'box', onApplied }: { variant?: 'line' | 'box'; onApplied?: () => void }) {
+export default function PromoForm({ variant = 'box', onApplied }: { variant?: 'line' | 'box' | 'pill'; onApplied?: () => void }) {
   const { code, leaderName, label, checking, apply, clear } = usePromoStore();
   const show = useNotificationStore((s) => s.show);
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
   const line = variant === 'line';
+  const pill = variant === 'pill';
 
   const submit = async () => {
     setError('');
@@ -25,12 +29,31 @@ export default function PromoForm({ variant = 'box', onApplied }: { variant?: 'l
 
   if (code) {
     const from = label || (leaderName ? `от ${leaderName}` : '');
+    if (pill) {
+      return (
+        <div className="flex items-center gap-3 h-14 max-sm:h-12 pl-2 pr-5 rounded-full bg-primary text-white border-2 border-ink shadow-[0_4px_0_#111]">
+          <span className="w-10 h-10 max-sm:w-8 max-sm:h-8 rounded-full bg-sun text-ink flex items-center justify-center shrink-0">
+            <Check size={18} strokeWidth={2.4} />
+          </span>
+          <div className="min-w-0 flex-1 leading-tight">
+            <div className="text-[15px] max-sm:text-[13px] font-bold truncate">Промокод {code} — цены со скидкой</div>
+            {from && <div className="text-[12px] text-white/80 truncate max-sm:hidden">{from}</div>}
+          </div>
+          <button
+            onClick={() => { clear(); show('Промокод сброшен'); }}
+            className="text-[11px] font-bold uppercase tracking-[0.1em] text-white/85 hover:text-white cursor-pointer shrink-0"
+          >
+            Убрать
+          </button>
+        </div>
+      );
+    }
     return (
-      <div className={`flex items-center gap-4 ${line ? 'py-4 border-b border-line' : 'h-12 px-4 border border-line'}`}>
-        <Check size={line ? 18 : 15} strokeWidth={1.6} className="text-primary shrink-0" />
+      <div className={`flex items-center gap-4 ${line ? 'py-4 border-b border-line' : 'h-12 px-4 border border-line rounded-full bg-card'}`}>
+        <Check size={line ? 18 : 15} strokeWidth={1.8} className="text-primary shrink-0" />
         <div className="min-w-0 flex-1 leading-snug">
           <div className={`${line ? 'text-[15px]' : 'text-[13px]'} text-text truncate`}>
-            Промокод <span className="tracking-[0.12em] text-primary">{code}</span> применён
+            Промокод <span className="font-bold tracking-[0.08em] text-primary">{code}</span> применён
           </div>
           {line && <div className="text-[13px] text-muted truncate">{from ? `${from} · ` : ''}цены со скидкой на всём сайте</div>}
         </div>
@@ -44,13 +67,46 @@ export default function PromoForm({ variant = 'box', onApplied }: { variant?: 'l
     );
   }
 
+  if (pill) {
+    return (
+      <div>
+        <form
+          onSubmit={(e) => { e.preventDefault(); void submit(); }}
+          className={`flex items-center gap-2 h-14 max-sm:h-12 pl-2 pr-1.5 rounded-full bg-card border-2 shadow-[0_4px_0_#111] ${error ? 'border-danger' : 'border-ink'}`}
+        >
+          <span className="w-10 h-10 max-sm:w-8 max-sm:h-8 rounded-full bg-primary text-white flex items-center justify-center shrink-0" aria-hidden="true">
+            <Percent size={18} strokeWidth={2.4} />
+          </span>
+          <input
+            value={value}
+            onChange={(e) => { setValue(e.target.value.toUpperCase()); setError(''); }}
+            placeholder="Реферальный промокод"
+            aria-label="Промокод"
+            autoCapitalize="characters"
+            spellCheck={false}
+            className="flex-1 min-w-0 bg-transparent border-none text-ink font-bold uppercase tracking-[0.1em] placeholder:normal-case placeholder:tracking-normal placeholder:font-semibold placeholder:text-ink/55 text-[16px] max-sm:text-[15px]"
+          />
+          <button
+            type="submit"
+            disabled={checking || !value.trim()}
+            aria-label="Применить промокод"
+            className="h-11 max-sm:h-9 px-5 max-sm:px-3.5 rounded-full bg-ink text-sun text-[12px] font-bold uppercase tracking-[0.08em] flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-default shrink-0"
+          >
+            {checking ? <Loader2 size={16} className="animate-spin" /> : <><span className="max-sm:hidden">Применить</span><ArrowRight size={16} strokeWidth={2.2} /></>}
+          </button>
+        </form>
+        {error && <div className="mt-2 pl-4 text-[13px] font-semibold text-danger">{error}</div>}
+      </div>
+    );
+  }
+
   return (
     <div>
       <form
         onSubmit={(e) => { e.preventDefault(); void submit(); }}
         className={`flex items-center gap-4 transition-colors ${line
-          ? `border-b ${error ? 'border-danger/70' : 'border-line focus-within:border-text'}`
-          : `h-12 pl-4 pr-1 border ${error ? 'border-danger/70' : 'border-line focus-within:border-text'}`}`}
+          ? `border-b-2 ${error ? 'border-danger/70' : 'border-line focus-within:border-text'}`
+          : `h-12 pl-5 pr-1 rounded-full bg-card border-2 ${error ? 'border-danger/70' : 'border-line focus-within:border-ink'}`}`}
       >
         <input
           value={value}
@@ -59,17 +115,17 @@ export default function PromoForm({ variant = 'box', onApplied }: { variant?: 'l
           aria-label="Промокод"
           autoCapitalize="characters"
           spellCheck={false}
-          className={`flex-1 min-w-0 bg-transparent border-none text-text uppercase tracking-[0.14em] placeholder:normal-case placeholder:tracking-normal placeholder:text-light ${line ? 'text-[17px] py-4' : 'text-[14px] py-2'}`}
+          className={`flex-1 min-w-0 bg-transparent border-none text-text font-semibold uppercase tracking-[0.12em] placeholder:normal-case placeholder:tracking-normal placeholder:font-normal placeholder:text-light ${line ? 'text-[17px] py-4' : 'text-[14px] py-2'}`}
         />
         <button
           type="submit"
           disabled={checking || !value.trim()}
-          className={`flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.16em] text-text disabled:text-light transition-colors cursor-pointer disabled:cursor-default ${line ? '' : 'h-10 px-3'}`}
+          className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] cursor-pointer disabled:cursor-default transition-colors ${line ? 'text-text disabled:text-light' : 'h-9 px-4 rounded-full bg-ink text-sun disabled:opacity-50'}`}
         >
-          {checking ? <Loader2 size={15} className="animate-spin" /> : <>Применить <ArrowRight size={14} strokeWidth={1.5} /></>}
+          {checking ? <Loader2 size={15} className="animate-spin" /> : <>Применить <ArrowRight size={14} strokeWidth={2} /></>}
         </button>
       </form>
-      {error && <div className={`mt-2 text-[12px] text-danger ${line ? '' : 'pl-1'}`}>{error}</div>}
+      {error && <div className={`mt-2 text-[12px] text-danger ${line ? '' : 'pl-4'}`}>{error}</div>}
     </div>
   );
 }

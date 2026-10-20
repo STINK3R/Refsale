@@ -90,7 +90,7 @@ export default function LeaderCabinet() {
           <div className="label mb-2 flex items-center gap-2"><Crown size={13} /> Кабинет лидера мнений</div>
           <h1 className="font-display text-[44px] leading-none text-text max-sm:text-[34px]">{overview.leader.name}</h1>
         </div>
-        <span className={`inline-flex items-center gap-2 px-4 py-2 text-[12px] border ${overview.leader.can_write ? 'border-primary/40 text-primary-light bg-primary/10' : 'border-white/10 text-muted bg-white/[0.04]'}`}>
+        <span className={`inline-flex items-center gap-2 px-4 py-2 text-[12px] border ${overview.leader.can_write ? 'border-primary/40 text-primary-light bg-primary/10' : 'border-ink/10 text-muted bg-ink/[0.04]'}`}>
           {overview.leader.can_write ? <><MessageCircle size={14} /> Можно писать покупателям и вести заказы</> : <><Eye size={14} /> Режим просмотра</>}
         </span>
       </div>
@@ -114,7 +114,7 @@ export default function LeaderCabinet() {
               <div key={p.code} className="bg-card border border-line p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="font-display text-[30px] leading-none tracking-[0.08em] text-text">{p.code}</div>
-                  <span className={`text-[10px] font-medium uppercase tracking-[0.08em] px-2 py-1 border ${p.is_active ? 'text-success border-success/30 bg-success/10' : 'text-muted border-white/10'}`}>
+                  <span className={`text-[10px] font-medium uppercase tracking-[0.08em] px-2 py-1 border ${p.is_active ? 'text-success border-success/30 bg-success/10' : 'text-muted border-ink/10'}`}>
                     {p.is_active ? 'Активен' : 'Выключен'}
                   </span>
                 </div>
@@ -155,14 +155,14 @@ export default function LeaderCabinet() {
             <div className="bg-card border border-line p-10 text-center text-sm text-muted">Заказов по вашим промокодам пока нет.</div>
           ) : (
             <div className="bg-card border border-line overflow-hidden">
-              <div className="grid grid-cols-[80px_1.2fr_1fr_1fr_1fr_1.2fr] gap-3 px-5 py-3 text-[11px] uppercase tracking-[0.15em] text-light border-b border-white/[0.06] max-md:hidden">
+              <div className="grid grid-cols-[80px_1.2fr_1fr_1fr_1fr_1.2fr] gap-3 px-5 py-3 text-[11px] uppercase tracking-[0.15em] text-light border-b border-ink/[0.06] max-md:hidden">
                 <span>Заказ</span><span>Покупатель</span><span>Дата</span><span>Сумма</span><span>Ваше вознагр.</span><span>Статус</span>
               </div>
               {shown.map((o) => (
                 <button
                   key={o.id}
                   onClick={() => setOpenOrder(o)}
-                  className="w-full grid grid-cols-[80px_1.2fr_1fr_1fr_1fr_1.2fr] max-md:grid-cols-2 gap-3 px-5 py-4 text-left text-[13px] border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.03] cursor-pointer transition-colors items-center"
+                  className="w-full grid grid-cols-[80px_1.2fr_1fr_1fr_1fr_1.2fr] max-md:grid-cols-2 gap-3 px-5 py-4 text-left text-[13px] border-b border-ink/[0.04] last:border-b-0 hover:bg-ink/[0.03] cursor-pointer transition-colors items-center"
                 >
                   <span className="font-semibold text-text">#{o.id}</span>
                   <span className="text-text truncate">{o.buyer}</span>
@@ -213,7 +213,7 @@ function Stat({ icon, label, value, hint, accent }: { icon: React.ReactNode; lab
 
 function Mini({ label, value }: { label: string; value: string }) {
   return (
-    <div className=" bg-white/[0.03] border border-white/[0.06] py-2">
+    <div className=" bg-ink/[0.03] border border-ink/[0.06] py-2">
       <div className="text-[14px] font-semibold text-text">{value}</div>
       <div className="text-[10px] text-light uppercase tracking-wider mt-0.5">{label}</div>
     </div>
@@ -222,7 +222,7 @@ function Mini({ label, value }: { label: string; value: string }) {
 
 function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} className={`inline-flex items-center gap-2 h-10 px-4 text-[12px] uppercase tracking-[0.1em] border transition-colors cursor-pointer ${active ? 'bg-primary/15 border-primary/45 text-primary-light' : 'border-white/10 text-muted hover:text-text'}`}>
+    <button onClick={onClick} className={`inline-flex items-center gap-2 h-10 px-4 text-[12px] uppercase tracking-[0.1em] border transition-colors cursor-pointer ${active ? 'bg-primary/15 border-primary/45 text-primary-light' : 'border-ink/10 text-muted hover:text-text'}`}>
       {children}
     </button>
   );
@@ -232,17 +232,17 @@ function Drawer({ title, subtitle, onClose, children, footer }: { title: string;
   useScrollLock(true);
   return (
     <>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[2400] bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[2400] bg-ink/45 backdrop-blur-sm" onClick={onClose} />
       <motion.aside
         initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', stiffness: 320, damping: 34 }}
         className="fixed top-0 right-0 bottom-0 z-[2500] w-[520px] max-w-full bg-bg border border-line flex flex-col"
       >
-        <div className="flex items-start justify-between gap-3 px-6 py-5 border-b border-white/[0.07]">
+        <div className="flex items-start justify-between gap-3 px-6 py-5 border-b border-ink/[0.07]">
           <div className="min-w-0">
             <div className="font-display text-[28px] leading-none text-text">{title}</div>
             {subtitle && <div className="text-[12px] text-muted mt-2">{subtitle}</div>}
           </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-muted hover:text-text cursor-pointer shrink-0" aria-label="Закрыть"><X size={18} /></button>
+          <button onClick={onClose} className="w-9 h-9 rounded-full bg-ink/5 border border-ink/10 flex items-center justify-center text-muted hover:text-text cursor-pointer shrink-0" aria-label="Закрыть"><X size={18} /></button>
         </div>
         {children}
         {footer}
@@ -301,19 +301,19 @@ function OrderDrawer({ order, onClose, onChanged }: { order: LeaderOrder; onClos
       subtitle={<>{order.buyer} · {formatDate(order.created_at)} · {formatPrice(order.total)}{order.promo_code ? ` · ${order.promo_code}` : ''}</>}
       onClose={onClose}
       footer={canWrite && !closed ? (
-        <div className="px-4 py-3 border-t border-white/[0.07]">
+        <div className="px-4 py-3 border-t border-ink/[0.07]">
           <div className="flex gap-2">
             <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void send(); } }} placeholder="Написать покупателю…" className="field !py-2.5" />
             <button onClick={send} disabled={!text.trim() || sending} className="btn-primary w-11 h-11 !p-0 shrink-0" aria-label="Отправить">{sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
           </div>
         </div>
       ) : (
-        <div className="px-6 py-3.5 border-t border-white/[0.07] text-[12px] text-muted flex items-center gap-2">
+        <div className="px-6 py-3.5 border-t border-ink/[0.07] text-[12px] text-muted flex items-center gap-2">
           <Eye size={14} className="text-primary" /> {closed ? 'Заказ закрыт' : 'Только просмотр — общается с покупателем менеджер'}
         </div>
       )}
     >
-      <div className="px-6 py-4 border-b border-white/[0.07] space-y-4">
+      <div className="px-6 py-4 border-b border-ink/[0.07] space-y-4">
         <div className="flex items-center gap-3">
           <span className={`text-[11px] font-medium uppercase tracking-[0.08em] px-2.5 py-1 border ${statusTone(status)}`}>{STATUS_LABEL[status]}</span>
           <span className="text-[12px] text-muted">Ваше вознаграждение: <b className="text-primary-light">{formatPrice(order.leader_reward)}</b>{status !== 'done' && status !== 'cancelled' ? ' (после выдачи)' : ''}</span>
@@ -366,12 +366,12 @@ function TicketDrawer({ ticket, onClose }: { ticket: LeaderTicket; onClose: () =
       subtitle={<>{ticket.user_name}{ticket.promo_code ? ` · промокод ${ticket.promo_code}` : ''}</>}
       onClose={onClose}
       footer={canWrite && ticket.status !== 'closed' ? (
-        <div className="px-4 py-3 border-t border-white/[0.07] flex gap-2">
+        <div className="px-4 py-3 border-t border-ink/[0.07] flex gap-2">
           <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void send(); } }} placeholder="Ответить…" className="field !py-2.5" />
           <button onClick={send} disabled={!text.trim()} className="btn-primary w-11 h-11 !p-0 shrink-0" aria-label="Отправить"><Send size={16} /></button>
         </div>
       ) : (
-        <div className="px-6 py-3.5 border-t border-white/[0.07] text-[12px] text-muted flex items-center gap-2"><Eye size={14} className="text-primary" /> Только просмотр</div>
+        <div className="px-6 py-3.5 border-t border-ink/[0.07] text-[12px] text-muted flex items-center gap-2"><Eye size={14} className="text-primary" /> Только просмотр</div>
       )}
     >
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">

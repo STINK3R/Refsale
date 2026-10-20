@@ -65,7 +65,7 @@ export default function ImageUploader({
               type="button"
               onClick={() => remove(url)}
               aria-label="Удалить фото"
-              className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center cursor-pointer border-none hover:bg-black/80 transition-colors"
+              className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-ink/45 text-white flex items-center justify-center cursor-pointer border-none hover:bg-ink/45 transition-colors"
             >
               <X size={11} />
             </button>
