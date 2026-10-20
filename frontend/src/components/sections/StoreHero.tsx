@@ -203,7 +203,7 @@ export default function StoreHero() {
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.25, ease: EASE }}
               className="order-1 lg:order-3 -mt-7 max-sm:-mt-6 lg:mt-8 w-full max-w-[640px] lg:max-w-[460px] mx-auto lg:mx-0 px-2 lg:px-0"
             >
-              <PromoForm variant="pill" />
+              <PromoForm variant="pill" floatingError />
             </motion.div>
 
             {/* 3. Slogan: the old one lifts away, the new one rises in. The box

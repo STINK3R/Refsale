@@ -9,8 +9,12 @@ import { useNotificationStore, usePromoStore } from '../../store';
  * - "line": an underlined field;
  * - "box": the compact framed version for the cart and favourites.
  * Once a code works, every price on the site switches to было/стало.
+ * `floatingError` lays the error line over the space under the field instead
+ * of adding a line, so the hero card does not grow when a code is wrong.
  */
-export default function PromoForm({ variant = 'box', onApplied }: { variant?: 'line' | 'box' | 'pill'; onApplied?: () => void }) {
+export default function PromoForm({ variant = 'box', onApplied, floatingError = false }: {
+  variant?: 'line' | 'box' | 'pill'; onApplied?: () => void; floatingError?: boolean;
+}) {
   const { code, leaderName, label, checking, apply, clear } = usePromoStore();
   const show = useNotificationStore((s) => s.show);
   const [value, setValue] = useState('');
@@ -69,7 +73,7 @@ export default function PromoForm({ variant = 'box', onApplied }: { variant?: 'l
 
   if (pill) {
     return (
-      <div>
+      <div className="relative">
         <form
           onSubmit={(e) => { e.preventDefault(); void submit(); }}
           className={`flex items-center gap-2 h-14 max-sm:h-12 pl-2 pr-1.5 rounded-full bg-card border-2 shadow-[0_4px_0_#111] ${error ? 'border-danger' : 'border-ink'}`}
@@ -95,7 +99,11 @@ export default function PromoForm({ variant = 'box', onApplied }: { variant?: 'l
             {checking ? <Loader2 size={16} className="animate-spin" /> : <><span className="max-sm:hidden">Применить</span><ArrowRight size={16} strokeWidth={2.2} /></>}
           </button>
         </form>
-        {error && <div className="mt-2 pl-4 text-[13px] font-semibold text-danger">{error}</div>}
+        {error && (
+          <div role="alert" className={`pl-4 text-[13px] font-semibold text-danger ${floatingError ? 'absolute inset-x-0 top-full mt-2 truncate' : 'mt-2'}`}>
+            {error}
+          </div>
+        )}
       </div>
     );
   }
