@@ -103,6 +103,22 @@ _INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_tickets_leader ON coop_support_tickets(leader_id)",
 ]
 
+# Data fixes, idempotent. Photos added to a product's gallery used to arrive
+# without a main one, so its card had no picture: the photo already used as
+# the card's cover takes the star, else the first one, and a product with no
+# cover gets it.
+_REPAIRS = [
+    """UPDATE coop_product_images i SET is_main = TRUE
+       FROM (SELECT DISTINCT ON (g.product_id) g.id, g.product_id
+             FROM coop_product_images g JOIN coop_products p ON p.id = g.product_id
+             ORDER BY g.product_id, (g.url = COALESCE(p.image_url, '')) DESC, g.sort_order, g.id) f
+       WHERE i.id = f.id
+         AND NOT EXISTS (SELECT 1 FROM coop_product_images m WHERE m.product_id = f.product_id AND m.is_main)""",
+    """UPDATE coop_products p SET image_url = i.url
+       FROM coop_product_images i
+       WHERE i.product_id = p.id AND i.is_main AND COALESCE(p.image_url, '') = ''""",
+]
+
 # The storefront has one forum: /forums opens the one with this key.
 FORUM_KEY = "general"
 _FORUM = (FORUM_KEY, "Общий форум", "Ароматы, находки и советы друг другу")
@@ -116,6 +132,8 @@ def ensure_schema():
             for table, column, definition in _COLUMNS:
                 cur.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {definition}")
             for sql in _INDEXES:
+                cur.execute(sql)
+            for sql in _REPAIRS:
                 cur.execute(sql)
             cur.execute(
                 """INSERT INTO coop_forums (name, address_key, description)

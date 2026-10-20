@@ -923,8 +923,10 @@ function onCreateProductAddPhoto(input){
 function removeCreateProductPhoto(idx){
     _createProductFiles.splice(idx,1);
     _createProductDataUrls.splice(idx,1);
-    if(_createProductMainIdx>=_createProductDataUrls.length) _createProductMainIdx=0;
+    // The star stays on its photo: one removed before it shifts it left
     if(_createProductMainIdx===idx) _createProductMainIdx=0;
+    else if(_createProductMainIdx>idx) _createProductMainIdx--;
+    if(_createProductMainIdx>=_createProductDataUrls.length) _createProductMainIdx=0;
     renderCreateProductPreviews();
 }
 function renderCreateProductPreviews(){
@@ -1368,7 +1370,22 @@ async function loadProductGallery(productId){
     try{
         const imgs=await _api('/api/admin/products/'+productId+'/images');
         renderGalleryThumbs(container,imgs,productId);
+        syncProductCover(productId,imgs);
+        return imgs;
     }catch(e){container.innerHTML='<span style="color:#9CA3AF;font-size:12px">Нет фото</span>';}
+}
+
+// The products table shows each product's cover — the photo with the star.
+// The server moves the star itself (the first photo of a product without
+// one, the next photo when the main one is deleted), so follow it here.
+function syncProductCover(productId,imgs,coverGone){
+    const p=adminProducts.find(x=>String(x.id)===String(productId));
+    if(!p)return;
+    const main=(imgs||[]).find(i=>i.is_main);
+    const url=main?main.url:(coverGone?null:p.image_url);
+    if((p.image_url||null)===(url||null))return;
+    p.image_url=url;
+    renderProductsTable();
 }
 
 function renderGalleryThumbs(container,imgs,productId){
@@ -1378,7 +1395,7 @@ function renderGalleryThumbs(container,imgs,productId){
         ${img.is_main?'<div style="position:absolute;top:2px;left:2px;background:var(--p);color:white;font-size:8px;padding:1px 4px;border-radius:4px;font-weight:700">ГЛАВНОЕ</div>':''}
         <div style="position:absolute;bottom:0;left:0;right:0;display:flex;gap:0">
             ${!img.is_main?`<button onclick="setMainGalleryImage(${img.id},${productId})" style="flex:1;background:rgba(46,125,50,0.85);color:white;border:none;font-size:9px;padding:2px;cursor:pointer" title="Сделать главным">★</button>`:''}
-            <button onclick="deleteGalleryImage(${img.id},${productId})" style="flex:1;background:rgba(220,38,38,0.85);color:white;border:none;font-size:9px;padding:2px;cursor:pointer" title="Удалить">✕</button>
+            <button onclick="deleteGalleryImage(${img.id},${productId},${img.is_main?'true':'false'})" style="flex:1;background:rgba(220,38,38,0.85);color:white;border:none;font-size:9px;padding:2px;cursor:pointer" title="Удалить">✕</button>
         </div>
     </div>`).join('');
 }
@@ -1395,31 +1412,26 @@ async function uploadGalleryPhotos(input){
         }
     }
     input.value='';
-    loadProductGallery(productId);
+    // The first photo of a product with none becomes the main one by itself
+    await loadProductGallery(productId);
     showAlert('Фото добавлены в галерею');
 }
 
 async function setMainGalleryImage(imgId,productId){
     try{
         await _post('/api/admin/product-images/'+imgId+'/set-main',{});
-        loadProductGallery(productId);
-        // Update local product data
-        const imgs=await _api('/api/admin/products/'+productId+'/images');
-        const main=imgs.find(i=>i.is_main);
-        if(main){
-            const idx=adminProducts.findIndex(p=>String(p.id)===String(productId));
-            if(idx>=0)adminProducts[idx].image_url=main.url;
-            renderProductsTable();
-        }
+        await loadProductGallery(productId);
         showAlert('Главное фото обновлено');
     }catch(e){showAlert('Ошибка','error');}
 }
 
-async function deleteGalleryImage(imgId,productId){
+async function deleteGalleryImage(imgId,productId,wasMain){
     if(!confirm('Удалить это фото?'))return;
     try{
         await _del('/api/admin/product-images/'+imgId);
-        loadProductGallery(productId);
+        const imgs=await loadProductGallery(productId);
+        // The last photo gone with the star: the product has no cover now
+        if(wasMain&&imgs&&!imgs.length)syncProductCover(productId,imgs,true);
         showAlert('Фото удалено');
     }catch(e){showAlert('Ошибка удаления','error');}
 }

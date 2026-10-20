@@ -308,6 +308,12 @@ def api_add_product_image(pid):
             cnt = cur.fetchone()["cnt"]
             if cnt >= 7:
                 return jsonify({"error": "Максимум 7 фото на товар"}), 400
+            # The first photo of a product without a main one becomes it: a new
+            # product, or one whose photos were all deleted. Once a star is set,
+            # later photos leave it where the admin put it.
+            cur.execute("SELECT 1 FROM coop_product_images WHERE product_id = %s AND is_main LIMIT 1", (pid,))
+            if not cur.fetchone():
+                is_main = True
             if is_main:
                 cur.execute("UPDATE coop_product_images SET is_main = FALSE WHERE product_id = %s", (pid,))
             cur.execute(
