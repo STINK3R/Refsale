@@ -36,7 +36,7 @@ export default function PromoForm({ variant = 'box', onApplied, floatingError = 
     if (pill) {
       return (
         <div className="flex items-center gap-3 h-14 max-sm:h-12 pl-2 pr-5 rounded-ctl-lg max-sm:rounded-ctl-md bg-primary text-white border-2 border-ink shadow-[0_4px_0_#111]">
-          <span className="w-10 h-10 max-sm:w-8 max-sm:h-8 rounded-[10px] max-sm:rounded-ctl-xs bg-sun text-ink flex items-center justify-center shrink-0">
+          <span className="w-10 h-10 max-sm:w-8 max-sm:h-8 rounded-ctl-sm max-sm:rounded-[10px] bg-sun text-ink flex items-center justify-center shrink-0">
             <Check size={18} strokeWidth={2.4} />
           </span>
           <div className="min-w-0 flex-1 leading-tight">
@@ -78,7 +78,7 @@ export default function PromoForm({ variant = 'box', onApplied, floatingError = 
           onSubmit={(e) => { e.preventDefault(); void submit(); }}
           className={`flex items-center gap-2 h-14 max-sm:h-12 pl-2 pr-1.5 rounded-ctl-lg max-sm:rounded-ctl-md bg-card border-2 shadow-[0_4px_0_#111] ${error ? 'border-danger' : 'border-ink'}`}
         >
-          <span className="w-10 h-10 max-sm:w-8 max-sm:h-8 rounded-[10px] max-sm:rounded-ctl-xs bg-primary text-white flex items-center justify-center shrink-0" aria-hidden="true">
+          <span className="w-10 h-10 max-sm:w-8 max-sm:h-8 rounded-ctl-sm max-sm:rounded-[10px] bg-primary text-white flex items-center justify-center shrink-0" aria-hidden="true">
             <Percent size={18} strokeWidth={2.4} />
           </span>
           <input
@@ -94,7 +94,7 @@ export default function PromoForm({ variant = 'box', onApplied, floatingError = 
             type="submit"
             disabled={checking || !value.trim()}
             aria-label="Применить промокод"
-            className="h-11 max-sm:h-9 px-5 max-sm:px-3.5 rounded-ctl-sm max-sm:rounded-[10px] bg-ink text-sun text-[12px] font-bold uppercase tracking-[0.08em] flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-default shrink-0"
+            className="h-11 max-sm:h-9 px-5 max-sm:px-3.5 rounded-ctl max-sm:rounded-ctl-sm bg-ink text-sun text-[12px] font-bold uppercase tracking-[0.08em] flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-default shrink-0"
           >
             {checking ? <Loader2 size={16} className="animate-spin" /> : <><span className="max-sm:hidden">Применить</span><ArrowRight size={16} strokeWidth={2.2} /></>}
           </button>

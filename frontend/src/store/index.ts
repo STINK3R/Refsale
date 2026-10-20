@@ -367,6 +367,7 @@ interface NotificationState {
   notifications: Notification[];
   show: (text: string, type?: 'success' | 'error') => void;
   remove: (id: number) => void;
+  clear: () => void;
 }
 
 const TOAST_MS = 3000;
@@ -387,4 +388,5 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   remove: (id) => {
     set({ notifications: get().notifications.filter((n) => n.id !== id) });
   },
+  clear: () => { clearTimeout(_notifTimer); set({ notifications: [] }); },
 }));

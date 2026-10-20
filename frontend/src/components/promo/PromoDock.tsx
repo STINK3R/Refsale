@@ -56,7 +56,7 @@ export default function PromoDock() {
                 onClick={() => setOpen(true)}
                 className={`h-12 max-sm:h-11 pl-1.5 pr-5 rounded-ctl-md max-sm:rounded-ctl border-2 border-ink shadow-[0_4px_0_#111] flex items-center gap-2.5 text-[13px] font-bold cursor-pointer ${code ? 'bg-primary text-white' : 'bg-card text-ink hover:bg-sun-soft'}`}
               >
-                <span className={`w-8 h-8 rounded-ctl-xs flex items-center justify-center ${code ? 'bg-sun text-ink' : 'bg-primary text-white'}`}>
+                <span className={`w-8 h-8 rounded-[10px] flex items-center justify-center ${code ? 'bg-sun text-ink' : 'bg-primary text-white'}`}>
                   {code ? <Check size={16} strokeWidth={2.6} /> : <Percent size={16} strokeWidth={2.6} />}
                 </span>
                 {code ? <>Промокод {code}</> : 'Есть промокод?'}

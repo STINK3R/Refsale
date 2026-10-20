@@ -37,8 +37,14 @@ function releaseLock() {
   window.scrollTo(0, savedScrollY);
 }
 
+/** Fired when the first window or drawer opens over the page. */
+export const OVERLAY_OPEN_EVENT = 'refsale:overlay-open';
+
 export function lockScroll(): void {
-  if (lockCount === 0) applyLock();
+  if (lockCount === 0) {
+    applyLock();
+    window.dispatchEvent(new Event(OVERLAY_OPEN_EVENT));
+  }
   lockCount += 1;
 }
 

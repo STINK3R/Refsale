@@ -34,33 +34,52 @@ function Slogan({ children }: { children: ReactNode }) {
     const h1 = ref.current;
     const box = h1?.parentElement;
     if (!h1 || !box) return;
-    const fit = () => {
+    let lastWidth = -1;
+    const fit = (force: boolean) => {
+      const width = h1.clientWidth;
+      if (!width || (!force && width === lastWidth)) return;
+      lastWidth = width;
       const cs = getComputedStyle(box);
       const base = parseFloat(cs.fontSize);
       const lines = parseFloat(cs.getPropertyValue('--lines')) || 3;
+      // Tried on an invisible copy of a fixed size, walled off from the page
+      // (contain: strict): each try lays out the copy alone. Resizing the
+      // slogan itself would lay out the whole page every time — on a slow
+      // phone that was a third of a second before the first picture.
+      const probe = h1.cloneNode(true) as HTMLElement;
+      probe.removeAttribute('style');
+      probe.setAttribute('aria-hidden', 'true');
+      probe.style.cssText = `position:absolute;left:-9999px;top:0;width:${width}px;height:0;overflow:hidden;contain:strict;visibility:hidden;pointer-events:none`;
+      box.appendChild(probe);
       const fits = (px: number) => {
-        h1.style.fontSize = `${px}px`;
-        return h1.offsetHeight <= px * 1.02 * lines + 2 && h1.scrollWidth <= h1.clientWidth + 1;
+        probe.style.fontSize = `${px}px`;
+        return probe.scrollHeight <= px * 1.02 * lines + 2 && probe.scrollWidth <= width + 1;
       };
-      if (fits(base)) return;
-      let lo = base * 0.72, hi = base;
-      for (let i = 0; i < 7; i++) {
-        const mid = (lo + hi) / 2;
-        if (fits(mid)) lo = mid; else hi = mid;
+      let size = base;
+      if (!fits(base)) {
+        let lo = base * 0.72, hi = base;
+        for (let i = 0; i < 7; i++) {
+          const mid = (lo + hi) / 2;
+          if (fits(mid)) lo = mid; else hi = mid;
+        }
+        size = Math.floor(lo);
       }
-      h1.style.fontSize = `${Math.floor(lo)}px`;
+      probe.remove();
+      h1.style.fontSize = `${size}px`;
     };
-    fit();
+    fit(true);
     // Again when the width changes, and once the display font has arrived:
     // fitted in the fallback font, the slogan would grow a line when it swaps.
     let frame = 0;
-    const refit = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(fit); };
-    const ro = new ResizeObserver(refit);
+    const refit = (force: boolean) => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => fit(force)); };
+    const onResize = () => refit(false);
+    const onFonts = () => refit(true);
+    const ro = new ResizeObserver(onResize);
     ro.observe(box);
-    document.fonts?.addEventListener('loadingdone', refit);
+    document.fonts?.addEventListener('loadingdone', onFonts);
     return () => {
       ro.disconnect();
-      document.fonts?.removeEventListener('loadingdone', refit);
+      document.fonts?.removeEventListener('loadingdone', onFonts);
       cancelAnimationFrame(frame);
     };
   }, []);

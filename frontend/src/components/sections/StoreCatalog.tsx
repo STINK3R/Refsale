@@ -139,15 +139,15 @@ export default function StoreCatalog() {
             </div>
           ) : (
             <>
-              <motion.div
+              {/* A new category or filter is a new grid: its cards come in once */}
+              <div
                 key={`grid-${categoryId ?? 'all'}-${subcategory ?? 'all'}`}
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: EASE }}
                 className="grid grid-cols-4 gap-5 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:gap-3"
               >
                 {visible.map((p, i) => (
                   <ProductCard key={p.id} product={p} index={i} onOpen={() => setSelected(p)} onNeedVariant={() => setVariantFor(p)} />
                 ))}
-              </motion.div>
+              </div>
               {filtered.length > shown && (
                 <div className="text-center mt-16">
                   <button onClick={() => setShown((n) => n + PAGE)} className="btn-outline">
@@ -233,7 +233,7 @@ export function PriceTag({ info, size = 'md' }: { info: PriceInfo; size?: 'md' |
     <div className="flex items-baseline gap-2.5 flex-wrap">
       <span className={`text-[17px] max-sm:text-[15px] font-extrabold tabular-nums ${discounted ? 'text-primary' : 'text-ink'}`}>{pre}{formatPrice(now)}</span>
       {discounted && <span className="text-[13px] text-light line-through tabular-nums">{formatPrice(base)}</span>}
-      {!discounted && !code && hasPromo && <span className="block w-full text-[11px] font-semibold text-primary">дешевле с промокодом</span>}
+      {!discounted && !code && hasPromo && <span className="block w-full text-[11px] font-semibold text-primary-dark">дешевле с промокодом</span>}
     </div>
   );
 }
@@ -274,7 +274,6 @@ export function ComparePrices({ info, category, size = 'md' }: { info: PriceInfo
 
 function useAddToCart(product: Product, variant: ProductVariant | null, onNeedVariant: () => void, onNeedChoice?: () => void) {
   const { addItem, items, openSidebar } = useCartStore();
-  const show = useNotificationStore((s) => s.show);
   const hasVariants = (product.variants || []).length > 0;
   const line = items.find((i) => cartKey(i) === cartKey({ id: product.id, variant_id: variant?.id ?? null }));
   const inCart = hasVariants ? !!variant && !!line : items.some((i) => i.id === product.id);
@@ -282,9 +281,10 @@ function useAddToCart(product: Product, variant: ProductVariant | null, onNeedVa
     if (inCart) { openSidebar(); return; }
     if (hasVariants && !variant) { onNeedChoice?.(); return; }
     if (!hasVariants && (product.requires_variant || product.badge === 'custom')) { onNeedVariant(); return; }
+    // No toast: the button itself turns into the stepper, and a toast under
+    // the header would cover the product window opened right after.
     addItem(product, undefined, variant);
-    show(`«${product.name}${variant ? ` — ${variant.label}` : ''}» в корзине`);
-  }, [inCart, hasVariants, variant, product, addItem, openSidebar, show, onNeedVariant, onNeedChoice]);
+  }, [inCart, hasVariants, variant, product, addItem, openSidebar, onNeedVariant, onNeedChoice]);
   return { inCart, add, line };
 }
 
@@ -368,12 +368,16 @@ export const ProductCard = memo(function ProductCard({ product, index, onOpen, o
   const hasVariants = (product.variants || []).length > 0;
 
   return (
+    // Comes in once, when it is created (a category, a filter, "show more"),
+    // not when scrolled to: cards off screen are ready by the time they are
+    // reached, so a fast scroll never shows them blank and catching up. Only
+    // the hover lift is a CSS transition — on everything it would also smooth
+    // the entrance frame by frame and drag it out.
     <motion.article
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-30px' }}
-      transition={{ duration: 0.8, delay: (index % 4) * 0.06, ease: EASE }}
-      className="group flex flex-col bg-card rounded-[22px] max-sm:rounded-[18px] border-2 border-ink p-2 hover:-translate-y-1 hover:shadow-[0_6px_0_#111] transition-all duration-300"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, delay: (index % 4) * 0.05, ease: EASE }}
+      className="group flex flex-col bg-card rounded-[22px] max-sm:rounded-[18px] border-2 border-ink p-2 hover:-translate-y-1 hover:shadow-[0_6px_0_#111] transition-[translate,box-shadow] duration-300"
     >
       <div className="relative aspect-square overflow-hidden rounded-[12px] max-sm:rounded-[9px] tile-bg">
         <button onClick={onOpen} className="absolute inset-0 cursor-pointer" aria-label={`Подробнее: ${product.name}`}>
@@ -421,7 +425,7 @@ export const ProductCard = memo(function ProductCard({ product, index, onOpen, o
           <button
             onClick={() => askSeller(product.id)}
             className={`${unavailable ? 'flex-1' : 'w-10 max-sm:hidden'} h-10 rounded-ctl-sm flex items-center justify-center gap-1.5 border-2 border-ink bg-card text-ink hover:bg-sun-soft cursor-pointer`}
-            aria-label="Связаться с продавцом"
+            aria-label="Спросить продавца"
           >
             <MessageCircle size={14} strokeWidth={1.4} />{unavailable && <span className="text-[10.5px] uppercase tracking-[0.12em]">Спросить</span>}
           </button>
@@ -478,39 +482,43 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
         initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
         transition={{ duration: 0.5, ease: EASE }}
         onClick={(e) => e.stopPropagation()}
-        // Fixed height: the photo keeps its half whole, only the details scroll,
-        // and the close button, price and buttons never leave the screen.
-        className="relative w-full max-w-[1040px] h-[min(92dvh,720px)] max-md:h-[92dvh] bg-bg border-2 border-ink rounded-t-[28px] sm:rounded-[28px] shadow-[0_8px_0_#111] flex flex-col md:grid md:grid-cols-2"
+        // Fixed height: the close button, price and buttons never leave the
+        // screen. Wide screens: the photo is the left half, the details scroll
+        // on the right above the price. Phones: photo and details scroll as one
+        // above the price bar, so a swipe works wherever it starts.
+        className="relative w-full max-w-[1040px] h-[min(92dvh,720px)] max-md:h-[92dvh] bg-bg border-2 border-ink rounded-t-[28px] sm:rounded-[28px] shadow-[0_8px_0_#111] flex flex-col md:grid md:grid-cols-2 md:grid-rows-[minmax(0,1fr)_auto]"
       >
         <button onClick={onClose} className="absolute top-4 right-4 z-10 w-10 h-10 rounded-ctl-sm bg-card border-2 border-ink text-ink flex items-center justify-center cursor-pointer hover:bg-sun" aria-label="Закрыть">
           <X size={18} strokeWidth={2.2} />
         </button>
 
-        <div className="relative shrink-0 h-[34dvh] md:h-auto tile-bg overflow-hidden rounded-t-[26px] md:rounded-tr-none md:rounded-l-[26px]">
-          {images.length ? (
-            <img src={images[idx]} alt={product.name} onClick={() => setZoom(true)} className="absolute inset-0 w-full h-full object-contain p-[8%] cursor-zoom-in" />
-          ) : <Monogram big />}
-          {/* The meerkat peeking up from behind the photo's bottom edge — the
-              corner products never reach, so it covers nothing. */}
-          <Meerkat pose="peek" width={132} decorative className="absolute -bottom-[6px] left-6 max-md:-bottom-[4px] max-md:left-4 max-md:w-[96px] pointer-events-none" />
-          {images.length > 0 && (
-            <button onClick={() => setZoom(true)} className="absolute top-4 left-4 w-9 h-9 rounded-ctl-sm bg-card/90 border-2 border-ink text-ink flex items-center justify-center cursor-pointer hover:bg-sun" aria-label="Открыть фото">
-              <Maximize2 size={15} strokeWidth={2} />
-            </button>
-          )}
-          {images.length > 1 && (
-            <div className="absolute bottom-4 right-4 flex items-center gap-2 px-1 py-1 rounded-ctl-sm bg-card/90 border-2 border-ink text-ink">
-              <button onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)} className="w-7 h-7 rounded-[6px] flex items-center justify-center hover:bg-sun cursor-pointer" aria-label="Предыдущее фото"><ChevronLeft size={16} strokeWidth={2.2} /></button>
-              <span className="text-[12px] font-bold tabular-nums">{idx + 1} / {images.length}</span>
-              <button onClick={() => setIdx((i) => (i + 1) % images.length)} className="w-7 h-7 rounded-[6px] flex items-center justify-center hover:bg-sun cursor-pointer" aria-label="Следующее фото"><ChevronRight size={16} strokeWidth={2.2} /></button>
-            </div>
-          )}
-          {zoom && <Lightbox images={images} startIndex={idx} alt={product.name} onClose={() => setZoom(false)} />}
-        </div>
+        {/* Phones: one scrolling column. Wider, md:contents hands its two
+            children back to the sheet's grid. */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain modal-scroll rounded-t-[26px] md:contents">
+          <div className="relative shrink-0 h-[34dvh] md:h-auto md:row-span-2 tile-bg overflow-hidden rounded-t-[26px] md:rounded-tr-none md:rounded-l-[26px]">
+            {images.length ? (
+              <img src={images[idx]} alt={product.name} onClick={() => setZoom(true)} className="absolute inset-0 w-full h-full object-contain p-[8%] cursor-zoom-in" />
+            ) : <Monogram big />}
+            {/* The meerkat peeking up from behind the photo's bottom edge — the
+                corner products never reach, so it covers nothing. */}
+            <Meerkat pose="peek" width={132} decorative className="absolute -bottom-[6px] left-6 max-md:-bottom-[4px] max-md:left-4 max-md:w-[96px] pointer-events-none" />
+            {images.length > 0 && (
+              <button onClick={() => setZoom(true)} className="absolute top-4 left-4 w-9 h-9 rounded-ctl-sm bg-card/90 border-2 border-ink text-ink flex items-center justify-center cursor-pointer hover:bg-sun" aria-label="Открыть фото">
+                <Maximize2 size={15} strokeWidth={2} />
+              </button>
+            )}
+            {images.length > 1 && (
+              <div className="absolute bottom-4 right-4 flex items-center gap-2 px-1 py-1 rounded-ctl-sm bg-card/90 border-2 border-ink text-ink">
+                <button onClick={() => setIdx((i) => (i - 1 + images.length) % images.length)} className="w-7 h-7 rounded-[6px] flex items-center justify-center hover:bg-sun cursor-pointer" aria-label="Предыдущее фото"><ChevronLeft size={16} strokeWidth={2.2} /></button>
+                <span className="text-[12px] font-bold tabular-nums">{idx + 1} / {images.length}</span>
+                <button onClick={() => setIdx((i) => (i + 1) % images.length)} className="w-7 h-7 rounded-[6px] flex items-center justify-center hover:bg-sun cursor-pointer" aria-label="Следующее фото"><ChevronRight size={16} strokeWidth={2.2} /></button>
+              </div>
+            )}
+            {zoom && <Lightbox images={images} startIndex={idx} alt={product.name} onClose={() => setZoom(false)} />}
+          </div>
 
-        <div className="flex-1 min-h-0 flex flex-col">
-          <div className="relative flex-1 min-h-0">
-            <div className="absolute inset-0 overflow-y-auto modal-scroll px-10 max-lg:px-8 max-sm:px-5 pt-9 max-sm:pt-5 pb-8">
+          <div className="relative md:min-h-0 md:col-start-2 md:row-start-1">
+            <div className="md:absolute md:inset-0 md:overflow-y-auto modal-scroll px-10 max-lg:px-8 max-sm:px-5 pt-9 max-sm:pt-5 pb-8">
               <div className="flex items-center gap-3 pr-12">
                 <span className="px-3 py-1 rounded-full bg-card border-2 border-ink text-[10px] font-bold uppercase tracking-[0.08em]">
                   {product.badge && BADGES[product.badge] ? BADGES[product.badge] : 'Оригинал'}
@@ -554,37 +562,37 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
               </p>
             </div>
             {/* A soft fade says there is more below without drawing a scrollbar */}
-            <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-bg to-transparent" />
+            <div aria-hidden="true" className="hidden md:block pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-bg to-transparent" />
           </div>
+        </div>
 
-          <div className="shrink-0 border-t-2 border-ink/10 px-8 max-lg:px-6 max-sm:px-5 py-5 max-sm:py-4 flex items-center gap-3 flex-wrap lg:flex-nowrap">
-            <div className="mr-auto min-w-0">
-              <div className="flex items-baseline gap-2.5 flex-wrap">
-                <span className={`font-display text-[28px] max-sm:text-[26px] leading-none whitespace-nowrap ${discounted ? 'text-primary' : 'text-ink'}`}>{info.from ? 'от ' : ''}{formatPrice(info.now)}</span>
-                {discounted && <span className="text-[14px] text-light line-through tabular-nums">{formatPrice(info.base)}</span>}
-                {discounted && <span className="px-2.5 py-0.5 rounded-full bg-primary text-white text-[11px] font-bold">−{Math.round((1 - info.now / info.base) * 100)}%</span>}
-              </div>
-              {!discounted && !code && info.hasPromo && (
-                <div className="mt-1.5 text-[12px] font-semibold text-primary">С промокодом блогера дешевле</div>
-              )}
+        <div className="shrink-0 md:col-start-2 md:row-start-2 border-t-2 border-ink/10 px-8 max-lg:px-6 max-sm:px-5 py-5 max-sm:py-4 flex items-center gap-3 flex-wrap lg:flex-nowrap">
+          <div className="mr-auto min-w-0">
+            <div className="flex items-baseline gap-2.5 flex-wrap">
+              <span className={`font-display text-[28px] max-sm:text-[26px] leading-none whitespace-nowrap ${discounted ? 'text-primary' : 'text-ink'}`}>{info.from ? 'от ' : ''}{formatPrice(info.now)}</span>
+              {discounted && <span className="text-[14px] text-light line-through tabular-nums">{formatPrice(info.base)}</span>}
+              {discounted && <span className="px-2.5 py-0.5 rounded-full bg-primary text-white text-[11px] font-bold">−{Math.round((1 - info.now / info.base) * 100)}%</span>}
             </div>
-            <div className="flex gap-2 shrink-0 max-sm:w-full">
-              {line && !unavailable ? (
-                <CartStepper line={line} size="lg" className="w-[220px] max-sm:w-auto max-sm:flex-1" />
-              ) : (
-                <button onClick={add} disabled={unavailable} className="btn-primary max-sm:flex-1 !px-6">
-                  {unavailable ? 'Нет в наличии' : inCart ? 'В корзине' : 'В корзину'}
-                </button>
-              )}
-              <button
-                onClick={() => { onClose(); askSeller(product.id); }}
-                className="w-[50px] h-[50px] shrink-0 rounded-ctl-md bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun-soft cursor-pointer"
-                aria-label="Спросить продавца"
-                title="Спросить продавца"
-              >
-                <MessageCircle size={19} strokeWidth={2} />
+            {!discounted && !code && info.hasPromo && (
+              <div className="mt-1.5 text-[12px] font-semibold text-primary-dark">С промокодом блогера дешевле</div>
+            )}
+          </div>
+          <div className="flex gap-2 shrink-0 max-sm:w-full">
+            {line && !unavailable ? (
+              <CartStepper line={line} size="lg" className="w-[220px] max-sm:w-auto max-sm:flex-1" />
+            ) : (
+              <button onClick={add} disabled={unavailable} className="btn-primary max-sm:flex-1 !px-6">
+                {unavailable ? 'Нет в наличии' : inCart ? 'В корзине' : 'В корзину'}
               </button>
-            </div>
+            )}
+            <button
+              onClick={() => { onClose(); askSeller(product.id); }}
+              className="w-[50px] h-[50px] shrink-0 rounded-ctl-md bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun-soft cursor-pointer"
+              aria-label="Спросить продавца"
+              title="Спросить продавца"
+            >
+              <MessageCircle size={19} strokeWidth={2} />
+            </button>
           </div>
         </div>
       </motion.div>

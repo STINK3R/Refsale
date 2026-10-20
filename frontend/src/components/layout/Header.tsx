@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useAnimate } from 'framer-motion';
 import { X, ShoppingBag, User, Package, Heart } from 'lucide-react';
 import { useAppStore, useAuthStore, useCartStore, useFavoritesStore, useNotificationStore, usePromoStore } from '../../store';
 import { useSupportStore } from '../../store/support';
@@ -9,6 +9,25 @@ import { useContacts, ContactBlock, ContactLinks, telHref } from '../ui/Contacts
 import useScrollLock, { glidePageToTop, glideToElement } from '../../hooks/useScrollLock';
 import Meerkat from '../mascot/Meerkat';
 
+
+/** The cart's count; it pops when something goes in, so an add is seen even
+ *  without a toast. */
+function CartCount({ count }: { count: number }) {
+  const [scope, animate] = useAnimate<HTMLSpanElement>();
+  const prev = useRef(count);
+  useEffect(() => {
+    if (count > prev.current && scope.current) {
+      animate(scope.current, { scale: [1.9, 1] }, { type: 'spring', stiffness: 420, damping: 14 });
+      animate(scope.current, { color: ['#E8186D', '#111111'] }, { duration: 0.7 });
+    }
+    prev.current = count;
+  }, [count, animate, scope]);
+  return (
+    <span ref={scope} className="inline-block text-[12px] font-semibold tabular-nums min-w-[1ch] origin-left">
+      {count > 0 ? count : ''}
+    </span>
+  );
+}
 
 export default function Header() {
   const { user, openAuth, openProfile, logout } = useAuthStore();
@@ -154,7 +173,7 @@ export default function Header() {
               </button>
               <button onClick={openSidebar} className="relative flex items-center gap-2 text-text hover:text-primary transition-colors cursor-pointer" aria-label="Корзина">
                 <ShoppingBag size={21} strokeWidth={2} />
-                <span className="text-[12px] tabular-nums min-w-[1ch]">{cartCount > 0 ? cartCount : ''}</span>
+                <CartCount count={cartCount} />
               </button>
             </div>
           </div>

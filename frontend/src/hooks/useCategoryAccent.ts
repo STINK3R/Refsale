@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useActiveCategory } from '../store';
+import { useActiveCategory, useAppStore } from '../store';
 
 const DEFAULT_ACCENT = '#FFE45C';
 
@@ -31,6 +31,7 @@ const isHex = (v?: string) => /^#[0-9a-fA-F]{6}$/.test(v?.trim() || '');
  */
 export default function useCategoryAccent() {
   const category = useActiveCategory();
+  const loading = useAppStore((s) => s.loading);
   const accent = isHex(category?.accent_color) ? category!.accent_color!.trim() : DEFAULT_ACCENT;
   const strongSet = isHex(category?.accent_strong) ? category!.accent_strong!.trim() : '';
   useEffect(() => {
@@ -44,5 +45,11 @@ export default function useCategoryAccent() {
     // The header's copy, which switches at once (index.css)
     root.setProperty('--header-accent', accent);
     root.setProperty('--header-accent-strong', strong);
-  }, [accent, strongSet]);
+    // Glide from the next change on. The first category's colours apply at
+    // once: a glide at load would restyle the whole page every frame.
+    const html = document.documentElement;
+    if (!loading && !html.classList.contains('accent-glide')) {
+      requestAnimationFrame(() => requestAnimationFrame(() => html.classList.add('accent-glide')));
+    }
+  }, [accent, strongSet, loading]);
 }

@@ -51,7 +51,7 @@
 @property --color-accent { syntax: '<color>'; inherits: true; initial-value: #FFE45C; }
 @property --color-accent-deep { syntax: '<color>'; inherits: true; initial-value: #F5C800; }
 @property --color-accent-strong { syntax: '<color>'; inherits: true; initial-value: #FAD52C; }
-html { transition: --color-accent 0.6s ease, --color-accent-deep 0.6s ease, --color-accent-strong 0.6s ease; }
+html.accent-glide { transition: --color-accent 0.6s ease, --color-accent-deep 0.6s ease, --color-accent-strong 0.6s ease; }
 
 /* The page itself takes a light wash of the category colour: cream for
    perfume, a hint of green for food, of blue for China. Everything painted
@@ -107,8 +107,10 @@ body {
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #E9D98F; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #D9C25A; }
+/* The page's bar takes the open category's colour, a shade deeper so it
+   still reads on the tinted background */
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--color-accent-strong) 88%, #000); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--color-accent-strong) 72%, #000); }
 
 /* Component classes sit in a layer so utilities can still override them. */
 @layer components {

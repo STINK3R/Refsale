@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { useNotificationStore } from '../../store';
 import { AnimatePresence, motion } from 'framer-motion';
+import { OVERLAY_OPEN_EVENT } from '../../hooks/useScrollLock';
 
 /**
  * The toast under the header. Only one is ever on screen: a new message
@@ -7,6 +9,15 @@ import { AnimatePresence, motion } from 'framer-motion';
  */
 export default function Notification() {
   const notifications = useNotificationStore((s) => s.notifications);
+  const clear = useNotificationStore((s) => s.clear);
+
+  // A toast left over from the page would sit on top of a window opened right
+  // after it (a product, the cart): it goes when the window comes. Toasts the
+  // window itself shows come after this and stay.
+  useEffect(() => {
+    window.addEventListener(OVERLAY_OPEN_EVENT, clear);
+    return () => window.removeEventListener(OVERLAY_OPEN_EVENT, clear);
+  }, [clear]);
 
   return (
     <div className="fixed top-[calc(var(--header-h,104px)+16px)] inset-x-0 z-[9999] flex justify-center px-4 pointer-events-none" role="status" aria-live="polite">

@@ -51,7 +51,7 @@ export default function SupportWidget() {
         useAuthStore.getState().openAuth('register', 'Создайте аккаунт за полминуты — и сразу пишите продавцу. Ответ придёт сюда же, в чат.');
       }}
       className="fixed bottom-5 right-5 max-sm:right-3 max-sm:bottom-3 z-[1500] btn-primary !h-11 !px-5 max-sm:!w-11 max-sm:!px-0"
-      aria-label="Написать продавцу"
+      aria-label="Чат с продавцом"
     >
       <MessageCircle size={16} strokeWidth={1.6} className="shrink-0" />
       <span className="max-sm:hidden">Чат с продавцом</span>
