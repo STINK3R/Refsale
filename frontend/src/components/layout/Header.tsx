@@ -6,7 +6,7 @@ import { useAppStore, useAuthStore, useCartStore, useFavoritesStore, useNotifica
 import { useSupportStore } from '../../store/support';
 import { fetchOrderChatsUnread } from '../../api/client';
 import { useContacts, ContactBlock, ContactLinks, telHref } from '../ui/Contacts';
-import useScrollLock, { scrollPageToTop } from '../../hooks/useScrollLock';
+import useScrollLock, { glidePageToTop } from '../../hooks/useScrollLock';
 import Meerkat from '../mascot/Meerkat';
 
 
@@ -73,11 +73,14 @@ export default function Header() {
     openSupport();
   };
 
+  // The tab lights up at once; the page glides up with the old content (a
+  // shorter catalog would otherwise make it jump), and the new category —
+  // colours, picture, products — fades in once it is at the top.
+  const [pendingCategory, setPendingCategory] = useState<number | null>(null);
   const pickCategory = (id: number) => {
-    setActiveCategory(id);
-    if (!isHome) navigate('/');
-    // Instant: a smooth scroll gets cut short while the new category renders.
-    scrollPageToTop();
+    if (!isHome) { setActiveCategory(id); navigate('/'); return; }
+    setPendingCategory(id);
+    glidePageToTop(() => { setActiveCategory(id); setPendingCategory(null); });
   };
 
   const solid = scrolled || !isHome;
@@ -165,7 +168,7 @@ export default function Header() {
           {isHome && categories.length > 1 && (
             <div className="max-w-[1440px] mx-auto px-8 max-sm:px-4 pb-3 flex sm:justify-center gap-2 overflow-x-auto scrollbar-hide">
               {categories.map((c) => {
-                const active = c.id === activeCategoryId;
+                const active = c.id === (pendingCategory ?? activeCategoryId);
                 return (
                   <button
                     key={c.id}

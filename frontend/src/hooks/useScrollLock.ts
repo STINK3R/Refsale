@@ -62,6 +62,43 @@ export function scrollPageToTop(): void {
   window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 }
 
+let glideFrame = 0;
+
+/**
+ * Glides the page to the top, frame by frame. The browser's own smooth scroll
+ * gets cut short when the page changes height underneath it (switching a
+ * category swaps the whole catalog), this one does not. A wheel or touch from
+ * the visitor stops it, and "reduce motion" jumps straight up.
+ */
+export function glidePageToTop(onTop?: () => void): void {
+  cancelAnimationFrame(glideFrame);
+  const from = window.scrollY;
+  if (lockCount > 0 || from < 4 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    scrollPageToTop();
+    onTop?.();
+    return;
+  }
+  const duration = Math.min(900, Math.max(350, from * 0.35));
+  const start = performance.now();
+  const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+  let finished = false;
+  const stop = () => {
+    cancelAnimationFrame(glideFrame);
+    window.removeEventListener('wheel', stop);
+    window.removeEventListener('touchstart', stop);
+    if (!finished) { finished = true; onTop?.(); }
+  };
+  window.addEventListener('wheel', stop, { passive: true });
+  window.addEventListener('touchstart', stop, { passive: true });
+  const step = (now: number) => {
+    const t = Math.min(1, (now - start) / duration);
+    window.scrollTo({ top: from * (1 - ease(t)), left: 0, behavior: 'instant' });
+    if (t < 1) glideFrame = requestAnimationFrame(step);
+    else stop();
+  };
+  glideFrame = requestAnimationFrame(step);
+}
+
 /** Locks page scrolling while `active` is true. */
 export default function useScrollLock(active: boolean): void {
   useEffect(() => {
