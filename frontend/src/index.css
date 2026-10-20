@@ -45,7 +45,15 @@ html { transition: --color-accent 0.6s ease, --color-accent-deep 0.6s ease, --co
 /* The page itself takes a light wash of the category colour: cream for
    perfume, a hint of green for food, of blue for China. Everything painted
    with bg-bg (sections, windows, drawers) follows. */
-:root { --color-bg: color-mix(in srgb, var(--color-accent) 16%, #FFFCF2); }
+:root {
+  --color-bg: color-mix(in srgb, var(--color-accent) 16%, #FFFCF2);
+  /* The brand's "sun" — buttons, chips, bubbles, toasts — is the category's
+     strong colour: yellow for perfume, rose for care, lime for food, sky for
+     China. Discounts stay pink everywhere. */
+  --color-sun: var(--color-accent-strong);
+  --color-ivory: var(--color-accent-strong);
+  --color-sun-soft: color-mix(in srgb, var(--color-accent-strong) 35%, #FFFFFF);
+}
 
 * {
   -webkit-font-smoothing: antialiased;

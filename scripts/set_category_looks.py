@@ -11,7 +11,7 @@ from app.schema import ensure_schema
 LOOKS = [
     ("парфюм", "#FFE45C", "", ""),  # keeps the built-in bottles picture
     # peach on its own derives to orange; the care photo reads pink, so say so
-    ("уход", "#F6D9C8", "#F2A3BC", "/img/hero-uhod-1000.webp"),
+    ("уход", "#F6D9C8", "#F6B8CB", "/img/hero-uhod-1000.webp"),
     ("еда", "#DDF2B2", "", "/img/hero-eda-1000.webp"),
     ("кита", "#C8E8FF", "", "/img/hero-china-1000.webp"),
 ]
@@ -29,7 +29,8 @@ def main():
                 continue
             _, accent, strong, hero = look
             new_accent = c["accent_color"] or accent
-            new_strong = c["accent_strong"] or strong
+            # the first rose shipped was a shade too dark: replace it, keep anything else
+            new_strong = strong if (c["accent_strong"] or "").upper() in ("", "#F2A3BC") and strong else (c["accent_strong"] or strong)
             new_hero = c["hero_image"] or hero
             cur.execute(
                 "UPDATE coop_categories SET accent_color = %s, accent_strong = %s, hero_image = %s WHERE id = %s",
