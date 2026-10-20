@@ -87,7 +87,7 @@ export default function Header() {
 
   return (
     <>
-      <header ref={headerRef} className="fixed top-0 inset-x-0 z-[1000]">
+      <header ref={headerRef} className="site-header fixed top-0 inset-x-0 z-[1000]">
         {/* Utility bar: both contact pairs, as the brief asks */}
         <div className="hidden lg:block bg-accent-strong border-b-2 border-ink">
           <div className="max-w-[1440px] mx-auto px-8 h-9 flex items-center justify-between max-xl:justify-center gap-8 text-[12px] text-ink/80 whitespace-nowrap">
@@ -106,7 +106,7 @@ export default function Header() {
         </div>
 
         {/* Main bar */}
-        <div className={`relative transition-colors duration-500 ${solid ? 'bar-blur border-b-2 border-ink' : 'bar-blur border-b-2 border-transparent'}`}>
+        <div className={`relative transition-[border-color] duration-500 ${solid ? 'bar-blur border-b-2 border-ink' : 'bar-blur border-b-2 border-transparent'}`}>
           <div className="max-w-[1440px] mx-auto px-8 max-sm:px-4 h-[68px] max-lg:h-16 grid grid-cols-[1fr_auto_1fr] items-center">
             <div className="flex items-center gap-8">
               <button onClick={() => setMenuOpen(true)} className="group flex items-center gap-3 cursor-pointer" aria-label="Открыть меню">
@@ -124,7 +124,9 @@ export default function Header() {
               </nav>
             </div>
 
-            <Link to="/" className="font-display font-extrabold text-[24px] max-sm:text-[19px] tracking-[0.06em] uppercase text-ink leading-none" aria-label="RefSale — на главную">
+            <Link to="/" className="flex items-center gap-1.5 max-sm:gap-1 font-display font-extrabold text-[24px] max-sm:text-[19px] tracking-[0.06em] uppercase text-ink leading-none" aria-label="RefSale — на главную">
+              {/* The meerkat peeks out from behind the name */}
+              <img src="/img/logo-meerkat.webp" alt="" width={90} height={132} className="h-9 max-lg:h-8 max-sm:h-[30px] w-auto shrink-0" />
               RefSale
             </Link>
 
@@ -174,7 +176,7 @@ export default function Header() {
                     key={c.id}
                     onClick={() => pickCategory(c.id)}
                     aria-current={active ? 'page' : undefined}
-                    className={`shrink-0 h-9 px-4 rounded-full border-2 text-[12.5px] font-bold whitespace-nowrap cursor-pointer transition-colors ${active ? 'bg-accent-strong border-ink text-ink' : 'bg-card border-line text-muted hover:border-ink hover:text-ink'}`}
+                    className={`shrink-0 h-9 px-4 rounded-full border-2 text-[12.5px] font-bold whitespace-nowrap cursor-pointer transition-[color,border-color] ${active ? 'bg-accent-strong border-ink text-ink' : 'bg-card border-line text-muted hover:border-ink hover:text-ink'}`}
                   >
                     {c.name}
                   </button>

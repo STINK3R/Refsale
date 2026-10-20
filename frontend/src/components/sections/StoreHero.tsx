@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ArrowDown } from 'lucide-react';
 import PromoForm from '../promo/PromoForm';
@@ -12,6 +12,10 @@ const FACTS = [
   { n: '02', title: 'Дешевле сетей', text: 'Даже без промокода цены ниже, чем в крупных магазинах.', tone: 'bg-card' },
   { n: '03', title: 'Промокод — ещё ниже', text: 'Слово от вашего блогера снижает цену на весь каталог сразу.', tone: 'bg-primary text-white' },
 ];
+
+/** Width / height of pictures seen this visit, so a category opened again is
+ *  sized right from its first frame (hero-fit in index.css). */
+const ratios = new Map<string, number>();
 
 /** Built-in pictures ship in three widths: /img/hero-eda-1000.webp → 640/1000/1400. */
 function heroSrcSet(url: string): string | undefined {
@@ -115,19 +119,19 @@ export default function StoreHero() {
 
   return (
     <section className="relative pt-[calc(var(--header-h,140px)+20px)] pb-10 max-md:pb-6">
-      <div className="max-w-[1200px] mx-auto px-8 max-sm:px-4">
+      <div className="max-w-[1440px] mx-auto px-8 max-sm:px-4">
         {/* Phones and tablets: the photo card, then the promo plate, slogan and
             buttons under it. Wide screens: card and text share one grid cell —
             the card fills it, the text sits over its left part and the picture
             takes the right, so the slogan is on screen from the start. */}
-        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,43fr)_minmax(0,57fr)]">
           {/* 1. Category photo. The card itself only moves (no fade): the picture
               is the page's largest paint, and an opacity animation would hold it
               back on slow phones. Its colour glides between categories (@property
               in index.css). */}
           <motion.div
             initial={{ y: 18, scale: 0.985 }} animate={{ y: 0, scale: 1 }} transition={{ duration: 0.8, ease: EASE }}
-            className="relative overflow-hidden rounded-[36px] max-sm:rounded-[26px] border-2 border-ink accent-card aspect-[4/3] md:aspect-[21/9] lg:aspect-auto lg:col-span-2 lg:col-start-1 lg:row-start-1 lg:min-h-[clamp(440px,calc(100svh-var(--header-h,140px)-64px),600px)]"
+            className="relative overflow-hidden rounded-[36px] max-sm:rounded-[26px] border-2 border-ink accent-card aspect-[4/3] md:aspect-[21/9] lg:aspect-auto lg:col-span-2 lg:col-start-1 lg:row-start-1 lg:min-h-[clamp(440px,calc(100svh-var(--header-h,140px)-64px),540px)]"
           >
             <AnimatePresence mode="wait" initial={false}>
               {label && (
@@ -150,25 +154,29 @@ export default function StoreHero() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.96, y: -8 }}
                   transition={{ duration: switched ? 0.6 : 0.95, ease: EASE }}
-                  className="absolute inset-0 lg:left-[49%] lg:right-[2%]"
+                  className="absolute inset-0 lg:left-[49%] xl:left-[43%] lg:right-[1.5%] lg:top-[9%]"
                 >
                   {heroImage ? (
-                    <div className={`absolute inset-0 flex items-end justify-center lg:justify-end ${wide ? 'px-[3%] max-sm:px-0' : 'px-[3%]'}`}>
+                    <div className={`hero-fit absolute inset-0 flex items-end justify-center lg:px-0 ${wide ? 'px-[3%] max-sm:px-0' : 'px-[3%]'}`}>
                       <img
                         src={heroImage}
                         srcSet={heroSrcSet(heroImage)}
                         sizes="(max-width: 1024px) 100vw, 720px"
                         alt={category?.name || ''}
                         fetchPriority="high"
+                        style={{ '--r': ratios.get(heroImage) } as CSSProperties}
                         onLoad={(e) => {
                           const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
-                          if (h && w / h > 1.7) setWideFor(heroImage);
+                          if (!h) return;
+                          ratios.set(heroImage, w / h);
+                          e.currentTarget.style.setProperty('--r', String(w / h));
+                          if (w / h > 1.7) setWideFor(heroImage);
                         }}
                         className={`h-[96%] lg:h-[88%] max-w-full w-auto object-contain object-bottom ${wide ? 'max-sm:scale-[1.08] max-sm:origin-bottom' : ''}`}
                       />
                     </div>
                   ) : (
-                    <picture className="absolute inset-0 flex items-end justify-center lg:justify-end">
+                    <picture className="hero-fit absolute inset-0 flex items-end justify-center">
                       <source type="image/webp" srcSet="/img/hero-640.webp 640w, /img/hero-1000.webp 1000w, /img/hero-1327.webp 1327w" sizes="(max-width: 1024px) 100vw, 720px" />
                       <img
                         src="/img/hero-1000.webp"
@@ -176,6 +184,7 @@ export default function StoreHero() {
                         width={1327}
                         height={965}
                         fetchPriority="high"
+                        style={{ '--r': 1327 / 965 } as CSSProperties}
                         className="h-[82%] lg:h-[76%] w-auto max-w-full object-contain"
                       />
                     </picture>
@@ -185,7 +194,7 @@ export default function StoreHero() {
             </AnimatePresence>
           </motion.div>
 
-          <div className="relative z-[2] flex flex-col lg:col-start-1 lg:row-start-1 lg:self-center lg:items-start lg:pl-12 lg:pr-4 lg:pt-24 lg:pb-12">
+          <div className="relative z-[2] flex flex-col lg:col-start-1 lg:row-start-1 lg:self-center lg:items-start lg:pl-12 lg:pr-6 lg:pt-24 lg:pb-12">
             {/* 2. Promo plate: half over the photo's edge on phones, under the
                 buttons on wide screens */}
             <motion.div

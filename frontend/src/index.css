@@ -55,6 +55,17 @@ html { transition: --color-accent 0.6s ease, --color-accent-deep 0.6s ease, --co
   --color-sun-soft: color-mix(in srgb, var(--color-accent-strong) 35%, #FFFFFF);
 }
 
+/* The header takes a new category's colours at once, without the glide:
+   --header-accent* are set together with the page's pair and not animated. */
+.site-header {
+  --color-accent: var(--header-accent);
+  --color-accent-strong: var(--header-accent-strong);
+  --color-bg: color-mix(in srgb, var(--color-accent) 16%, #FFFCF2);
+  --color-sun: var(--color-accent-strong);
+  --color-ivory: var(--color-accent-strong);
+  --color-sun-soft: color-mix(in srgb, var(--color-accent-strong) 35%, #FFFFFF);
+}
+
 * {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -270,6 +281,24 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+/* Hero pictures on wide screens cover about the same area of the card
+   whatever their proportions: a 2:1 row of gadgets comes out wider and lower
+   than a 3:2 still life rather than simply smaller. --r is the picture's
+   width / height (StoreHero sets it). The reference — a 3:2 picture --h tall
+   — is as big as the box allows while a 2:1 one still fits its width. Outside
+   a layer so it wins over the utility classes, which stay as the fallback. */
+@supports (height: calc(sqrt(4) * 1cqh)) {
+  @media (min-width: 1024px) {
+    .hero-fit { container-type: size; }
+    .hero-fit img {
+      --h: min(100cqh, 100cqw / 1.75);
+      width: auto;
+      max-width: 100%;
+      height: min(100cqh, 100cqw / var(--r, 1.5), var(--h) * sqrt(1.5 / var(--r, 1.5)));
+    }
   }
 }
 
