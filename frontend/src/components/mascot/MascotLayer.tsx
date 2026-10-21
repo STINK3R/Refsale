@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import Meerkat from './Meerkat';
 import { useUiStore } from '../../store/ui';
 import { usePromoStore } from '../../store';
@@ -36,7 +36,7 @@ function MascotMoments() {
   return (
     <AnimatePresence>
       {moment && (
-        <motion.div
+        <m.div
           key={moment.id}
           role="status"
           initial={{ opacity: 0, y: 60 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 60 }}
@@ -51,7 +51,7 @@ function MascotMoments() {
               {moment.text}
             </div>
           </div>
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

@@ -17,9 +17,9 @@ export default function Footer() {
           <div className="col-span-2 max-lg:col-span-4 max-sm:col-span-12">
             <div className="label mb-5">Магазин</div>
             <ul className="space-y-3 text-[14px]">
-              <li><a href="/#catalog" className="text-muted hover:text-text transition-colors">Каталог</a></li>
-              <li><a href="/#about" className="text-muted hover:text-text transition-colors">О нас</a></li>
-              <li><a href="/#reviews" className="text-muted hover:text-text transition-colors">Отзывы</a></li>
+              <li><a href="/catalog#catalog" className="text-muted hover:text-text transition-colors">Каталог</a></li>
+              <li><a href="/home#about" className="text-muted hover:text-text transition-colors">О нас</a></li>
+              <li><a href="/catalog#reviews" className="text-muted hover:text-text transition-colors">Отзывы</a></li>
               <li><Link to="/forums" className="text-muted hover:text-text transition-colors">Форум</Link></li>
               <li><Link to="/favorites" className="text-muted hover:text-text transition-colors">Избранное</Link></li>
               <li><Link to="/orders" className="text-muted hover:text-text transition-colors">Сообщения и заказы</Link></li>

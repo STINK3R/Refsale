@@ -139,7 +139,7 @@ export async function fetchUserOrderChats(userId: number): Promise<import('../ty
   try { return await _api(`/api/user/${userId}/order-chats`); } catch { return []; }
 }
 
-export async function fetchOrderMessages(orderId: number, userId: number): Promise<{ messages: import('../types').OrderChatMessage[]; status: string | null }> {
+export async function fetchOrderMessages(orderId: number, userId: number): Promise<{ messages: import('../types').OrderChatMessage[]; status: string | null; history?: Record<string, string> }> {
   try { return await _api(`/api/orders/${orderId}/messages?user_id=${userId}`); } catch { return { messages: [], status: null }; }
 }
 
@@ -176,6 +176,9 @@ export interface PromoResult {
   expires_at?: string | null;
   /** product id (or "v" + variant id) → price for promo-code holders */
   prices?: Record<string, number>;
+  /** 'all' | 'category' | 'products', and the same in words for the buyer */
+  scope?: string;
+  scope_text?: string;
   error?: string;
 }
 
@@ -287,13 +290,13 @@ export async function fetchLeaderOrders(): Promise<LeaderOrder[]> {
   try { return await _api('/api/leader/orders'); } catch { return []; }
 }
 
-export async function fetchLeaderOrderMessages(orderId: number): Promise<{ messages: import('../types').OrderChatMessage[]; status: string | null; can_write: boolean }> {
+export async function fetchLeaderOrderMessages(orderId: number): Promise<{ messages: import('../types').OrderChatMessage[]; status: string | null; can_write: boolean; history?: Record<string, string> }> {
   try { return await _api(`/api/leader/orders/${orderId}/messages`); }
   catch { return { messages: [], status: null, can_write: false }; }
 }
 
-export async function sendLeaderOrderMessage(orderId: number, text: string): Promise<import('../types').OrderChatMessage> {
-  return _post(`/api/leader/orders/${orderId}/messages`, { text });
+export async function sendLeaderOrderMessage(orderId: number, text: string, images: string[] = []): Promise<import('../types').OrderChatMessage> {
+  return _post(`/api/leader/orders/${orderId}/messages`, { text, images });
 }
 
 export async function setLeaderOrderStatus(orderId: number, status: string): Promise<{ error?: string }> {
@@ -310,6 +313,6 @@ export async function fetchLeaderTicketMessages(ticketId: number): Promise<{ mes
   catch { return { messages: [], can_write: false }; }
 }
 
-export async function sendLeaderTicketMessage(ticketId: number, text: string): Promise<import('../types').SupportMessage> {
-  return _post(`/api/leader/tickets/${ticketId}/messages`, { text });
+export async function sendLeaderTicketMessage(ticketId: number, text: string, images: string[] = []): Promise<import('../types').SupportMessage> {
+  return _post(`/api/leader/tickets/${ticketId}/messages`, { text, images });
 }

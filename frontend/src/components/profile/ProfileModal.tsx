@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import NotifySettings from './NotifySettings';
 import { Link } from 'react-router-dom';
 import { Loader2, Package, Crown } from 'lucide-react';
 import Modal from '../ui/Modal';
@@ -59,6 +60,8 @@ export default function ProfileModal() {
           <Link to="/cabinet" onClick={closeProfile} className="btn-primary h-11 text-[13px]"><Crown size={15} /> Кабинет</Link>
         ) : <span />}
       </div>
+
+      <NotifySettings />
 
       <div className="space-y-3">
         <Labeled label="Имя"><input value={name} onChange={(e) => setName(e.target.value)} className="field" /></Labeled>

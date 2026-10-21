@@ -148,7 +148,9 @@
             .admin-header{padding:0 12px;height:50px}
             .admin-logo{font-size:14px;gap:6px}
             .admin-logo img{width:32px;height:32px}
-            .admin-nav{display:none}
+            .admin-nav{display:flex;gap:2px}
+            .admin-nav a{font-size:0;padding:8px 10px;gap:0}
+            .admin-nav a i{font-size:16px}
             .admin-wrap{padding:14px 10px}
             .card{padding:14px;margin-bottom:14px}
             .card-title{font-size:14px;margin-bottom:12px;padding-bottom:8px}
@@ -164,8 +166,25 @@
             .table-wrap{border-radius:6px}
             .filter-select{font-size:11px;padding:6px 8px}
         }
+        @media(max-width:768px){
+            /* Windows slide up from the bottom, full width */
+            .modal{align-items:flex-end;padding:0}
+            .modal-box{max-width:100%!important;width:100%!important;border-radius:16px 16px 0 0!important;max-height:92dvh!important;margin:0}
+            /* Order chats: the list, then the open chat full screen */
+            .oc-wrap{height:calc(100dvh - 190px)!important;min-height:420px!important}
+            .oc-list{width:100%!important;min-width:0!important;border-right:none!important}
+            .oc-wrap.has-chat .oc-list{display:none!important}
+            .oc-wrap:not(.has-chat) .oc-thread{display:none!important}
+            .oc-back{display:flex!important}
+            #supportMessages{max-height:55dvh!important}
+        }
+        .oc-back{display:none}
         @media(max-width:480px){
-            .stats-grid{grid-template-columns:1fr}
+            .stats-grid{grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+            .stat-card{padding:10px;gap:8px;border-radius:10px}
+            .stat-icon{width:32px;height:32px;font-size:13px;border-radius:8px}
+            .stat-val{font-size:20px}
+            .stat-lbl{font-size:11px}
             .admin-header{height:46px;padding:0 8px}
             .admin-wrap{padding:10px 6px}
             .card{padding:10px;margin-bottom:10px}
@@ -328,6 +347,21 @@
         <div class="form-row">
             <div class="form-group"><label>Лимит заказов (пусто — без лимита)</label><input type="number" id="spMaxUses" min="1" placeholder="∞"></div>
             <div class="form-group"><label>Действует до (необязательно)</label><input type="date" id="spExpires"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Скидка действует на</label>
+                <select id="spScope" onchange="onPromoScopeChange()">
+                    <option value="all">Весь каталог</option>
+                    <option value="category">Одну категорию</option>
+                    <option value="products">Выбранные товары</option>
+                </select>
+                <div style="font-size:11px;color:#6B7280;margin-top:4px">Цены по промокоду включатся только у этих товаров; остальные останутся по обычной цене.</div></div>
+            <div class="form-group" id="spScopeCategoryWrap" style="display:none"><label>Категория</label><select id="spScopeCategory"></select></div>
+        </div>
+        <div class="form-group" id="spScopeProductsWrap" style="display:none">
+            <label>Товары <span id="spScopeCount" style="color:var(--p)"></span></label>
+            <div class="search-bar" style="margin-bottom:6px"><i class="fas fa-search"></i><input type="text" id="spScopeSearch" placeholder="Найти товар…" oninput="renderPromoProductPicker()"></div>
+            <div id="spScopeProducts" style="max-height:240px;overflow-y:auto;border:1.5px solid var(--bd);border-radius:8px;padding:4px"></div>
         </div>
         <div style="display:flex;gap:10px">
             <button class="btn btn-primary" onclick="saveStorePromo()"><i class="fas fa-save"></i> <span id="spSaveText">Создать промокод</span></button>
@@ -564,8 +598,10 @@
             <span id="supportTicketStatusBadge" style="margin-left:8px"></span>
         </div>
         <div id="supportMessages" style="max-height:350px;overflow-y:auto;border:1px solid #E5E7EB;border-radius:10px;padding:12px;margin-bottom:12px;background:#FAFAFA;"></div>
+        <div id="supportReplyFiles" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>
         <div id="supportReplyArea" style="display:flex;gap:8px;">
-            <input type="text" id="supportReplyText" placeholder="Ответ администратора..." style="flex:1;padding:10px 14px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;" onkeypress="if(event.key==='Enter')sendAdminReply()">
+            <label class="btn btn-secondary btn-sm" title="Прикрепить фото или видео" style="cursor:pointer;flex-shrink:0"><i class="fas fa-paperclip"></i><input type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime" multiple style="display:none" onchange="attachSupportFiles(this)"></label>
+            <input type="text" id="supportReplyText" placeholder="Ответ администратора..." style="flex:1;min-width:0;padding:10px 14px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;" onkeypress="if(event.key==='Enter')sendAdminReply()">
             <button class="btn btn-primary btn-sm" onclick="sendAdminReply()"><i class="fas fa-paper-plane"></i> Отправить</button>
         </div>
         <div style="display:flex;gap:8px;margin-top:10px;">
@@ -577,9 +613,9 @@
 <!-- ORDER CHATS TAB — messenger-style UI matching the buyer's /orders page -->
 <div id="tab-order-chats" class="tab-content">
     <div class="card" style="padding:0;overflow:hidden">
-        <div style="display:flex;height:calc(100vh - 320px);min-height:460px">
+        <div id="ocWrap" class="oc-wrap" style="display:flex;height:calc(100vh - 320px);min-height:460px">
             <!-- Chat list -->
-            <div style="width:320px;min-width:280px;border-right:1px solid #E5E7EB;display:flex;flex-direction:column">
+            <div class="oc-list" style="width:320px;min-width:280px;border-right:1px solid #E5E7EB;display:flex;flex-direction:column">
                 <div style="padding:12px 16px;border-bottom:1px solid #E5E7EB;background:#FAFAFA;display:flex;align-items:center;justify-content:space-between">
                     <span style="font-size:12px;font-weight:800;color:#6B7280;text-transform:uppercase;letter-spacing:.5px">Чаты заказов</span>
                     <button class="btn btn-secondary btn-sm" onclick="refreshOrderChats()" title="Обновить"><i class="fas fa-sync-alt"></i></button>
@@ -587,7 +623,7 @@
                 <div id="orderChatsList" style="flex:1;overflow-y:auto"></div>
             </div>
             <!-- Thread -->
-            <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+            <div class="oc-thread" style="flex:1;min-width:0;display:flex;flex-direction:column">
                 <div id="orderChatEmpty" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#9CA3AF">
                     <i class="fas fa-comments" style="font-size:36px;margin-bottom:10px;opacity:.4"></i>
                     <div style="font-size:14px;font-weight:600">Выберите чат слева</div>
@@ -595,7 +631,8 @@
                 </div>
                 <div id="orderChatPane" style="display:none;flex:1;flex-direction:column;min-height:0">
                     <div style="padding:12px 16px;background:linear-gradient(135deg,var(--p),#8A6A2F);color:#fff;display:flex;align-items:center;gap:12px">
-                        <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center"><i class="fas fa-box"></i></div>
+                        <button class="oc-back" onclick="document.getElementById('ocWrap').classList.remove('has-chat')" aria-label="К списку чатов" style="width:36px;height:36px;border-radius:10px;border:none;background:rgba(255,255,255,.18);color:#fff;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0"><i class="fas fa-arrow-left"></i></button>
+                        <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-box"></i></div>
                         <div style="flex:1;min-width:0">
                             <div style="font-weight:800;font-size:15px">Заказ #<span id="orderChatId"></span></div>
                             <div style="font-size:11px;opacity:.85"><span id="orderChatUser"></span></div>
@@ -774,7 +811,9 @@ function _getAdminToken(){
 async function _api(path,options={}){
     const token=_getAdminToken();
     // /api/data also gets the token: with it the products keep their promo prices.
-    if(token&&(path.includes('/api/admin')||path.startsWith('/api/data'))){
+    // So do the support chats: they share their URLs with buyers, and without
+    // the token the server took the admin for a stranger ("Нет доступа").
+    if(token&&(path.includes('/api/admin')||path.startsWith('/api/data')||path.startsWith('/api/support/'))){
         if(!options.headers) options.headers={};
         if(options.headers instanceof Headers){options.headers.set('Authorization','Bearer '+token);}
         else if(typeof options.headers==='object'){options.headers['Authorization']='Bearer '+token;}
@@ -2110,6 +2149,7 @@ async function openSupportTicket(id){
                 <div style="order:${isAdmin?2:1};max-width:80%;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.5;${isAdmin?'background:var(--p);color:white;border-bottom-right-radius:4px':'background:#E5E7EB;color:#374151;border-bottom-left-radius:4px'}">
                     ${senderLabel}
                     ${safeText}
+                    ${_mediaHtml(m.images)}
                     <div style="font-size:9px;opacity:0.6;margin-top:4px;text-align:right">${new Date(m.created_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
                 </div>
                 ${!isAdmin?`<button onclick="deleteSupportMessage(${m.id})" title="Удалить сообщение" style="order:2;background:none;border:none;color:#e74c3c;cursor:pointer;opacity:.35;padding:4px;border-radius:6px;transition:all .15s" onmouseenter="this.style.opacity='1';this.style.background='#fee2e2'" onmouseleave="this.style.opacity='.35';this.style.background='none'"><i class="fas fa-trash" style="font-size:11px"></i></button>`:''}
@@ -2130,15 +2170,48 @@ async function deleteSupportMessage(mid){
         showAlert('Сообщение удалено');
     }catch(e){showAlert('Ошибка удаления','error');}
 }
+// Photos and videos in chats: photos open full size, videos play in place.
+function _mediaHtml(raw){
+    let list=[];
+    try{list=typeof raw==='string'?JSON.parse(raw||'[]'):(raw||[]);}catch(e){list=[];}
+    list=(list||[]).filter(u=>typeof u==='string'&&u.startsWith('/uploads/'));
+    if(!list.length) return '';
+    return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">'+list.map(u=>{
+        const safe=_se(u);
+        return /\.(mp4|webm|mov)$/i.test(u)
+            ?`<video src="${safe}" controls playsinline preload="metadata" style="max-width:220px;max-height:260px;border-radius:8px;background:#000"></video>`
+            :`<a href="${safe}" target="_blank"><img src="${safe}" style="width:72px;height:72px;object-fit:cover;border-radius:8px"></a>`;
+    }).join('')+'</div>';
+}
+let _supportReplyFiles=[];
+function _renderSupportReplyFiles(){
+    const box=document.getElementById('supportReplyFiles');
+    if(!box) return;
+    box.innerHTML=_supportReplyFiles.map((u,i)=>`<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:8px;background:#F3F4F6;font-size:12px">${/\.(mp4|webm|mov)$/i.test(u)?'🎬 видео':'🖼 фото'} <button onclick="_supportReplyFiles.splice(${i},1);_renderSupportReplyFiles()" style="border:none;background:none;cursor:pointer;color:#e74c3c">✕</button></span>`).join('');
+}
+async function attachSupportFiles(input){
+    const files=Array.from(input.files||[]).slice(0,Math.max(0,4-_supportReplyFiles.length));
+    input.value='';
+    for(const f of files){
+        const isVid=f.type.startsWith('video/');
+        if(f.size>(isVid?50:10)*1024*1024){showAlert(isVid?'Видео больше 50 МБ':'Фото больше 10 МБ','error');continue;}
+        _showUploadProgress('Загрузка: '+f.name,0);
+        const url=await _uploadFileWithProgress(f,'support');
+        _hideUploadProgress();
+        if(url)_supportReplyFiles.push(url);
+    }
+    _renderSupportReplyFiles();
+}
 async function sendAdminReply(){
-    const text=document.getElementById('supportReplyText')?.value?.trim();
-    if(!text||!_currentSupportTicketId) return;
+    const text=document.getElementById('supportReplyText')?.value?.trim()||'';
+    if((!text&&!_supportReplyFiles.length)||!_currentSupportTicketId) return;
     try{
         const sess=JSON.parse(localStorage.getItem('admin_session')||'{}');
         const adminName=sess.user?.display_name||sess.user?.username||'Администратор';
-        const msg=await _post('/api/support/tickets/'+_currentSupportTicketId+'/messages',{sender_type:'admin',sender_name:adminName,text});
+        const msg=await _post('/api/support/tickets/'+_currentSupportTicketId+'/messages',{sender_type:'admin',sender_name:adminName,text,images:_supportReplyFiles});
         if(msg){
             document.getElementById('supportReplyText').value='';
+            _supportReplyFiles=[];_renderSupportReplyFiles();
             // Auto-set ticket to "in_progress" on first reply
             const ticket=adminSupportTickets.find(t=>t.id===_currentSupportTicketId);
             if(ticket&&ticket.status==='open'){
@@ -2224,6 +2297,7 @@ function renderOrderChatsList(){
 }
 async function openOrderChat(orderId){
     _currentOrderChatId=orderId;
+    document.getElementById('ocWrap')?.classList.add('has-chat');
     renderOrderChatsList();
     document.getElementById('orderChatEmpty').style.display='none';
     const pane=document.getElementById('orderChatPane');
@@ -2581,7 +2655,7 @@ function renderStorePromos(){
     const tb=document.getElementById('spTableBody');if(!tb)return;
     if(!storePromos.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:#9CA3AF;padding:24px">Промокодов пока нет</td></tr>';return;}
     tb.innerHTML=storePromos.map(p=>`<tr>
-        <td><b style="font-size:15px;letter-spacing:.5px">${_se(p.code)}</b>${p.label?`<div style="font-size:11px;color:#6B7280">${_se(p.label)}</div>`:''}${p.expires_at?`<div style="font-size:11px;color:#6B7280">до ${new Date(p.expires_at).toLocaleDateString('ru-RU')}</div>`:''}</td>
+        <td><b style="font-size:15px;letter-spacing:.5px">${_se(p.code)}</b><div style="font-size:11px;color:var(--p);font-weight:600">${_promoScopeLabel(p)}</div>${p.label?`<div style="font-size:11px;color:#6B7280">${_se(p.label)}</div>`:''}${p.expires_at?`<div style="font-size:11px;color:#6B7280">до ${new Date(p.expires_at).toLocaleDateString('ru-RU')}</div>`:''}</td>
         <td>${p.leader_name?_se(p.leader_name):'<span style="color:#9CA3AF">—</span>'}</td>
         <td>${formatPrice(p.reward_amount)}</td>
         <td>${p.current_uses}${p.max_uses?' / '+p.max_uses:''}</td>
@@ -2594,9 +2668,51 @@ function renderStorePromos(){
             <button class="btn btn-danger btn-sm" onclick="deleteStorePromo(${p.id})"><i class="fas fa-trash"></i></button>
         </div></td></tr>`).join('');
 }
+// What a code lowers: everything, one category or chosen products
+let _promoScopeProducts=new Set();
+function _promoIds(p){try{const a=typeof p.scope_product_ids==='string'?JSON.parse(p.scope_product_ids||'[]'):(p.scope_product_ids||[]);return a.map(Number);}catch(e){return[];}}
+function _promoScopeLabel(p){
+    if(p.scope==='category'){const c=adminCategories.find(x=>x.id===p.scope_category_id);return 'на категорию «'+_se(c?c.name:'?')+'»';}
+    if(p.scope==='products'){const n=_promoIds(p).length;return 'на '+n+' '+(n%10===1&&n%100!==11?'товар':(n%10>=2&&n%10<=4&&(n%100<12||n%100>14))?'товара':'товаров');}
+    return 'на весь каталог';
+}
+async function _ensureCatalogForPromos(){
+    if(adminProducts.length&&adminCategories.length)return;
+    try{const d=await loadAllCoopData();adminCategories=d.categories;adminProducts=d.products;}catch(e){}
+}
+async function onPromoScopeChange(){
+    const scope=document.getElementById('spScope').value;
+    await _ensureCatalogForPromos();
+    const cat=document.getElementById('spScopeCategory');
+    const cur=cat.value;
+    cat.innerHTML='<option value="">— выберите —</option>'+adminCategories.map(c=>`<option value="${c.id}">${_se(c.name)}</option>`).join('');
+    cat.value=cur;
+    document.getElementById('spScopeCategoryWrap').style.display=scope==='category'?'block':'none';
+    document.getElementById('spScopeProductsWrap').style.display=scope==='products'?'block':'none';
+    if(scope==='products')renderPromoProductPicker();
+}
+function renderPromoProductPicker(){
+    const box=document.getElementById('spScopeProducts');if(!box)return;
+    const q=(document.getElementById('spScopeSearch').value||'').trim().toLowerCase();
+    const list=adminProducts.filter(p=>!q||(p.name||'').toLowerCase().includes(q));
+    box.innerHTML=list.length?list.map(p=>{
+        const c=adminCategories.find(x=>x.id===p.category_id);
+        return `<label style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:6px;cursor:pointer;font-size:13px">
+            <input type="checkbox" ${_promoScopeProducts.has(p.id)?'checked':''} onchange="togglePromoProduct(${p.id},this.checked)" style="width:17px;height:17px;accent-color:var(--p);flex-shrink:0">
+            <span style="flex:1;min-width:0">${_se(p.name)}<span style="color:#9CA3AF"> · ${_se(c?c.name:'без категории')}</span></span></label>`;
+    }).join(''):'<div style="padding:12px;color:#9CA3AF;font-size:13px">Ничего не нашлось</div>';
+    document.getElementById('spScopeCount').textContent=_promoScopeProducts.size?'· выбрано '+_promoScopeProducts.size:'';
+}
+function togglePromoProduct(id,on){
+    if(on)_promoScopeProducts.add(id);else _promoScopeProducts.delete(id);
+    document.getElementById('spScopeCount').textContent=_promoScopeProducts.size?'· выбрано '+_promoScopeProducts.size:'';
+}
 function resetStorePromoForm(){
     ['spId','spCode','spLabel','spReward','spMaxUses','spExpires'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.getElementById('spLeader').value='';
+    document.getElementById('spScope').value='all';
+    _promoScopeProducts=new Set();
+    onPromoScopeChange();
     document.getElementById('spFormTitle').textContent='Новый промокод';
     document.getElementById('spSaveText').textContent='Создать промокод';
     document.getElementById('spCancelEdit').style.display='none';
@@ -2610,6 +2726,9 @@ function editStorePromo(id){
     document.getElementById('spReward').value=p.reward_amount||'';
     document.getElementById('spMaxUses').value=p.max_uses||'';
     document.getElementById('spExpires').value=p.expires_at?p.expires_at.slice(0,10):'';
+    document.getElementById('spScope').value=p.scope||'all';
+    _promoScopeProducts=new Set(_promoIds(p));
+    onPromoScopeChange().then(()=>{if(p.scope_category_id)document.getElementById('spScopeCategory').value=p.scope_category_id;});
     document.getElementById('spFormTitle').textContent='Редактирование '+_ue(p.code);
     document.getElementById('spSaveText').textContent='Сохранить';
     document.getElementById('spCancelEdit').style.display='inline-flex';
@@ -2625,8 +2744,13 @@ async function saveStorePromo(){
         reward_amount:document.getElementById('spReward').value||0,
         max_uses:document.getElementById('spMaxUses').value||null,
         expires_at:exp?exp+'T23:59:59':null,
+        scope:document.getElementById('spScope').value,
+        scope_category_id:document.getElementById('spScopeCategory').value||null,
+        scope_product_ids:[..._promoScopeProducts],
     };
     if(!body.code){showAlert('Введите промокод','error');return;}
+    if(body.scope==='category'&&!body.scope_category_id){showAlert('Выберите категорию','error');return;}
+    if(body.scope==='products'&&!body.scope_product_ids.length){showAlert('Отметьте хотя бы один товар','error');return;}
     try{
         if(id)await _patch('/api/admin/store/promos/'+id,body);else await _post('/api/admin/store/promos',body);
         showAlert(id?'Промокод сохранён':'Промокод создан');

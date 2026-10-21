@@ -1,19 +1,16 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { Routes, Route, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore, useAuthStore, useNotificationStore, usePromoStore } from './store';
 import Header from './components/layout/Header';
+import PageLoader from './components/ui/PageLoader';
 import Footer from './components/layout/Footer';
-import StoreHero from './components/sections/StoreHero';
-import StoreCatalog from './components/sections/StoreCatalog';
-import About from './components/sections/About';
-import Reviews from './components/sections/Reviews';
 import Notification from './components/ui/Notification';
 import SupportWidget from './components/support/SupportWidget';
-import SupportChatModal from './components/support/SupportChatModal';
 import MascotLayer from './components/mascot/MascotLayer';
-import PromoDock from './components/promo/PromoDock';
 import useCategoryAccent from './hooks/useCategoryAccent';
 import { scrollPageToTop, glidePageToTop, glideToElement, isScrollLocked } from './hooks/useScrollLock';
+import { resyncPushDevice } from './store/pwa';
+import { useSupportStore } from './store/support';
 
 const AuthModal = lazy(() => import('./components/auth/AuthModal'));
 const ForgotPassword = lazy(() => import('./components/auth/ForgotPassword'));
@@ -25,13 +22,15 @@ const OrdersPage = lazy(() => import('./components/sections/OrdersPage'));
 const LeaderCabinet = lazy(() => import('./components/sections/LeaderCabinet'));
 const FavoritesPage = lazy(() => import('./components/sections/FavoritesPage'));
 const NotFound = lazy(() => import('./components/sections/NotFound'));
+const SupportChatModal = lazy(() => import('./components/support/SupportChatModal'));
+// The main page comes with the first load: it is where most visits start.
+// The shop is its own chunk, fetched in the background from the main page.
+import HomePage from './components/sections/HomePage';
+import { loadCatalogPage } from './components/sections/catalogChunk';
+const CatalogPage = lazy(loadCatalogPage);
 
 function PageFallback() {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-    </div>
-  );
+  return <PageLoader className="min-h-screen pt-[var(--header-h,104px)]" />;
 }
 
 /** Referral links look like refsale.ru/?promo=ANNA — apply the code and tidy the URL. */
@@ -75,13 +74,15 @@ function useGlidingLinks() {
         glideToElement(url.hash);
         return;
       }
-      if (isScrollLocked() || window.scrollY < 4) return;
+      if (isScrollLocked()) return;
+      if (samePage && window.scrollY < 4) return;
       e.preventDefault();
-      glidePageToTop(() => {
+      const go = () => {
         if (samePage) return;
         navigate(url.pathname + url.search);
         if (url.hash) setTimeout(() => glideToElement(url.hash), 250);
-      });
+      };
+      if (window.scrollY < 4) go(); else glidePageToTop(go);
     };
     document.addEventListener('click', onClick, true);
     return () => document.removeEventListener('click', onClick, true);
@@ -105,19 +106,32 @@ function App() {
   useEffect(() => { scrollPageToTop(); }, [pathname]);
   useGlidingLinks();
 
+  // A device with notifications on follows whoever is signed in on it
+  const userId = useAuthStore((s) => s.user?.id);
+  useEffect(() => { if (userId) void resyncPushDevice(); }, [userId]);
+
+  // A tapped "ответ на ваш вопрос" notification lands on /?support=12
+  const [params, setParams] = useSearchParams();
+  const openSupport = useSupportStore((s) => s.open);
+  // The seller chat's code arrives with its first opening, then stays
+  const supportOpen = useSupportStore((s) => s.isOpen);
+  const [supportOpened, setSupportOpened] = useState(false);
+  if (supportOpen && !supportOpened) setSupportOpened(true);
+  useEffect(() => {
+    const tid = Number(params.get('support'));
+    if (!tid || !userId) return;
+    openSupport({ ticketId: tid });
+    params.delete('support');
+    setParams(params, { replace: true });
+  }, [params, setParams, openSupport, userId]);
+
   return (
     <>
       <Header />
       <Routes>
-        <Route path="/" element={
-          <main className="relative">
-            <StoreHero />
-            <StoreCatalog />
-            <Reviews />
-            <About />
-            <PromoDock />
-          </main>
-        } />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/catalog" element={<Suspense fallback={<PageFallback />}><CatalogPage /></Suspense>} />
         <Route path="/forums" element={<Suspense fallback={<PageFallback />}><StoreForum /></Suspense>} />
         <Route path="/orders" element={<Suspense fallback={<PageFallback />}><OrdersPage /></Suspense>} />
         <Route path="/cabinet" element={<Suspense fallback={<PageFallback />}><LeaderCabinet /></Suspense>} />
@@ -134,7 +148,7 @@ function App() {
       </Suspense>
       <Notification />
       <SupportWidget />
-      <SupportChatModal />
+      {supportOpened && <Suspense fallback={null}><SupportChatModal /></Suspense>}
       <MascotLayer />
     </>
   );

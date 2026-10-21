@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import Meerkat from '../mascot/Meerkat';
 import { Package, Loader2, Send, ArrowLeft, MessageCircle, LogIn, ChevronDown, Check, X, BadgePercent } from 'lucide-react';
 import { useAuthStore, useNotificationStore } from '../../store';
 import { fetchUserOrderChats, fetchOrderMessages, sendOrderMessage, cancelStoreOrder } from '../../api/client';
 import ImageUploader from '../ui/ImageUploader';
+import NotifyPrompt from '../ui/NotifyPrompt';
 import AttachedImages from '../ui/AttachedImages';
 import { formatPrice, unescapeHtml } from '../../utils/format';
 import type { OrderChatSummary, OrderChatMessage, OrderItem } from '../../types';
@@ -39,25 +40,67 @@ function chatTime(iso: string | null): string {
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
 }
 
-/** принят → в обработке → в доставке → выдан, shown once the order is confirmed. */
-export function StatusTrack({ status }: { status: string }) {
+/** "16.10.26" and "15:14" for under a step. */
+function stepTime(iso?: string): [string, string] | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return [
+    d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' }),
+    d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+  ];
+}
+
+/** What happens next while the order waits for the manager, said in bold. */
+const WAITING_STEPS = [
+  'Менеджер напишет здесь, в чате: подтвердит наличие и сроки',
+  'Пришлёт реквизиты — оплатите заказ',
+  'После оплаты заказ подтвердят, и здесь появятся статусы с датами',
+];
+
+/**
+ * принят → в обработке → в доставке → выдан, each with the date and time it
+ * was reached, so the buyer sees the order moving. Before confirmation: what
+ * happens next.
+ */
+export function StatusTrack({ status, history = {} }: { status: string; history?: Record<string, string> }) {
   if (status === 'new') {
+    const created = stepTime(history.new);
     return (
-      <div className="text-[12px] text-muted leading-relaxed">
-        Менеджер подтвердит заказ в чате после предоплаты — тогда появятся статусы доставки.
+      <div className="rounded-[16px] border-2 border-ink bg-accent-strong px-4 py-3.5">
+        <div className="text-[14px] font-extrabold text-ink">Что дальше{created ? <span className="font-semibold text-ink/70"> · заказ создан {created[0]} в {created[1]}</span> : null}</div>
+        <ol className="mt-2 space-y-1.5">
+          {WAITING_STEPS.map((t, n) => (
+            <li key={t} className="flex gap-2.5 text-[13px] font-semibold text-ink leading-snug">
+              <span className="w-5 h-5 shrink-0 rounded-[6px] bg-ink text-sun text-[11px] font-extrabold flex items-center justify-center">{n + 1}</span>
+              <span>{t}</span>
+            </li>
+          ))}
+        </ol>
       </div>
     );
   }
-  if (status === 'cancelled') return <div className="text-[12px] text-danger">Заказ отменён</div>;
+  if (status === 'cancelled') {
+    const at = stepTime(history.cancelled);
+    return <div className="text-[13px] font-semibold text-danger">Заказ отменён{at ? ` ${at[0]} в ${at[1]}` : ''}</div>;
+  }
   const reached = STATUS_STEPS.indexOf(status);
   return (
-    <div className="flex items-center gap-1.5">
-      {STATUS_STEPS.map((s, i) => (
-        <div key={s} className="flex-1 min-w-0">
-          <div className={`h-1.5 rounded-full ${i <= reached ? 'bg-primary' : 'bg-ink/10'}`} />
-          <div className={`mt-1.5 text-[10.5px] truncate ${i <= reached ? 'text-primary-light font-semibold' : 'text-light'}`}>{STATUS_LABEL[s]}</div>
-        </div>
-      ))}
+    <div className="flex items-start gap-1.5">
+      {STATUS_STEPS.map((s, i) => {
+        const at = i <= reached ? stepTime(history[s]) : null;
+        return (
+          <div key={s} className="flex-1 min-w-0">
+            <div className={`h-1.5 rounded-full ${i <= reached ? 'bg-primary' : 'bg-ink/10'}`} />
+            <div className={`mt-1.5 text-[11px] truncate ${i <= reached ? 'text-primary-dark font-bold' : 'text-light'}`}>{STATUS_LABEL[s]}</div>
+            {at && (
+              <div className="text-[10.5px] leading-tight text-muted tabular-nums">
+                <div>{at[0]}</div>
+                <div>{at[1]}</div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -174,6 +217,7 @@ function OrderThread({ chat, userId, userName, onBack }: { chat: OrderChatSummar
   const show = useNotificationStore((s) => s.show);
   const [messages, setMessages] = useState<OrderChatMessage[]>([]);
   const [status, setStatus] = useState<string>(chat.status);
+  const [history, setHistory] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [images, setImages] = useState<string[]>([]);
@@ -188,6 +232,7 @@ function OrderThread({ chat, userId, userName, onBack }: { chat: OrderChatSummar
     const res = await fetchOrderMessages(chat.order_id, userId);
     setMessages(res.messages);
     if (res.status) setStatus(res.status);
+    if (res.history) setHistory(res.history);
     setLoading(false);
   }, [chat.order_id, userId]);
 
@@ -235,7 +280,8 @@ function OrderThread({ chat, userId, userName, onBack }: { chat: OrderChatSummar
           </div>
           <span className={`text-[11px] font-medium uppercase tracking-[0.08em] px-2.5 py-1 border shrink-0 ${statusTone(status)}`}>{STATUS_LABEL[status] || status}</span>
         </div>
-        <StatusTrack status={status} />
+        <StatusTrack status={status} history={history} />
+        {status !== 'done' && status !== 'cancelled' && <NotifyPrompt />}
         <div className="flex items-center gap-3">
           <button onClick={() => setShowItems((v) => !v)} className="flex items-center gap-1.5 text-[12px] text-muted hover:text-text cursor-pointer">
             <Package size={13} /> Состав заказа ({items.length}) <ChevronDown size={13} className={`transition-transform ${showItems ? 'rotate-180' : ''}`} />
@@ -246,9 +292,9 @@ function OrderThread({ chat, userId, userName, onBack }: { chat: OrderChatSummar
         </div>
         <AnimatePresence initial={false}>
           {showItems && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            <m.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
               <ItemsList items={items} />
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </div>
@@ -266,9 +312,9 @@ function OrderThread({ chat, userId, userName, onBack }: { chat: OrderChatSummar
         </div>
       ) : (
         <div className="shrink-0 px-3.5 py-3 border-t border-ink/[0.07]">
-          {images.length > 0 && <div className="mb-2"><ImageUploader value={images} onChange={setImages} userId={userId} prefix="orderchat" max={4} compact /></div>}
+          {images.length > 0 && <div className="mb-2"><ImageUploader value={images} onChange={setImages} userId={userId} prefix="orderchat" max={4} compact video /></div>}
           <div className="flex items-center gap-2">
-            {images.length === 0 && <ImageUploader value={images} onChange={setImages} userId={userId} prefix="orderchat" max={4} compact />}
+            {images.length === 0 && <ImageUploader value={images} onChange={setImages} userId={userId} prefix="orderchat" max={4} compact video />}
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -310,16 +356,20 @@ export function Bubble({ msg, mineType = 'user' }: { msg: OrderChatMessage; mine
   const who = msg.sender_type === 'admin' ? (msg.sender_name === 'RefSale' ? 'RefSale' : 'Менеджер')
     : msg.sender_type === 'leader' ? `${msg.sender_name || 'Лидер мнений'} · лидер мнений`
     : msg.sender_name || 'Покупатель';
+  // RefSale's own notes (order received, status changed) are instructions:
+  // they stand out, in bold, so the buyer knows what happens next.
+  const system = msg.sender_type === 'admin' && msg.sender_name === 'RefSale';
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[80%] px-3.5 py-2.5 text-[13.5px] leading-relaxed ${
-        mine ? 'bg-ink/[0.06] border border-line text-text rounded-br-md'
-          : 'bg-ink/[0.05] border border-ink/[0.08] text-text rounded-bl-md'
+      <div className={`max-w-[80%] px-3.5 py-2.5 rounded-[16px] text-[13.5px] leading-relaxed ${
+        system ? 'bg-accent-strong border-2 border-ink text-ink font-semibold rounded-bl-[6px]'
+          : mine ? 'bg-ink/[0.06] border border-line text-text rounded-br-[6px]'
+          : 'bg-ink/[0.05] border border-ink/[0.08] text-text rounded-bl-[6px]'
       }`}>
-        {!mine && <div className="text-[10.5px] font-bold mb-0.5 text-primary">{who}</div>}
+        {!mine && <div className={`text-[10.5px] font-bold mb-0.5 ${system ? 'text-ink' : 'text-primary'}`}>{who}</div>}
         <div className="whitespace-pre-line break-words">{unescapeHtml(msg.text)}</div>
         <AttachedImages images={msg.images} size="sm" className="mt-1.5" />
-        <div className="text-[9.5px] mt-1 text-right text-light">
+        <div className={`text-[9.5px] mt-1 text-right ${system ? 'text-ink/60' : 'text-light'}`}>
           {new Date(msg.created_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>

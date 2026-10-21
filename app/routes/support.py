@@ -11,6 +11,7 @@ from flask import Blueprint, request, jsonify
 from ..db import get_db, _row_to_dict, _rows_to_list
 from ..utils import rate_limited, sanitize_string, sanitize_image_urls
 from ..auth import auth_user_id, require_self, claimed_user_id, is_admin_request
+from ..notify import notify_user, snippet
 
 bp = Blueprint('support', __name__)
 
@@ -139,7 +140,14 @@ def api_add_ticket_message(tid):
                 (tid, sender_type, sender_name, text, images)
             )
             msg = _row_to_dict(cur.fetchone())
-            cur.execute("UPDATE coop_support_tickets SET updated_at = NOW() WHERE id = %s", (tid,))
+            cur.execute("UPDATE coop_support_tickets SET updated_at = NOW() WHERE id = %s RETURNING user_id, subject", (tid,))
+            t = cur.fetchone() or {}
+        if sender_type == 'admin':
+            notify_user(
+                t.get("user_id"), key=f"ticket:{tid}",
+                title="Продавец ответил на ваш вопрос", body=snippet(text, images),
+                url=f"/?support={tid}", email_subject=f"Ответ: {t.get('subject') or 'вопрос продавцу'}",
+            )
         return jsonify(msg)
     except Exception as e:
         print(f"[/api/support/tickets/{tid}/messages] error: {e}")

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { useAppStore, useAuthStore, useNotificationStore } from '../../store';
 import { addReview } from '../../api/client';
@@ -78,7 +78,7 @@ export default function Reviews() {
           {review ? (
             <div className="border-t border-line pt-10">
               <AnimatePresence mode="wait">
-                <motion.figure
+                <m.figure
                   key={review.id}
                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
                   transition={{ duration: 0.6, ease: EASE }}
@@ -97,7 +97,7 @@ export default function Reviews() {
                   <figcaption className="mt-8 text-[13px] text-muted">
                     <span className="text-text">{unescapeHtml(review.user_name)}</span> · {formatDate(review.created_at)}
                   </figcaption>
-                </motion.figure>
+                </m.figure>
               </AnimatePresence>
               {reviews.length > 1 && (
                 <div className="mt-10 flex items-center gap-6">
@@ -123,12 +123,12 @@ export default function Reviews() {
 
       <AnimatePresence>
         {modalOpen && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[3000] bg-ink/45 flex items-end sm:items-center justify-center sm:p-6"
             onClick={() => setModalOpen(false)}
           >
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }}
               transition={{ duration: 0.4, ease: EASE }}
               onClick={(e) => e.stopPropagation()}
@@ -167,8 +167,8 @@ export default function Reviews() {
                 {submitting ? 'Отправляем…' : 'Опубликовать отзыв'}
               </button>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
     </section>

@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Percent } from 'lucide-react';
 import Meerkat from '../mascot/Meerkat';
-
 import { useAppStore, useFavoritesStore, usePromoStore } from '../../store';
 import { formatDate } from '../../utils/format';
 import PromoForm from '../promo/PromoForm';
@@ -41,7 +39,7 @@ export default function FavoritesPage() {
             <Meerkat pose="heart" width={150} decorative className="mx-auto" />
             <div className="font-display text-[28px] text-text mt-6">Здесь пока пусто</div>
             <p className="text-[14px] text-muted mt-3 mb-8">Нажмите на сердечко у товара, чтобы сохранить его</p>
-            <Link to="/" className="btn-outline">Перейти в каталог</Link>
+            <Link to="/catalog" className="btn-outline">Перейти в каталог</Link>
           </div>
         ) : (
           groups.map((g) => (
@@ -64,28 +62,27 @@ export default function FavoritesPage() {
   );
 }
 
-/** "Скидка: ваш промокод действует до …", or the field to enter one. */
+/**
+ * The promo code for the saved items: the same plate as on the main page —
+ * the field, or the pink "Промокод … — цены со скидкой" once one works — so
+ * the % sign has one look everywhere.
+ */
 function PromoStatus() {
   const { code, expiresAt } = usePromoStore();
   return (
-    <div className="mt-10 rounded-[28px] border-2 border-ink bg-sun shadow-[0_6px_0_#111] p-8 max-sm:p-5 grid grid-cols-[auto_1fr] gap-x-6 gap-y-4 items-start max-sm:grid-cols-1">
-      <span className="w-14 h-14 rounded-full bg-primary text-white border-2 border-ink flex items-center justify-center max-sm:hidden">
-        <Percent size={24} strokeWidth={2.4} />
-      </span>
-      <div>
-        <div className="font-display text-[22px] text-ink">Скидка</div>
-        {code ? (
-          <p className="mt-2 text-[16px] font-semibold text-ink">
-            Ваш промокод <span className="px-2 py-0.5 rounded-full bg-primary text-white tracking-[0.06em]">{code}</span>{' '}
-            {expiresAt ? <>действует до {formatDate(expiresAt)}</> : 'действует без ограничения по сроку'} — цены ниже уже со скидкой.
-          </p>
-        ) : (
-          <>
-            <p className="mt-2 text-[16px] font-semibold text-ink">Введите промокод, чтобы применить скидку ко всем товарам</p>
-            <div className="mt-5 max-w-[520px]"><PromoForm variant="pill" /></div>
-          </>
-        )}
+    <div className="mt-10 relative rounded-[28px] max-sm:rounded-[22px] border-2 border-ink accent-card shadow-[0_6px_0_#111] p-8 max-sm:p-5 overflow-hidden">
+      <div className="relative z-[1] max-w-[560px]">
+        <div className="font-display text-[24px] max-sm:text-[20px] leading-tight text-ink">
+          {code ? 'Скидка уже работает' : 'Есть промокод от блогера?'}
+        </div>
+        <p className="mt-2 text-[15px] font-semibold text-ink/80 leading-snug">
+          {code
+            ? <>{expiresAt ? `Действует до ${formatDate(expiresAt)}.` : 'Без ограничения по сроку.'} Цены ниже уже со скидкой.</>
+            : 'Введите его — цены в избранном и в каталоге станут ниже.'}
+        </p>
+        <div className="mt-5"><PromoForm variant="pill" /></div>
       </div>
+      <Meerkat pose="sunglasses" width={150} decorative className="absolute right-8 -bottom-2 max-md:hidden" />
     </div>
   );
 }

@@ -107,7 +107,7 @@ def create_app():
 
     # Client-side routes of the SPA. Anything else that is not a real file or
     # an API call stays a 404 instead of silently rendering the storefront.
-    _SPA_ROOTS = {"forums", "orders", "cabinet", "favorites"}
+    _SPA_ROOTS = {"forums", "orders", "cabinet", "favorites", "home", "catalog"}
 
     @app.route("/<path:spa_path>")
     def serve_spa(spa_path):
@@ -146,6 +146,7 @@ def create_app():
     from .routes.support import bp as support_bp
     from .routes.order_chat import bp as order_chat_bp
     from .routes.store import bp as store_bp
+    from .routes.push import bp as push_bp
     from .schema import ensure_schema
 
     app.register_blueprint(public_bp)
@@ -153,6 +154,7 @@ def create_app():
     app.register_blueprint(support_bp)
     app.register_blueprint(order_chat_bp)
     app.register_blueprint(store_bp)
+    app.register_blueprint(push_bp)
 
     ensure_schema()
     _bootstrap_admin_password()

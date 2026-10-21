@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import Meerkat from '../mascot/Meerkat';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, ChevronLeft, Plus, Package, Check, HelpCircle } from 'lucide-react';
 import { useAuthStore, useAppStore, usePromoStore } from '../../store';
 import { unescapeHtml } from '../../utils/format';
 import { useSupportStore } from '../../store/support';
 import ImageUploader from '../ui/ImageUploader';
+import NotifyPrompt from '../ui/NotifyPrompt';
 import AttachedImages from '../ui/AttachedImages';
 import {
   createSupportTicket,
@@ -24,7 +25,7 @@ import useScrollLock from '../../hooks/useScrollLock';
  */
 export default function SupportChatModal() {
   const { user } = useAuthStore();
-  const { isOpen, startInNew, close, prefillSubject, prefillText, prefillProductId, showProductPicker } = useSupportStore();
+  const { isOpen, startInNew, close, prefillSubject, prefillText, prefillProductId, showProductPicker, ticketId } = useSupportStore();
   const products = useAppStore((s) => s.products);
 
   useScrollLock(isOpen);
@@ -86,11 +87,15 @@ export default function SupportChatModal() {
     }
     setLoading(true);
     fetchUserTickets(user.id)
-      .then(t => { setTickets(t); })
+      .then(t => {
+        setTickets(t);
+        const wanted = ticketId ? t.find(x => x.id === ticketId) : null;
+        if (wanted) void openTicket(wanted);
+      })
       .catch(() => { /* ignore */ })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, user, startInNew, prefillSubject, prefillText, prefillProductId, showProductPicker]);
+  }, [isOpen, user, startInNew, prefillSubject, prefillText, prefillProductId, showProductPicker, ticketId]);
 
   useEffect(() => {
     if (activeTicket) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -180,14 +185,14 @@ export default function SupportChatModal() {
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-ink/45 z-[3000] backdrop-blur-sm"
             onClick={close}
           />
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 24, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.96 }}
@@ -233,6 +238,7 @@ export default function SupportChatModal() {
               <div className="flex-1 min-h-0 overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
                 {activeTicket ? (
                   <div className="p-4 space-y-3">
+                    {activeTicket.status !== 'closed' && <NotifyPrompt />}
                     {loading ? (
                       <div className="text-center text-muted py-8 text-sm">Загрузка...</div>
                     ) : messages.length === 0 ? (
@@ -413,7 +419,7 @@ export default function SupportChatModal() {
                       {user && (
                         <>
                           <label className="text-[11px] font-semibold text-muted uppercase tracking-wider block mb-1">Фото</label>
-                          <ImageUploader value={newImages} onChange={setNewImages} userId={user.id} prefix="support" max={4} compact />
+                          <ImageUploader value={newImages} onChange={setNewImages} userId={user.id} prefix="support" max={4} compact video />
                         </>
                       )}
                     </div>
@@ -479,12 +485,12 @@ export default function SupportChatModal() {
                 <div className="px-4 py-3 border-t border-border bg-card shrink-0">
                   {user && msgImages.length > 0 && (
                     <div className="mb-2">
-                      <ImageUploader value={msgImages} onChange={setMsgImages} userId={user.id} prefix="support" max={4} compact />
+                      <ImageUploader value={msgImages} onChange={setMsgImages} userId={user.id} prefix="support" max={4} compact video />
                     </div>
                   )}
                   <div className="flex items-center gap-2">
                   {user && msgImages.length === 0 && (
-                    <ImageUploader value={msgImages} onChange={setMsgImages} userId={user.id} prefix="support" max={4} compact />
+                    <ImageUploader value={msgImages} onChange={setMsgImages} userId={user.id} prefix="support" max={4} compact video />
                   )}
                   <input
                     type="text"
@@ -510,7 +516,7 @@ export default function SupportChatModal() {
                 </div>
               )}
             </div>
-          </motion.div>
+          </m.div>
         </>
       )}
     </AnimatePresence>

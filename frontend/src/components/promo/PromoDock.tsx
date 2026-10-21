@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { Check, Percent, X } from 'lucide-react';
 import PromoForm from './PromoForm';
 import { usePromoStore } from '../../store';
@@ -24,14 +24,14 @@ export default function PromoDock() {
   return (
     <AnimatePresence>
       {shown && (
-        <motion.div
+        <m.div
           initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
           transition={{ duration: 0.4, ease: EASE }}
           className="fixed z-[1400] bottom-5 left-4 max-sm:bottom-3 max-sm:left-3 max-sm:right-[68px]"
         >
           <AnimatePresence mode="wait" initial={false}>
             {open ? (
-              <motion.div
+              <m.div
                 key="open"
                 initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
                 transition={{ duration: 0.25, ease: EASE }}
@@ -47,9 +47,9 @@ export default function PromoDock() {
                 >
                   <X size={18} strokeWidth={2.4} />
                 </button>
-              </motion.div>
+              </m.div>
             ) : (
-              <motion.button
+              <m.button
                 key="chip"
                 initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.25, ease: EASE }}
@@ -60,10 +60,10 @@ export default function PromoDock() {
                   {code ? <Check size={16} strokeWidth={2.6} /> : <Percent size={16} strokeWidth={2.6} />}
                 </span>
                 {code ? <>Промокод {code}</> : 'Есть промокод?'}
-              </motion.button>
+              </m.button>
             )}
           </AnimatePresence>
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

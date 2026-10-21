@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import useScrollLock from '../../hooks/useScrollLock';
 
@@ -20,7 +20,7 @@ export default function Modal({ open, onClose, children, title, subtitle, maxWid
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -34,7 +34,7 @@ export default function Modal({ open, onClose, children, title, subtitle, maxWid
             mouseDownTarget.current = null;
           }}
         >
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 18 }}
@@ -55,8 +55,8 @@ export default function Modal({ open, onClose, children, title, subtitle, maxWid
               {subtitle && <p className="text-sm text-muted mb-6">{subtitle}</p>}
               {children}
             </div>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

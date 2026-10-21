@@ -14,7 +14,7 @@ from flask import Blueprint, request, jsonify
 from ..db import get_db, _row_to_dict, _rows_to_list
 from ..utils import rate_limited, sanitize_string, sanitize_image_urls
 from ..auth import require_auth, require_self
-from ..email_service import email_order_new_message
+from ..notify import notify_user, snippet
 
 bp = Blueprint('order_chat', __name__)
 
@@ -48,7 +48,9 @@ def get_order_messages(order_id):
                 "ON CONFLICT (order_id) DO UPDATE SET seen_at = NOW()",
                 (order_id,)
             )
-        return jsonify({"messages": msgs, "status": order["status"]})
+            from .store import order_status_history
+            history = order_status_history(cur, order_id)
+        return jsonify({"messages": msgs, "status": order["status"], "history": history})
     except Exception:
         return jsonify({"messages": [], "status": None})
 
@@ -193,10 +195,13 @@ def admin_get_order_messages(order_id):
                 (order_id,)
             )
             msgs = _rows_to_list(cur.fetchall())
+            from .store import order_status_history
+            history = order_status_history(cur, order_id) if order else {}
         return jsonify({
             "messages": msgs,
             "status": order["status"] if order else None,
             "full_name": order["full_name"] if order else "",
+            "history": history,
         })
     except Exception:
         return jsonify({"messages": [], "status": None, "full_name": ""})
@@ -222,18 +227,15 @@ def admin_post_order_message(order_id):
                 (order_id, sender_name, text, images)
             )
             msg = _row_to_dict(cur.fetchone())
-            # Notify the buyer by email that there's a new reply.
-            cur.execute(
-                "SELECT u.full_name, u.email FROM coop_orders o "
-                "JOIN coop_users u ON u.id = o.user_id WHERE o.id = %s",
-                (order_id,)
-            )
-            u = cur.fetchone()
-        if u and u.get("email"):
-            try:
-                email_order_new_message(u["full_name"], u["email"], order_id)
-            except Exception:
-                pass
+            cur.execute("SELECT user_id FROM coop_orders WHERE id = %s", (order_id,))
+            buyer = (cur.fetchone() or {}).get("user_id")
+        # Push to the buyer's devices and an email (throttled), after the commit
+        notify_user(
+            buyer, key=f"order:{order_id}",
+            title=f"Менеджер ответил по заказу №{order_id}",
+            body=snippet(text, images), url=f"/orders?order={order_id}",
+            email_subject=f"Новое сообщение по заказу №{order_id}",
+        )
         return jsonify(msg), 201
     except Exception as e:
         print(f"[app/routes/order_chat.py] {request.method} {request.path}: {e}")

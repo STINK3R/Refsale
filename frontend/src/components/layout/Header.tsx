@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion, useAnimate } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { X, ShoppingBag, User, Package, Heart } from 'lucide-react';
 import { useAppStore, useAuthStore, useCartStore, useFavoritesStore, useNotificationStore, usePromoStore } from '../../store';
 import { useSupportStore } from '../../store/support';
@@ -8,23 +8,29 @@ import { fetchOrderChatsUnread } from '../../api/client';
 import { useContacts, ContactBlock, ContactLinks, telHref } from '../ui/Contacts';
 import useScrollLock, { glidePageToTop, glideToElement } from '../../hooks/useScrollLock';
 import Meerkat from '../mascot/Meerkat';
+import RadioCard, { RadioBars } from './Radio';
+import { useRadioStore } from '../../store/radio';
 
 
 /** The cart's count; it pops when something goes in, so an add is seen even
  *  without a toast. */
 function CartCount({ count }: { count: number }) {
-  const [scope, animate] = useAnimate<HTMLSpanElement>();
-  const prev = useRef(count);
-  useEffect(() => {
-    if (count > prev.current && scope.current) {
-      animate(scope.current, { scale: [1.9, 1] }, { type: 'spring', stiffness: 420, damping: 14 });
-      animate(scope.current, { color: ['#E8186D', '#111111'] }, { duration: 0.7 });
-    }
-    prev.current = count;
-  }, [count, animate, scope]);
+  // A new number mounts and pops in; the first one (page load) does not
   return (
-    <span ref={scope} className="inline-block text-[12px] font-semibold tabular-nums min-w-[1ch] origin-left">
-      {count > 0 ? count : ''}
+    <span className="inline-block text-[12px] font-semibold tabular-nums min-w-[1ch]">
+      <AnimatePresence initial={false}>
+        {count > 0 && (
+          <m.span
+            key={count}
+            initial={{ scale: 1.9, color: '#E8186D' }}
+            animate={{ scale: 1, color: '#111111' }}
+            transition={{ scale: { type: 'spring', stiffness: 420, damping: 14 }, color: { duration: 0.7 } }}
+            className="inline-block origin-left"
+          >
+            {count}
+          </m.span>
+        )}
+      </AnimatePresence>
     </span>
   );
 }
@@ -32,6 +38,7 @@ function CartCount({ count }: { count: number }) {
 export default function Header() {
   const { user, openAuth, openProfile, logout } = useAuthStore();
   const { openSidebar, totalItems } = useCartStore();
+  const radioOn = useRadioStore((s) => s.playing);
   const cartCount = totalItems();
   const promoCode = usePromoStore((s) => s.code);
   const openSupport = useSupportStore((s) => s.open);
@@ -44,7 +51,11 @@ export default function Header() {
   const [orderUnread, setOrderUnread] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
-  const isHome = location.pathname === '/';
+  // The shop lives at /catalog with its category tabs; on the main page (/,
+  // /home) the bar sits transparent too, without the tabs.
+  const isCatalog = location.pathname === '/catalog';
+  const onMain = location.pathname === '/' || location.pathname === '/home';
+  const isHome = isCatalog || onMain;
   useScrollLock(menuOpen);
 
   // Its height changes with the category tabs and the contact bar, so the
@@ -82,9 +93,17 @@ export default function Header() {
     const scroll = () => glideToElement(hash);
     // Wait for the menu to let go of the page: while it is open the body is
     // pinned, and closing it restores the old offset over our scroll.
-    if (location.pathname === '/') setTimeout(scroll, 80);
-    else { navigate('/'); setTimeout(scroll, 250); }
+    if (location.pathname === '/catalog') setTimeout(scroll, 80);
+    else { navigate('/catalog'); setTimeout(scroll, 250); }
   }, [location.pathname, navigate]);
+
+  // "О нас" is on the main page, right under its first screen
+  const goToAbout = () => {
+    setMenuOpen(false);
+    const scroll = () => glideToElement('#about');
+    if (onMain) setTimeout(scroll, 80);
+    else { navigate('/home'); setTimeout(scroll, 250); }
+  };
 
   const openChats = () => {
     setMenuOpen(false);
@@ -97,7 +116,7 @@ export default function Header() {
   // colours, picture, products — fades in once it is at the top.
   const [pendingCategory, setPendingCategory] = useState<number | null>(null);
   const pickCategory = (id: number) => {
-    if (!isHome) { setActiveCategory(id); navigate('/'); return; }
+    if (!isCatalog) { setActiveCategory(id); navigate('/catalog'); return; }
     setPendingCategory(id);
     glidePageToTop(() => { setActiveCategory(id); setPendingCategory(null); });
   };
@@ -134,12 +153,13 @@ export default function Header() {
                   <span className="h-[2.5px] rounded-full w-4 bg-ink transition-all duration-300 group-hover:w-6" />
                 </span>
                 <span className="label !text-text max-md:hidden">Меню</span>
+                {radioOn && <RadioBars className="text-primary" />}
               </button>
               <nav className="hidden xl:flex items-center gap-7">
                 <NavItem onClick={() => goToSection('#catalog')}>Каталог</NavItem>
                 <NavItem to="/forums">Форум</NavItem>
                 <NavItem onClick={() => goToSection('#reviews')}>Отзывы</NavItem>
-                <NavItem onClick={() => goToSection('#about')}>О нас</NavItem>
+                <NavItem onClick={goToAbout}>О нас</NavItem>
               </nav>
             </div>
 
@@ -181,15 +201,15 @@ export default function Header() {
           {/* Category pages: each switches the hero, products and reviews */}
           {/* While the catalog loads, the row is held open with placeholders so
               the page below does not jump when the tabs arrive. */}
-          {isHome && catalogLoading && categories.length === 0 && (
+          {isCatalog && catalogLoading && categories.length === 0 && (
             <div aria-hidden="true" className="max-w-[1440px] mx-auto px-8 max-sm:px-4 pb-3 flex sm:justify-center gap-2 overflow-hidden">
               {[112, 176, 64, 160].map((w) => <span key={w} className="shrink-0 h-9 rounded-ctl-sm bg-ink/[0.06]" style={{ width: w }} />)}
             </div>
           )}
-          {isHome && categories.length > 1 && (
+          {isCatalog && categories.length > 1 && (
             <div className="max-w-[1440px] mx-auto px-8 max-sm:px-4 pb-3 flex sm:justify-center gap-2 overflow-x-auto scrollbar-hide">
               {categories.map((c) => {
-                const active = c.id === (pendingCategory ?? activeCategoryId);
+                const active = isCatalog && (c.id === (pendingCategory ?? activeCategoryId));
                 return (
                   <button
                     key={c.id}
@@ -210,12 +230,12 @@ export default function Header() {
       <AnimatePresence>
         {menuOpen && (
           <>
-            <motion.div
+            <m.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}
               className="fixed inset-0 z-[2400] bg-ink/45"
               onClick={() => setMenuOpen(false)}
             />
-            <motion.aside
+            <m.aside
               initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
               transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
               className="fixed top-0 left-0 bottom-0 z-[2500] w-[440px] max-w-[92vw] bg-bg border-r-2 border-ink rounded-r-[28px] overflow-hidden flex flex-col"
@@ -229,14 +249,15 @@ export default function Header() {
 
               <div className="flex-1 overflow-y-auto modal-scroll px-8 max-sm:px-6 py-8">
                 <nav className="flex flex-col">
-                  <MenuItem n="01" onClick={() => goToSection('#catalog')}>Каталог</MenuItem>
-                  <MenuItem n="02" to="/orders" badge={orderUnread > 0}>Сообщения и заказы</MenuItem>
-                  <MenuItem n="03" to="/favorites">Избранное{favCount > 0 && <sup className="ml-1.5 text-[13px] text-primary">{favCount}</sup>}</MenuItem>
-                  <MenuItem n="04" to="/forums">Форум</MenuItem>
-                  <MenuItem n="05" onClick={() => goToSection('#reviews')}>Отзывы</MenuItem>
-                  <MenuItem n="06" onClick={() => goToSection('#about')}>О нас</MenuItem>
-                  <MenuItem n="07" onClick={openChats}>Вопрос продавцу</MenuItem>
-                  {user?.is_leader && <MenuItem n="08" to="/cabinet">Кабинет лидера мнений</MenuItem>}
+                  <MenuItem n="01" to="/home">Главная</MenuItem>
+                  <MenuItem n="02" onClick={() => goToSection('#catalog')}>Каталог</MenuItem>
+                  <MenuItem n="03" to="/orders" badge={orderUnread > 0}>Сообщения и заказы</MenuItem>
+                  <MenuItem n="04" to="/favorites">Избранное{favCount > 0 && <sup className="ml-1.5 text-[13px] text-primary">{favCount}</sup>}</MenuItem>
+                  <MenuItem n="05" to="/forums">Форум</MenuItem>
+                  <MenuItem n="06" onClick={() => goToSection('#reviews')}>Отзывы</MenuItem>
+                  <MenuItem n="07" onClick={goToAbout}>О нас</MenuItem>
+                  <MenuItem n="08" onClick={openChats}>Вопрос продавцу</MenuItem>
+                  {user?.is_leader && <MenuItem n="09" to="/cabinet">Кабинет лидера мнений</MenuItem>}
                 </nav>
 
                 <div className="mt-10 flex flex-col gap-3">
@@ -263,6 +284,8 @@ export default function Header() {
                     Привет! Введите промокод блогера — и все цены станут ниже.
                   </div>
                 </div>
+                {/* Music while shopping, only when asked for */}
+                <div className="mt-4"><RadioCard /></div>
 
                 {contacts.length > 0 && (
                   <div className="mt-10 pt-8 border-t border-line grid gap-8">
@@ -270,7 +293,7 @@ export default function Header() {
                   </div>
                 )}
               </div>
-            </motion.aside>
+            </m.aside>
           </>
         )}
       </AnimatePresence>

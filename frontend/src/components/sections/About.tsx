@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -15,12 +15,12 @@ export default function About() {
       <div className="max-w-[1440px] mx-auto px-8 max-sm:px-5 py-28 max-md:py-16 grid grid-cols-12 gap-x-8 gap-y-14">
         <div className="col-span-5 max-lg:col-span-12">
           <div className="label mb-5">О нас</div>
-          <motion.h2
+          <m.h2
             initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 1, ease: EASE }}
             className="font-display text-[clamp(34px,3.6vw,54px)] leading-[1.08] text-text"
           >
             Честная цена на&nbsp;оригинал — без переплаты <span className="italic text-primary-light">за&nbsp;витрину</span>
-          </motion.h2>
+          </m.h2>
           <p className="mt-8 text-[15px] text-muted leading-[1.8] max-w-[460px]">
             Мы работаем напрямую с поставщиками оригинальной парфюмерии и уходовой косметики, поэтому цены ниже, чем в крупных сетях. Нас рекомендуют блогеры, которым доверяет их аудитория: у каждого свой промокод.
           </p>
@@ -33,7 +33,7 @@ export default function About() {
           <div className="label mb-5">Как проходит заказ</div>
           <ol className="border-t border-line">
             {STEPS.map((s, i) => (
-              <motion.li
+              <m.li
                 key={s.title}
                 initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-30px' }}
                 transition={{ duration: 0.8, delay: i * 0.07, ease: EASE }}
@@ -44,7 +44,7 @@ export default function About() {
                   <div className="font-display text-[26px] leading-tight text-text">{s.title}</div>
                   <p className="text-[14px] text-muted leading-relaxed mt-2 max-w-[460px]">{s.text}</p>
                 </div>
-              </motion.li>
+              </m.li>
             ))}
           </ol>
         </div>

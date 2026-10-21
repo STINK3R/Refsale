@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import Lightbox from './Lightbox';
+import { isVideoUrl } from '../../utils/media';
 
 /**
  * Renders photo attachments (reviews, chat messages) as a small thumbnail grid
@@ -28,7 +29,9 @@ interface AttachedImagesProps {
 }
 
 export default function AttachedImages({ images, size = 'md', className = '', onViewerChange }: AttachedImagesProps) {
-  const urls = useMemo(() => parseImages(images), [images]);
+  const all = useMemo(() => parseImages(images), [images]);
+  const urls = useMemo(() => all.filter((u) => !isVideoUrl(u)), [all]);
+  const videos = useMemo(() => all.filter(isVideoUrl), [all]);
   const [openAt, setOpenAt] = useState<number | null>(null);
 
   const setOpen = (index: number | null) => {
@@ -36,20 +39,31 @@ export default function AttachedImages({ images, size = 'md', className = '', on
     onViewerChange?.(index !== null);
   };
 
-  if (!urls.length) return null;
+  if (!all.length) return null;
 
   const box = size === 'sm' ? 'w-16 h-16' : 'w-20 h-20';
 
   return (
     <>
       <div className={`flex flex-wrap gap-1.5 ${className}`}>
+        {videos.map((url) => (
+          <video
+            key={url}
+            src={url}
+            controls
+            playsInline
+            preload="metadata"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-[260px] max-h-[320px] rounded-[12px] border border-border bg-ink"
+          />
+        ))}
         {urls.map((url, i) => (
           <button
             key={url + i}
             type="button"
             onClick={(e) => { e.stopPropagation(); setOpen(i); }}
             title="Открыть фото"
-            className={`${box} overflow-hidden border border-border bg-bg cursor-zoom-in hover:opacity-90 transition-opacity p-0`}
+            className={`${box} overflow-hidden rounded-ctl-xs border border-border bg-bg cursor-zoom-in hover:opacity-90 transition-opacity p-0`}
           >
             <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
           </button>

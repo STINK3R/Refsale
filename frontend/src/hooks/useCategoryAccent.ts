@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useActiveCategory, useAppStore } from '../store';
 
 const DEFAULT_ACCENT = '#FFE45C';
@@ -30,8 +31,11 @@ const isHex = (v?: string) => /^#[0-9a-fA-F]{6}$/.test(v?.trim() || '');
  * header takes the same colours at once through its own, unanimated pair.
  */
 export default function useCategoryAccent() {
-  const category = useActiveCategory();
+  const active = useActiveCategory();
   const loading = useAppStore((s) => s.loading);
+  // Category colours belong to the shop; the main page keeps the brand yellow
+  const inShop = useLocation().pathname === '/catalog';
+  const category = inShop ? active : undefined;
   const accent = isHex(category?.accent_color) ? category!.accent_color!.trim() : DEFAULT_ACCENT;
   const strongSet = isHex(category?.accent_strong) ? category!.accent_strong!.trim() : '';
   useEffect(() => {

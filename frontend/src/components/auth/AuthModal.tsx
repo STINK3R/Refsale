@@ -82,7 +82,6 @@ export default function AuthModal() {
       <form className="mt-8 space-y-4" onSubmit={(e) => { e.preventDefault(); void (isReg ? register() : login()); }}>
         {isReg && <Labeled label="Имя"><input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" className="field" /></Labeled>}
         <Labeled label="Email"><input value={email} onChange={(e) => setEmail(e.target.value)} type="email" inputMode="email" autoComplete="email" className="field" /></Labeled>
-        {isReg && <Labeled label="Телефон, необязательно"><input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" autoComplete="tel" placeholder="+7" className="field" /></Labeled>}
         <Labeled label={isReg ? 'Пароль, от 6 символов' : 'Пароль'}>
           <div className="relative">
             <input
@@ -97,6 +96,12 @@ export default function AuthModal() {
             </button>
           </div>
         </Labeled>
+        {isReg && (
+          <div className="pt-3 mt-1 border-t-2 border-ink/10">
+            <div className="text-[12px] font-bold text-muted mb-3">По желанию</div>
+            <Labeled label="Телефон"><input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" autoComplete="tel" placeholder="+7" className="field" /></Labeled>
+          </div>
+        )}
 
         {error && <div className="text-[13px] text-danger pt-1">{error}</div>}
 

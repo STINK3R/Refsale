@@ -13,12 +13,15 @@ interface SupportState {
   prefillProductId: number | null;
   // If true, show the inline product-picker expanded when the form opens.
   showProductPicker: boolean;
+  /** Open straight on this question (a tapped notification). */
+  ticketId: number | null;
   open: (opts?: {
     startInNew?: boolean;
     prefillSubject?: string;
     prefillText?: string;
     prefillProductId?: number | null;
     showProductPicker?: boolean;
+    ticketId?: number | null;
   }) => void;
   close: () => void;
 }
@@ -30,6 +33,7 @@ export const useSupportStore = create<SupportState>((set) => ({
   prefillText: '',
   prefillProductId: null,
   showProductPicker: false,
+  ticketId: null,
   open: (opts) =>
     set({
       isOpen: true,
@@ -38,6 +42,7 @@ export const useSupportStore = create<SupportState>((set) => ({
       prefillText: opts?.prefillText ?? '',
       prefillProductId: opts?.prefillProductId ?? null,
       showProductPicker: !!opts?.showProductPicker,
+      ticketId: opts?.ticketId ?? null,
     }),
   close: () =>
     set({

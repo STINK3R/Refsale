@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Category, Subcategory, Product, ProductVariant, User, CartItem, Review } from '../types';
 import { fetchCatalog, fetchSettings, fetchUserById, fetchReviews, validateStorePromo } from '../api/client';
 import { getToken, clearToken } from '../api/authToken';
+import { forgetPushDevice } from './pwa';
 
 // ==================== APP STORE ====================
 interface AppState {
@@ -122,6 +123,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   openForgotPassword: () => set({ forgotPasswordOpen: true, authModalOpen: false }),
   closeForgotPassword: () => set({ forgotPasswordOpen: false }),
   logout: () => {
+    forgetPushDevice(); // while the token is still here
     localStorage.removeItem(USER_KEY);
     clearToken();
     set({ user: null });
@@ -151,6 +153,8 @@ interface PromoState {
   expiresAt: string | null;
   /** product id → promo price, only for products that have one */
   prices: Record<string, number>;
+  /** What the code lowers, in words: "на весь каталог", "на категорию «Еда»" */
+  scopeText: string;
   checking: boolean;
   apply: (code: string) => Promise<{ ok: boolean; error?: string }>;
   revalidate: () => Promise<void>;
@@ -159,7 +163,7 @@ interface PromoState {
 
 const PROMO_KEY = 'refsale_promo';
 const savedPromo = (() => {
-  try { return JSON.parse(localStorage.getItem(PROMO_KEY) || 'null') as { code: string; label: string; leaderName: string; expiresAt?: string | null; prices: Record<string, number> } | null; }
+  try { return JSON.parse(localStorage.getItem(PROMO_KEY) || 'null') as { code: string; label: string; leaderName: string; expiresAt?: string | null; prices: Record<string, number>; scopeText?: string } | null; }
   catch { return null; }
 })();
 
@@ -169,6 +173,7 @@ export const usePromoStore = create<PromoState>((set, get) => ({
   leaderName: savedPromo?.leaderName || '',
   expiresAt: savedPromo?.expiresAt ?? null,
   prices: savedPromo?.prices || {},
+  scopeText: savedPromo?.scopeText || '',
   checking: false,
   apply: async (raw) => {
     const code = raw.trim().toUpperCase();
@@ -179,7 +184,7 @@ export const usePromoStore = create<PromoState>((set, get) => ({
       set({ checking: false });
       return { ok: false, error: res.error || 'Промокод не найден' };
     }
-    const next = { code: res.code, label: res.label || '', leaderName: res.leader_name || '', expiresAt: res.expires_at ?? null, prices: res.prices || {} };
+    const next = { code: res.code, label: res.label || '', leaderName: res.leader_name || '', expiresAt: res.expires_at ?? null, prices: res.prices || {}, scopeText: res.scope && res.scope !== 'all' ? res.scope_text || '' : '' };
     localStorage.setItem(PROMO_KEY, JSON.stringify(next));
     set({ ...next, checking: false });
     return { ok: true };
@@ -191,7 +196,7 @@ export const usePromoStore = create<PromoState>((set, get) => ({
     if (!code) return;
     const res = await validateStorePromo(code);
     if (res.valid && res.code) {
-      const next = { code: res.code, label: res.label || '', leaderName: res.leader_name || '', expiresAt: res.expires_at ?? null, prices: res.prices || {} };
+      const next = { code: res.code, label: res.label || '', leaderName: res.leader_name || '', expiresAt: res.expires_at ?? null, prices: res.prices || {}, scopeText: res.scope && res.scope !== 'all' ? res.scope_text || '' : '' };
       localStorage.setItem(PROMO_KEY, JSON.stringify(next));
       set(next);
     } else if (res.error && !/rate|попыток/i.test(res.error)) {
@@ -200,7 +205,7 @@ export const usePromoStore = create<PromoState>((set, get) => ({
   },
   clear: () => {
     localStorage.removeItem(PROMO_KEY);
-    set({ code: null, label: '', leaderName: '', expiresAt: null, prices: {} });
+    set({ code: null, label: '', leaderName: '', expiresAt: null, prices: {}, scopeText: '' });
   },
 }));
 

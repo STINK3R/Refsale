@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState, useCallback, memo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useMemo, useRef, useState, useCallback, memo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { m, AnimatePresence } from 'framer-motion';
 import { Search, X, ChevronLeft, ChevronRight, MessageCircle, Plus, Minus, Trash2, Check, Maximize2, Heart } from 'lucide-react';
 import {
   useAppStore, useCartStore, useNotificationStore, usePromoStore, useFavoritesStore, useActiveCategory,
@@ -34,6 +35,36 @@ export default function StoreCatalog() {
   const [selected, setSelected] = useState<Product | null>(null);
   const [variantFor, setVariantFor] = useState<Product | null>(null);
   const categoryId = category?.id ?? null;
+
+  // From the main page: ?product=12 opens that product, ?q=dior searches —
+  // in the category where the product or the first match lives. The window
+  // and the search box are set as the page renders; the effect then switches
+  // the category and clears the address.
+  const [params, setParams] = useSearchParams();
+  const setActiveCategory = useAppStore((s) => s.setActiveCategory);
+  const handoffProduct = Number(params.get('product')) || 0;
+  const handoffQuery = (params.get('q') || '').trim();
+  const handoffKey = handoffProduct || handoffQuery ? `${handoffProduct}|${handoffQuery}` : '';
+  const ready = !loading && products.length > 0;
+  const [handled, setHandled] = useState('');
+  if (ready && handoffKey && handoffKey !== handled) {
+    setHandled(handoffKey);
+    const p = handoffProduct ? products.find((x) => x.id === handoffProduct) : null;
+    if (p) setSelected(p);
+    else if (handoffQuery) { setQuery(handoffQuery); setDebounced(handoffQuery.toLowerCase()); }
+  }
+  useEffect(() => {
+    if (!ready || !handoffKey) return;
+    const ql = handoffQuery.toLowerCase();
+    const target = handoffProduct
+      ? products.find((x) => x.id === handoffProduct)
+      : products.find((x) => x.name.toLowerCase().includes(ql) || (x.description || '').toLowerCase().includes(ql));
+    if (target?.category_id) setActiveCategory(target.category_id);
+    if (!handoffProduct && handoffQuery) {
+      setTimeout(() => document.getElementById('catalog')?.scrollIntoView({ block: 'start' }), 350);
+    }
+    setParams({}, { replace: true });
+  }, [ready, handoffKey, handoffProduct, handoffQuery, products, setParams, setActiveCategory]);
 
   // A new category page starts from the top of its list.
   const [seenCategory, setSeenCategory] = useState(categoryId);
@@ -229,11 +260,18 @@ export function PriceTag({ info, size = 'md' }: { info: PriceInfo; size?: 'md' |
       </div>
     );
   }
+  // The card: the old price or a hint on the left, the price to pay big on
+  // the right — the promo price is what the eye should land on.
   return (
-    <div className="flex items-baseline gap-2.5 flex-wrap">
-      <span className={`text-[17px] max-sm:text-[15px] font-extrabold tabular-nums ${discounted ? 'text-primary' : 'text-ink'}`}>{pre}{formatPrice(now)}</span>
-      {discounted && <span className="text-[13px] text-light line-through tabular-nums">{formatPrice(base)}</span>}
-      {!discounted && !code && hasPromo && <span className="block w-full text-[11px] font-semibold text-primary-dark">дешевле с промокодом</span>}
+    <div className="flex items-end justify-between gap-x-2 gap-y-1 flex-wrap min-h-[30px]">
+      <span className="text-[12px] leading-tight min-w-0">
+        {discounted
+          ? <span className="text-light line-through tabular-nums text-[13px]">{formatPrice(base)}</span>
+          : !code && hasPromo && <span className="font-semibold text-primary-dark">дешевле с промокодом</span>}
+      </span>
+      <span className={`ml-auto text-[22px] max-sm:text-[18px] leading-none font-extrabold tabular-nums whitespace-nowrap ${discounted ? 'text-primary' : 'text-ink'}`}>
+        {pre && <span className="text-[13px] max-sm:text-[12px] font-bold">{pre}</span>}{formatPrice(now)}
+      </span>
     </div>
   );
 }
@@ -251,7 +289,7 @@ export function ComparePrices({ info, category, size = 'md' }: { info: PriceInfo
         <div className="label !text-[10px]">В других магазинах</div>
         {rows.map((r) => (
           <div key={r.label} className="flex justify-between gap-4 text-[14px]">
-            <span className="text-muted">{r.label}</span>
+            <span className="text-muted">{r.label}{info.volume && <span className="text-light">, {info.volume}</span>}</span>
             <span className="text-light line-through tabular-nums">{formatPrice(Number(r.price))}</span>
           </div>
         ))}
@@ -303,7 +341,7 @@ function CartStepper({ line, size = 'sm', className = '' }: { line: CartItem; si
   const side = `${lg ? 'w-[42px] rounded-[11px]' : 'w-8 rounded-ctl-xs'} h-full shrink-0 flex items-center justify-center text-ink hover:bg-sun transition-colors cursor-pointer disabled:opacity-35 disabled:pointer-events-none`;
   const name = `«${line.name}${line.variant_label ? ` — ${line.variant_label}` : ''}»`;
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.25, ease: EASE }}
       className={`${lg ? 'h-[50px] rounded-ctl-md' : 'h-10 rounded-ctl-sm'} border-2 border-ink bg-card flex items-center p-[3px] ${className}`}
     >
@@ -325,7 +363,7 @@ function CartStepper({ line, size = 'sm', className = '' }: { line: CartItem; si
       <button onClick={() => changeQty(key, 1)} disabled={line.qty >= 99} className={side} aria-label="Ещё одну" title="Ещё одну">
         <Plus size={icon} strokeWidth={2.4} />
       </button>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -373,7 +411,7 @@ export const ProductCard = memo(function ProductCard({ product, index, onOpen, o
     // reached, so a fast scroll never shows them blank and catching up. Only
     // the hover lift is a CSS transition — on everything it would also smooth
     // the entrance frame by frame and drag it out.
-    <motion.article
+    <m.article
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, delay: (index % 4) * 0.05, ease: EASE }}
@@ -431,20 +469,20 @@ export const ProductCard = memo(function ProductCard({ product, index, onOpen, o
           </button>
         </div>
       </div>
-    </motion.article>
+    </m.article>
   );
 });
 
 function Overlay({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   useScrollLock(true);
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}
       className="fixed inset-0 z-[3000] bg-ink/45 flex items-end sm:items-center justify-center sm:p-6"
       onClick={onClose}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -478,7 +516,7 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
 
   return (
     <Overlay onClose={onClose}>
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
         transition={{ duration: 0.5, ease: EASE }}
         onClick={(e) => e.stopPropagation()}
@@ -595,7 +633,7 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
             </button>
           </div>
         </div>
-      </motion.div>
+      </m.div>
     </Overlay>
   );
 }
@@ -612,7 +650,7 @@ function VariantModal({ product, onClose }: { product: Product; onClose: () => v
   };
   return (
     <Overlay onClose={onClose}>
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} transition={{ duration: 0.4, ease: EASE }}
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-bg border-2 border-ink rounded-t-[28px] sm:rounded-[28px] p-10 max-sm:p-6"
@@ -625,7 +663,7 @@ function VariantModal({ product, onClose }: { product: Product; onClose: () => v
           <button onClick={onClose} className="btn-outline flex-1">Отмена</button>
           <button onClick={submit} className="btn-primary flex-1">В корзину</button>
         </div>
-      </motion.div>
+      </m.div>
     </Overlay>
   );
 }

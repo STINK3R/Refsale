@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Meerkat from '../mascot/Meerkat';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { Copy, Crown, Eye, Loader2, Send, X, Link2, MessageCircle, Package, Wallet, Clock, CheckCircle2, TrendingUp, LogIn } from 'lucide-react';
 import { useAuthStore, useNotificationStore } from '../../store';
 import {
@@ -12,6 +12,7 @@ import type { OrderChatMessage } from '../../types';
 import { formatPrice, formatDate, unescapeHtml } from '../../utils/format';
 import { Bubble, ItemsList, parseItems, STATUS_LABEL, StatusTrack, statusTone } from './OrdersPage';
 import useScrollLock from '../../hooks/useScrollLock';
+import ImageUploader from '../ui/ImageUploader';
 
 /**
  * Opinion leader's cabinet. Everything here is read-only unless the admin
@@ -236,8 +237,8 @@ function Drawer({ title, subtitle, onClose, children, footer }: { title: string;
   useScrollLock(true);
   return (
     <>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[2400] bg-ink/45 backdrop-blur-sm" onClick={onClose} />
-      <motion.aside
+      <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[2400] bg-ink/45 backdrop-blur-sm" onClick={onClose} />
+      <m.aside
         initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', stiffness: 320, damping: 34 }}
         className="fixed top-0 right-0 bottom-0 z-[2500] w-[520px] max-w-full bg-bg border border-line flex flex-col"
       >
@@ -250,7 +251,7 @@ function Drawer({ title, subtitle, onClose, children, footer }: { title: string;
         </div>
         {children}
         {footer}
-      </motion.aside>
+      </m.aside>
     </>
   );
 }
@@ -259,6 +260,7 @@ function OrderDrawer({ order, onClose, onChanged }: { order: LeaderOrder; onClos
   const show = useNotificationStore((s) => s.show);
   const [messages, setMessages] = useState<OrderChatMessage[]>([]);
   const [status, setStatus] = useState(order.status as string);
+  const [history, setHistory] = useState<Record<string, string>>({});
   const [canWrite, setCanWrite] = useState(false);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
@@ -268,6 +270,7 @@ function OrderDrawer({ order, onClose, onChanged }: { order: LeaderOrder; onClos
     const res = await fetchLeaderOrderMessages(order.id);
     setMessages(res.messages);
     if (res.status) setStatus(res.status);
+    if (res.history) setHistory(res.history);
     setCanWrite(res.can_write);
     setLoading(false);
   }, [order.id]);
@@ -278,13 +281,15 @@ function OrderDrawer({ order, onClose, onChanged }: { order: LeaderOrder; onClos
     return () => clearInterval(t);
   }, [load]);
 
+  const [images, setImages] = useState<string[]>([]);
   const send = async () => {
-    if (!text.trim() || sending) return;
+    if ((!text.trim() && !images.length) || sending) return;
     setSending(true);
     try {
-      const msg = await sendLeaderOrderMessage(order.id, text.trim());
+      const msg = await sendLeaderOrderMessage(order.id, text.trim(), images);
       setMessages((m) => [...m, msg]);
       setText('');
+      setImages([]);
     } catch (e) { show((e as Error).message, 'error'); }
     setSending(false);
   };
@@ -305,12 +310,10 @@ function OrderDrawer({ order, onClose, onChanged }: { order: LeaderOrder; onClos
       subtitle={<>{order.buyer} · {formatDate(order.created_at)} · {formatPrice(order.total)}{order.promo_code ? ` · ${order.promo_code}` : ''}</>}
       onClose={onClose}
       footer={canWrite && !closed ? (
-        <div className="px-4 py-3 border-t border-ink/[0.07]">
-          <div className="flex gap-2">
-            <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void send(); } }} placeholder="Написать покупателю…" className="field !py-2.5" />
-            <button onClick={send} disabled={!text.trim() || sending} className="btn-primary w-11 h-11 !p-0 shrink-0" aria-label="Отправить">{sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}</button>
-          </div>
-        </div>
+        <LeaderComposer
+          text={text} setText={setText} images={images} setImages={setImages}
+          onSend={send} sending={sending} placeholder="Написать покупателю…" prefix="leader_order"
+        />
       ) : (
         <div className="px-6 py-3.5 border-t border-ink/[0.07] text-[12px] text-muted flex items-center gap-2">
           <Eye size={14} className="text-primary" /> {closed ? 'Заказ закрыт' : 'Только просмотр — общается с покупателем менеджер'}
@@ -320,9 +323,12 @@ function OrderDrawer({ order, onClose, onChanged }: { order: LeaderOrder; onClos
       <div className="px-6 py-4 border-b border-ink/[0.07] space-y-4">
         <div className="flex items-center gap-3">
           <span className={`text-[11px] font-medium uppercase tracking-[0.08em] px-2.5 py-1 border ${statusTone(status)}`}>{STATUS_LABEL[status]}</span>
-          <span className="text-[12px] text-muted">Ваше вознаграждение: <b className="text-primary-light">{formatPrice(order.leader_reward)}</b>{status !== 'done' && status !== 'cancelled' ? ' (после выдачи)' : ''}</span>
+          <span className="ml-auto text-right leading-tight">
+            <span className="block text-[11px] text-muted">Ваше вознаграждение{status !== 'done' && status !== 'cancelled' ? ' · после выдачи' : ''}</span>
+            <b className="block font-display text-[24px] text-primary-dark tabular-nums">{formatPrice(order.leader_reward)}</b>
+          </span>
         </div>
-        <StatusTrack status={status} />
+        <StatusTrack status={status} history={history} />
         {canWrite && !closed && (
           <select value={status} onChange={(e) => changeStatus(e.target.value)} className="field !py-2 text-[13px]" aria-label="Статус заказа">
             {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -355,13 +361,18 @@ function TicketDrawer({ ticket, onClose }: { ticket: LeaderTicket; onClose: () =
 
   useEffect(() => { void load(); }, [load]);
 
+  const [images, setImages] = useState<string[]>([]);
+  const [sending, setSending] = useState(false);
   const send = async () => {
-    if (!text.trim()) return;
+    if ((!text.trim() && !images.length) || sending) return;
+    setSending(true);
     try {
-      const msg = await sendLeaderTicketMessage(ticket.id, text.trim());
+      const msg = await sendLeaderTicketMessage(ticket.id, text.trim(), images);
       setMessages((m) => [...m, { ...msg, order_id: 0 } as OrderChatMessage]);
       setText('');
+      setImages([]);
     } catch (e) { show((e as Error).message, 'error'); }
+    setSending(false);
   };
 
   return (
@@ -370,10 +381,10 @@ function TicketDrawer({ ticket, onClose }: { ticket: LeaderTicket; onClose: () =
       subtitle={<>{ticket.user_name}{ticket.promo_code ? ` · промокод ${ticket.promo_code}` : ''}</>}
       onClose={onClose}
       footer={canWrite && ticket.status !== 'closed' ? (
-        <div className="px-4 py-3 border-t border-ink/[0.07] flex gap-2">
-          <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void send(); } }} placeholder="Ответить…" className="field !py-2.5" />
-          <button onClick={send} disabled={!text.trim()} className="btn-primary w-11 h-11 !p-0 shrink-0" aria-label="Отправить"><Send size={16} /></button>
-        </div>
+        <LeaderComposer
+          text={text} setText={setText} images={images} setImages={setImages}
+          onSend={send} sending={sending} placeholder="Ответить…" prefix="leader_ticket"
+        />
       ) : (
         <div className="px-6 py-3.5 border-t border-ink/[0.07] text-[12px] text-muted flex items-center gap-2"><Eye size={14} className="text-primary" /> Только просмотр</div>
       )}
@@ -383,5 +394,29 @@ function TicketDrawer({ ticket, onClose }: { ticket: LeaderTicket; onClose: () =
           : messages.map((m) => <Bubble key={m.id} msg={m} mineType="leader" />)}
       </div>
     </Drawer>
+  );
+}
+
+/** The leader's message box: text plus photos or a short video. */
+function LeaderComposer({ text, setText, images, setImages, onSend, sending, placeholder, prefix }: {
+  text: string; setText: (v: string) => void; images: string[]; setImages: (v: string[]) => void;
+  onSend: () => void; sending: boolean; placeholder: string; prefix: string;
+}) {
+  const userId = useAuthStore((s) => s.user?.id);
+  return (
+    <div className="px-4 py-3 border-t border-ink/[0.07]">
+      {images.length > 0 && userId && (
+        <div className="mb-2"><ImageUploader value={images} onChange={setImages} userId={userId} prefix={prefix} max={4} compact video /></div>
+      )}
+      <div className="flex items-center gap-2">
+        {images.length === 0 && userId && (
+          <ImageUploader value={images} onChange={setImages} userId={userId} prefix={prefix} max={4} compact video />
+        )}
+        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onSend(); } }} placeholder={placeholder} className="field !py-2.5" />
+        <button onClick={onSend} disabled={(!text.trim() && !images.length) || sending} className="btn-primary w-11 h-11 !p-0 shrink-0" aria-label="Отправить">
+          {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+        </button>
+      </div>
+    </div>
   );
 }

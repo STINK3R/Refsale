@@ -6,6 +6,12 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Installable app: icon on the home screen, opens without the browser -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="RefSale" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#FFD60A" />
     <meta name="description" content="RefSale — оригинальные товары дешевле, чем в магазинах: парфюмерия, уходовая косметика, продукты и доставка из Китая. Промокод от вашего блогера снижает цену ещё сильнее." />
@@ -17,12 +23,37 @@
     <meta name="twitter:card" content="summary" />
 
     <title>RefSale — дешевле, чем в магазинах, по промокоду блогера</title>
-    <!-- The first category page opens on the bottles picture: start fetching it
+    <!-- The main page opens on the meerkat with the goods: start fetching it
          before the app has even loaded, it is what the visitor sees first. -->
-    <link rel="preload" as="image" href="/img/hero-1000.webp" imagesrcset="/img/hero-640.webp 640w, /img/hero-1000.webp 1000w, /img/hero-1327.webp 1327w" imagesizes="(max-width: 1024px) 100vw, 1200px" fetchpriority="high" />
+    <!-- The fonts of the first screen's heading and text, fetched while the
+         scripts load: the text then paints in its own font straight away
+         instead of swapping fonts and jumping (layout shift). Vite rewrites
+         these to the same hashed files the CSS uses. -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="./node_modules/@fontsource/unbounded/files/unbounded-cyrillic-700-normal.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="./node_modules/@fontsource/golos-text/files/golos-text-cyrillic-400-normal.woff2" />
+    <link rel="preload" as="image" href="/img/hero-home-1000.webp" imagesrcset="/img/hero-home-640.webp 640w, /img/hero-home-1000.webp 1000w, /img/hero-home-1400.webp 1400w" imagesizes="(max-width: 1024px) 100vw, 620px" fetchpriority="high" />
+    <style>
+      /* The boot screen: plain CSS, it shows before any of the site's styles */
+      .boot { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #FFFBEB; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; opacity: 0; animation: boot-in .3s ease .35s forwards; }
+      .boot img { width: 72px; height: 72px; border-radius: 20px; border: 2px solid #111; animation: boot-pulse 1.4s ease-in-out infinite; }
+      .boot-name { font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: 15px; color: #111; }
+      .boot-dots { display: flex; gap: 6px; }
+      .boot-dots i { width: 8px; height: 8px; border-radius: 50%; background: #E8186D; animation: boot-dot 1s ease-in-out infinite; }
+      .boot-dots i:nth-child(2) { animation-delay: .15s; } .boot-dots i:nth-child(3) { animation-delay: .3s; }
+      @keyframes boot-in { to { opacity: 1; } }
+      @keyframes boot-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+      @keyframes boot-dot { 0%, 100% { opacity: .25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-4px); } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- What a slow connection shows until the app starts (React replaces it) -->
+      <div class="boot" role="status" aria-label="Загружаем RefSale">
+        <img src="/icon-192.png" alt="" width="72" height="72" />
+        <div class="boot-name">RefSale</div>
+        <div class="boot-dots"><i></i><i></i><i></i></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

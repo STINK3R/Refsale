@@ -15,7 +15,7 @@ import { useNotificationStore, usePromoStore } from '../../store';
 export default function PromoForm({ variant = 'box', onApplied, floatingError = false }: {
   variant?: 'line' | 'box' | 'pill'; onApplied?: () => void; floatingError?: boolean;
 }) {
-  const { code, leaderName, label, checking, apply, clear } = usePromoStore();
+  const { code, leaderName, label, scopeText, checking, apply, clear } = usePromoStore();
   const show = useNotificationStore((s) => s.show);
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
@@ -27,7 +27,8 @@ export default function PromoForm({ variant = 'box', onApplied, floatingError = 
     const res = await apply(value);
     if (!res.ok) { setError(res.error || 'Промокод не найден'); return; }
     setValue('');
-    show('Промокод применён — цены обновлены');
+    const scope = usePromoStore.getState().scopeText;
+    show(scope ? `Промокод применён — скидка ${scope}` : 'Промокод применён — цены обновлены');
     onApplied?.();
   };
 
@@ -40,7 +41,7 @@ export default function PromoForm({ variant = 'box', onApplied, floatingError = 
             <Check size={18} strokeWidth={2.4} />
           </span>
           <div className="min-w-0 flex-1 leading-tight">
-            <div className="text-[15px] max-sm:text-[13px] font-bold truncate">Промокод {code} — цены со скидкой</div>
+            <div className="text-[15px] max-sm:text-[13px] font-bold truncate">Промокод {code} — {scopeText ? `скидка ${scopeText}` : 'цены со скидкой'}</div>
             {from && <div className="text-[12px] text-white/80 truncate max-sm:hidden">{from}</div>}
           </div>
           <button

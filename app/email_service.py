@@ -291,3 +291,22 @@ def email_store_order_status(name: str, email: str, order_id: int, total: float,
     </div>"""
     send_email(email, f"Заказ #{order_id} — {label} | RefSale", _email_wrapper(content))
 
+
+def email_chat_reply(name: str, email: str, subject: str, heading: str, snippet: str, url: str):
+    """Someone answered the buyer in a chat: what they wrote and a way back."""
+    import html as _html
+    link = f"{SITE_DOMAIN}{url}"
+    content = f"""
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:30px;line-height:1">&#128172;</div>
+      <h2 style="margin:8px 0 0;color:#8A6A2F;font-size:21px;font-weight:700">{_html.escape(heading)}</h2>
+      <p style="margin:6px 0 0;color:#888;font-size:14px">Здравствуйте, {_html.escape(name or 'покупатель')}!</p>
+    </div>
+    <div style="background:#FBF6EA;border:1px solid #E6D3A3;border-radius:12px;padding:16px 20px;margin:18px 0">
+      <p style="margin:0;font-size:14px;color:#333;line-height:1.55;white-space:pre-line">{_html.escape(snippet)}</p>
+    </div>
+    <div style="text-align:center;margin:20px 0">
+      <a href="{link}" style="display:inline-block;background:#1a1a1a;color:#FFD60A;text-decoration:none;font-weight:700;font-size:15px;padding:12px 28px;border-radius:12px">Открыть чат и ответить</a>
+    </div>
+    <p style="text-align:center;color:#aaa;font-size:12px;margin:0">Такие письма можно выключить в профиле на сайте.</p>"""
+    send_email(email, f"{subject} | RefSale", _email_wrapper(content))

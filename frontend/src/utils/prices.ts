@@ -12,6 +12,14 @@ export interface PriceInfo {
   from: boolean;
   compare1: number | null;
   compare2: number | null;
+  /** The amount the shops' prices are for ("100 мл"), when it can be told. */
+  volume: string | null;
+}
+
+/** "Dior Sauvage EDT 100 мл" → "100 мл"; "50 мл, тестер" → "50 мл". */
+export function volumeOf(text?: string | null): string | null {
+  const m = (text || '').match(/(\d+(?:[.,]\d+)?)\s?(мл|ml|кг|гр|г|л|шт|oz)(?![а-яёa-z])/i);
+  return m ? `${m[1]} ${m[2].toLowerCase()}` : null;
 }
 
 /** Variants that can be bought; all of them when none is in stock. */
@@ -30,6 +38,7 @@ export function priceInfo(product: Product, variant: ProductVariant | null, pric
     from,
     compare1: v.compare_price_1 ?? null,
     compare2: v.compare_price_2 ?? null,
+    volume: volumeOf(v.label) || volumeOf(product.name),
   });
   if (variant) return ofVariant(variant, false);
   const variants = availableVariants(product);
@@ -45,5 +54,6 @@ export function priceInfo(product: Product, variant: ProductVariant | null, pric
     from: false,
     compare1: product.compare_price_1 ?? null,
     compare2: product.compare_price_2 ?? null,
+    volume: volumeOf(product.name),
   };
 }

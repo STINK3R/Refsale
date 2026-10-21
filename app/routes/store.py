@@ -24,6 +24,7 @@ from flask import Blueprint, request, jsonify
 from ..db import get_db, _row_to_dict, _rows_to_list
 from ..utils import rate_limited, rate_limited_auth, sanitize_string, hash_password, sanitize_image_urls
 from ..auth import create_user_token, require_auth
+from ..notify import notify_user, snippet
 
 bp = Blueprint('store', __name__)
 
@@ -75,6 +76,46 @@ def load_promo(cur, code: str):
     return row, None
 
 
+def _scope_ids(promo) -> set:
+    try:
+        raw = promo.get("scope_product_ids") or "[]"
+        return {int(x) for x in (json.loads(raw) if isinstance(raw, str) else raw)}
+    except Exception:
+        return set()
+
+
+def promo_covers(promo, product_id, category_id) -> bool:
+    """Whether this code makes this product cheaper: everything, its category,
+    or a chosen product."""
+    if not promo:
+        return False
+    scope = promo.get("scope") or "all"
+    if scope == "category":
+        return category_id is not None and promo.get("scope_category_id") == category_id
+    if scope == "products":
+        return int(product_id) in _scope_ids(promo)
+    return True
+
+
+def promo_scope_text(cur, promo) -> str:
+    """'на весь каталог', 'на категорию «Еда»', 'на 3 товара' — for the buyer."""
+    scope = promo.get("scope") or "all"
+    if scope == "category" and promo.get("scope_category_id"):
+        cur.execute("SELECT name FROM coop_categories WHERE id = %s", (promo["scope_category_id"],))
+        row = cur.fetchone()
+        return f"на категорию «{row['name']}»" if row else "на одну категорию"
+    if scope == "products":
+        ids = _scope_ids(promo)
+        if len(ids) == 1:
+            cur.execute("SELECT name FROM coop_products WHERE id = %s", (next(iter(ids)),))
+            row = cur.fetchone()
+            return f"на «{row['name']}»" if row else "на один товар"
+        n = len(ids)
+        word = "товар" if n % 10 == 1 and n % 100 != 11 else "товара" if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14 else "товаров"
+        return f"на {n} {word}"
+    return "на весь каталог"
+
+
 def _effective_price(product: dict, promo_active: bool):
     """(unit price, base price) — the promo price only counts when it is lower."""
     base = float(product.get("price") or 0)
@@ -114,6 +155,19 @@ def _post_system_message(cur, order_id: int, text: str):
     )
 
 
+def log_order_status(cur, order_id: int, status: str):
+    cur.execute("INSERT INTO ref_order_status_log (order_id, status) VALUES (%s, %s)", (order_id, status))
+
+
+def order_status_history(cur, order_id: int) -> dict:
+    """{status: ISO time it was last entered}, for the dates under the track."""
+    cur.execute(
+        "SELECT status, MAX(changed_at) AS at FROM ref_order_status_log WHERE order_id = %s GROUP BY status",
+        (order_id,),
+    )
+    return {r["status"]: r["at"].isoformat() for r in cur.fetchall() if r.get("at")}
+
+
 def apply_order_status(cur, order_id: int, new_status: str, by: str = "admin"):
     """Move an order to `new_status`, post a chat note and email the buyer.
 
@@ -137,6 +191,7 @@ def apply_order_status(cur, order_id: int, new_status: str, by: str = "admin"):
         (new_status, order_id)
     )
     updated = _row_to_dict(cur.fetchone())
+    log_order_status(cur, order_id, new_status)
 
     if confirming and new_status == 'accepted':
         note = ("✅ Подтверждено: оплата получена, заказ принят в работу. "
@@ -158,6 +213,13 @@ def apply_order_status(cur, order_id: int, new_status: str, by: str = "admin"):
                 )
             except Exception as e:
                 print(f"[store] status email failed for order {order_id}: {e}")
+    # The buyer hears about every change except the cancellation they made themselves
+    if updated.get("user_id") and not by.startswith("buyer"):
+        notify_user(
+            updated.get("user_id"), key=f"status:{order_id}",
+            title=f"Заказ №{order_id}: {STATUS_LABELS[new_status].lower()}",
+            body=note, url=f"/orders?order={order_id}", email=False,
+        )
     print(f"[store] order #{order_id}: {old_status} → {new_status} by {by}")
     return updated, None
 
@@ -236,18 +298,25 @@ def store_validate_promo():
             promo, err = load_promo(cur, code)
             if err:
                 return jsonify({"error": err}), 404
-            cur.execute("SELECT id, price, promo_price FROM coop_products WHERE promo_price IS NOT NULL")
+            cur.execute("SELECT id, category_id, price, promo_price FROM coop_products WHERE promo_price IS NOT NULL")
             prices = {}
             for row in cur.fetchall():
+                if not promo_covers(promo, row["id"], row.get("category_id")):
+                    continue
                 unit, base = _effective_price(row, True)
                 if unit < base:
                     prices[str(row["id"])] = unit
             # Variants share the map under "v<id>" so product and variant ids never clash.
-            cur.execute("SELECT id, price, promo_price FROM ref_product_variants WHERE promo_price IS NOT NULL")
+            cur.execute("""SELECT v.id, v.product_id, p.category_id, v.price, v.promo_price
+                           FROM ref_product_variants v JOIN coop_products p ON p.id = v.product_id
+                           WHERE v.promo_price IS NOT NULL""")
             for row in cur.fetchall():
+                if not promo_covers(promo, row["product_id"], row.get("category_id")):
+                    continue
                 unit, base = _effective_price(row, True)
                 if unit < base:
                     prices[f"v{row['id']}"] = unit
+            scope_text = promo_scope_text(cur, promo)
         expires = promo.get("expires_at")
         return jsonify({
             "valid": True,
@@ -256,6 +325,8 @@ def store_validate_promo():
             "leader_name": _first_name(promo.get("leader_name") or ""),
             "expires_at": expires.isoformat() if expires else None,
             "prices": prices,
+            "scope": promo.get("scope") or "all",
+            "scope_text": scope_text,
         })
     except Exception as e:
         print(f"[/api/store/promo/validate] {e}")
@@ -324,10 +395,9 @@ def store_create_order():
     contact_method = (d.get("contact_method") or "phone").strip()
     if contact_method not in CONTACT_METHODS:
         contact_method = "phone"
-    if not full_name or not phone:
-        return jsonify({"error": "Укажите имя и телефон"}), 400
-    if not address:
-        return jsonify({"error": "Укажите город и адрес доставки"}), 400
+    # Only the cart is required: the buyer is signed in, so the name comes from
+    # the account, and the manager asks for the address in the order chat.
+    # Fewer fields between "Оформить" and a placed order.
 
     raw_items = d.get("items") or []
     if not isinstance(raw_items, list) or not raw_items:
@@ -364,9 +434,13 @@ def store_create_order():
                 if perr:
                     return jsonify({"error": f"{perr}. Уберите промокод или введите другой.", "promo_invalid": True}), 400
 
+            if not full_name:
+                cur.execute("SELECT full_name FROM coop_users WHERE id = %s", (uid,))
+                full_name = ((cur.fetchone() or {}).get("full_name") or "").strip() or "Покупатель"
+
             pids = list({pid for pid, _ in wanted})
             cur.execute(
-                "SELECT id, name, price, promo_price, is_available, image_url FROM coop_products WHERE id = ANY(%s)",
+                "SELECT id, name, category_id, price, promo_price, is_available, image_url FROM coop_products WHERE id = ANY(%s)",
                 (pids,)
             )
             products = {row["id"]: row for row in cur.fetchall()}
@@ -392,7 +466,7 @@ def store_create_order():
                     if v.get("is_available") is False:
                         return jsonify({"error": f"«{p['name']} — {v['label']}» сейчас нет в наличии"}), 409
                     name, priced = f"{p['name']} — {v['label']}", v
-                unit, base = _effective_price(priced, promo is not None)
+                unit, base = _effective_price(priced, promo_covers(promo, pid, p.get("category_id")))
                 line = {"id": pid, "name": name, "qty": qty, "price": unit,
                         "base_price": base, "image_url": p.get("image_url")}
                 if vid is not None:
@@ -419,22 +493,25 @@ def store_create_order():
                  contact_method)
             )
             order = _row_to_dict(cur.fetchone())
+            log_order_status(cur, order["id"], "new")
             if promo:
                 cur.execute("UPDATE ref_promos SET current_uses = current_uses + 1 WHERE id = %s", (promo["id"],))
+            ask = "" if address else " и уточнит адрес доставки"
             _post_system_message(
                 cur, order["id"],
-                f"Здравствуйте! Заказ #{order['id']} получен. Менеджер ответит здесь: "
-                "подтвердит наличие, сроки доставки и пришлёт реквизиты для предоплаты. "
+                f"Здравствуйте! Заказ №{order['id']} получен. Менеджер ответит здесь: "
+                f"подтвердит наличие и сроки{ask}, затем пришлёт реквизиты для предоплаты. "
                 "После оплаты заказ будет подтверждён и вы увидите его статусы."
             )
             # Remember the phone on the account only if no other account has it:
             # phones are unique, and a clash must not fail the whole order.
-            cur.execute(
-                """UPDATE coop_users SET phone = %s
-                   WHERE id = %s AND (phone IS NULL OR phone = '')
-                     AND NOT EXISTS (SELECT 1 FROM coop_users WHERE phone = %s AND id <> %s)""",
-                (phone, uid, phone, uid)
-            )
+            if phone:
+                cur.execute(
+                    """UPDATE coop_users SET phone = %s
+                       WHERE id = %s AND (phone IS NULL OR phone = '')
+                         AND NOT EXISTS (SELECT 1 FROM coop_users WHERE phone = %s AND id <> %s)""",
+                    (phone, uid, phone, uid)
+                )
             cur.execute("SELECT email, full_name FROM coop_users WHERE id = %s", (uid,))
             buyer = cur.fetchone() or {}
 
@@ -444,7 +521,7 @@ def store_create_order():
                 email_store_order_received(buyer.get("full_name") or full_name, buyer["email"],
                                            order["id"], float(order["total"]), order["items"])
             who = f"{full_name}" + (f" (промокод {order['promo_code']})" if order.get("promo_code") else "")
-            email_admin_new_order(order["id"], who, phone, float(order["total"]), order["items"])
+            email_admin_new_order(order["id"], who, phone or "—", float(order["total"]), order["items"])
         except Exception as e:
             print(f"[/api/store/orders] email failed: {e}")
         return jsonify(order)
@@ -585,7 +662,8 @@ def leader_order_messages(oid):
                 return jsonify({"error": "Заказ не найден"}), 404
             cur.execute("SELECT * FROM coop_order_messages WHERE order_id = %s ORDER BY created_at ASC", (oid,))
             msgs = _mask_buyers(_rows_to_list(cur.fetchall()))
-        return jsonify({"messages": msgs, "status": order["status"],
+            history = order_status_history(cur, oid)
+        return jsonify({"messages": msgs, "status": order["status"], "history": history,
                         "can_write": bool(leader.get("leader_can_write"))})
     except Exception as e:
         print(f"[/api/leader/orders/{oid}/messages] {e}")
@@ -618,7 +696,15 @@ def leader_post_order_message(oid):
                 "VALUES (%s, 'leader', %s, %s, %s) RETURNING *",
                 (oid, leader["full_name"], text, images)
             )
-            return jsonify(_row_to_dict(cur.fetchone())), 201
+            msg = _row_to_dict(cur.fetchone())
+            cur.execute("SELECT user_id FROM coop_orders WHERE id = %s", (oid,))
+            buyer = (cur.fetchone() or {}).get("user_id")
+        notify_user(
+            buyer, key=f"order:{oid}",
+            title=f"Новое сообщение по заказу №{oid}", body=snippet(text, images),
+            url=f"/orders?order={oid}", email_subject=f"Новое сообщение по заказу №{oid}",
+        )
+        return jsonify(msg), 201
     except Exception as e:
         print(f"[/api/leader/orders/{oid}/messages POST] {e}")
         return jsonify({"error": "Ошибка отправки"}), 500
@@ -696,8 +782,10 @@ def leader_post_ticket_message(tid):
         return err
     if not leader.get("leader_can_write"):
         return jsonify({"error": "Режим только просмотра — писать в чаты пока нельзя"}), 403
-    text = sanitize_string((request.json or {}).get("text") or "", 5000)
-    if not text.strip():
+    d = request.json or {}
+    text = sanitize_string(d.get("text") or "", 5000)
+    images = sanitize_image_urls(d.get("images"))
+    if not text.strip() and images == "[]":
         return jsonify({"error": "Напишите сообщение"}), 400
     try:
         with get_db() as cur:
@@ -705,12 +793,18 @@ def leader_post_ticket_message(tid):
             if not cur.fetchone():
                 return jsonify({"error": "Обращение не найдено"}), 404
             cur.execute(
-                "INSERT INTO coop_support_messages (ticket_id, sender_type, sender_name, text) "
-                "VALUES (%s, 'leader', %s, %s) RETURNING *",
-                (tid, leader["full_name"], text)
+                "INSERT INTO coop_support_messages (ticket_id, sender_type, sender_name, text, images) "
+                "VALUES (%s, 'leader', %s, %s, %s) RETURNING *",
+                (tid, leader["full_name"], text, images)
             )
             msg = _row_to_dict(cur.fetchone())
-            cur.execute("UPDATE coop_support_tickets SET updated_at = NOW() WHERE id = %s", (tid,))
+            cur.execute("UPDATE coop_support_tickets SET updated_at = NOW() WHERE id = %s RETURNING user_id, subject", (tid,))
+            t = cur.fetchone() or {}
+        notify_user(
+            t.get("user_id"), key=f"ticket:{tid}",
+            title="Ответ на ваш вопрос", body=snippet(text, images),
+            url=f"/?support={tid}", email_subject=f"Ответ: {t.get('subject') or 'вопрос продавцу'}",
+        )
         return jsonify(msg), 201
     except Exception as e:
         print(f"[/api/leader/tickets/{tid}/messages POST] {e}")
@@ -930,7 +1024,8 @@ def admin_save_product_variants(pid):
 
 
 # ── Referral promo codes ──────────────────────────
-_PROMO_COLS = ("code", "label", "leader_id", "reward_amount", "is_active", "max_uses", "expires_at")
+_PROMO_COLS = ("code", "label", "leader_id", "reward_amount", "is_active", "max_uses", "expires_at",
+               "scope", "scope_category_id", "scope_product_ids")
 
 
 def _clean_promo_payload(d: dict) -> tuple[dict, str | None]:
@@ -961,6 +1056,26 @@ def _clean_promo_payload(d: dict) -> tuple[dict, str | None]:
             return {}, "Некорректный лимит"
     if "expires_at" in d:
         out["expires_at"] = d["expires_at"] or None
+    if "scope" in d:
+        scope = d.get("scope") or "all"
+        if scope not in ("all", "category", "products"):
+            return {}, "Неизвестная область действия"
+        out["scope"] = scope
+        out["scope_category_id"] = None
+        out["scope_product_ids"] = "[]"
+        if scope == "category":
+            try:
+                out["scope_category_id"] = int(d.get("scope_category_id"))
+            except (TypeError, ValueError):
+                return {}, "Выберите категорию для промокода"
+        if scope == "products":
+            try:
+                ids = sorted({int(x) for x in (d.get("scope_product_ids") or [])})
+            except (TypeError, ValueError):
+                return {}, "Некорректный список товаров"
+            if not ids:
+                return {}, "Выберите хотя бы один товар для промокода"
+            out["scope_product_ids"] = json.dumps(ids)
     return out, None
 
 

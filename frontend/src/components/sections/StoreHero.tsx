@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ArrowDown } from 'lucide-react';
 import PromoForm from '../promo/PromoForm';
 import { useActiveCategory, useAppStore } from '../../store';
@@ -84,14 +84,14 @@ function Slogan({ children }: { children: ReactNode }) {
     };
   }, []);
   return (
-    <motion.h1
+    <m.h1
       ref={ref}
       initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.5, ease: EASE }}
       className="w-full text-center lg:text-left font-display leading-[1.02] text-ink"
     >
       {children}
-    </motion.h1>
+    </m.h1>
   );
 }
 
@@ -148,26 +148,26 @@ export default function StoreHero() {
               is the page's largest paint, and an opacity animation would hold it
               back on slow phones. Its colour glides between categories (@property
               in index.css). */}
-          <motion.div
+          <m.div
             initial={{ y: 18, scale: 0.985 }} animate={{ y: 0, scale: 1 }} transition={{ duration: 0.8, ease: EASE }}
             className="relative overflow-hidden rounded-[36px] max-sm:rounded-[26px] border-2 border-ink accent-card aspect-[4/3] md:aspect-[21/9] lg:aspect-auto lg:col-span-2 lg:col-start-1 lg:row-start-1 lg:min-h-[clamp(440px,calc(100svh-var(--header-h,140px)-64px),540px)]"
           >
             <AnimatePresence mode="wait" initial={false}>
               {label && (
-                <motion.span
+                <m.span
                   key={label}
                   initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -6 }}
                   transition={{ duration: 0.3, ease: EASE }}
                   className="absolute top-5 left-5 max-sm:top-3.5 max-sm:left-3.5 lg:top-8 lg:left-12 z-[3] px-4 py-2 rounded-full bg-card border-2 border-ink text-[11px] font-bold uppercase tracking-[0.12em] text-ink"
                 >
                   {label}
-                </motion.span>
+                </m.span>
               )}
             </AnimatePresence>
 
             <AnimatePresence>
               {pictureKey && (
-                <motion.div
+                <m.div
                   key={pictureKey}
                   initial={switched ? { opacity: 0, scale: 1.05, y: 14 } : { scale: 1.06, y: 22 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -208,22 +208,22 @@ export default function StoreHero() {
                       />
                     </picture>
                   )}
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
-          </motion.div>
+          </m.div>
 
           <div className="relative z-[2] flex flex-col lg:col-start-1 lg:row-start-1 lg:self-center lg:items-start lg:pl-12 lg:pr-6 lg:pt-24 lg:pb-12">
             {/* 2. Promo plate: half over the photo's edge on phones, under the
                 buttons on wide screens */}
-            <motion.div
+            <m.div
               ref={promoRef}
               id="hero-promo"
               initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.25, ease: EASE }}
               className="order-1 lg:order-3 -mt-7 max-sm:-mt-6 lg:mt-8 w-full max-w-[640px] lg:max-w-[460px] mx-auto lg:mx-0 px-2 lg:px-0"
             >
               <PromoForm variant="pill" floatingError />
-            </motion.div>
+            </m.div>
 
             {/* 3. Slogan: the old one lifts away, the new one rises in. The box
                 keeps the same lines for every category (four on phones, three
@@ -240,7 +240,7 @@ export default function StoreHero() {
             </div>
 
             {/* 4. How it works (folded away below) and the way to the products */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.4, ease: EASE }}
               className="order-3 lg:order-2 mt-9 max-sm:mt-7 lg:mt-7 flex items-center gap-3 flex-wrap lg:flex-nowrap justify-center lg:justify-start"
             >
@@ -249,14 +249,14 @@ export default function StoreHero() {
                 <ChevronDown size={16} strokeWidth={2.2} className={`transition-transform duration-300 ${howOpen ? 'rotate-180' : ''}`} />
               </button>
               <a href="#catalog" className="btn-primary">Смотреть товары <ArrowDown size={16} strokeWidth={2.2} /></a>
-            </motion.div>
+            </m.div>
           </div>
         </div>
 
         <div className="flex flex-col items-center">
           <AnimatePresence initial={false}>
             {howOpen && (
-              <motion.div
+              <m.div
                 initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.45, ease: EASE }}
                 className="overflow-hidden w-full"
@@ -271,7 +271,7 @@ export default function StoreHero() {
                     </div>
                   ))}
                 </div>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
         </div>

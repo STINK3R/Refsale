@@ -47,6 +47,29 @@ _TABLES = [
         is_available BOOLEAN DEFAULT TRUE,
         sort_order INTEGER DEFAULT 0
     )""",
+    # Devices a buyer turned notifications on for (one row per browser)
+    """CREATE TABLE IF NOT EXISTS ref_push_subscriptions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES coop_users(id) ON DELETE CASCADE,
+        endpoint TEXT NOT NULL UNIQUE,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL,
+        user_agent TEXT DEFAULT '',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+    )""",
+    # When each chat last sent its "you have a reply" email (throttling)
+    """CREATE TABLE IF NOT EXISTS ref_notify_email_log (
+        key VARCHAR(100) PRIMARY KEY,
+        sent_at TIMESTAMPTZ DEFAULT NOW()
+    )""",
+    # When an order reached each status: the buyer sees the date and time
+    # under every step of the track ("принят 16.10 15:14").
+    """CREATE TABLE IF NOT EXISTS ref_order_status_log (
+        id SERIAL PRIMARY KEY,
+        order_id INTEGER NOT NULL REFERENCES coop_orders(id) ON DELETE CASCADE,
+        status VARCHAR(20) NOT NULL,
+        changed_at TIMESTAMPTZ DEFAULT NOW()
+    )""",
 ]
 
 # (table, column, definition) — added after the tables above exist.
@@ -80,6 +103,8 @@ _COLUMNS = [
     ("coop_users", "email_verified", "BOOLEAN DEFAULT FALSE"),
     ("coop_users", "is_leader", "BOOLEAN DEFAULT FALSE"),
     ("coop_users", "leader_can_write", "BOOLEAN DEFAULT FALSE"),
+    # Emails about replies in chats; push is per device (ref_push_subscriptions)
+    ("coop_users", "notify_email", "BOOLEAN DEFAULT TRUE"),
     # Orders
     ("coop_orders", "promo_code", "VARCHAR(50) DEFAULT NULL"),
     ("coop_orders", "discount_amount", "NUMERIC(12,2) DEFAULT 0"),
@@ -89,6 +114,11 @@ _COLUMNS = [
     ("coop_orders", "contact_method", "VARCHAR(30) DEFAULT ''"),
     ("coop_orders", "confirmed_at", "TIMESTAMPTZ DEFAULT NULL"),
     ("coop_orders", "status_changed_at", "TIMESTAMPTZ DEFAULT NULL"),
+    # What a promo code makes cheaper: everything, one category, or chosen
+    # products (a JSON list of ids)
+    ("ref_promos", "scope", "VARCHAR(20) DEFAULT 'all'"),
+    ("ref_promos", "scope_category_id", "INTEGER DEFAULT NULL"),
+    ("ref_promos", "scope_product_ids", "TEXT DEFAULT '[]'"),
     # Pre-order questions ("Связь с продавцом") attributed to a leader
     ("coop_support_tickets", "promo_code", "VARCHAR(50) DEFAULT NULL"),
     ("coop_support_tickets", "leader_id", "INTEGER DEFAULT NULL"),
@@ -101,6 +131,8 @@ _INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_orders_leader ON coop_orders(leader_id)",
     "CREATE INDEX IF NOT EXISTS idx_orders_user ON coop_orders(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_tickets_leader ON coop_support_tickets(leader_id)",
+    "CREATE INDEX IF NOT EXISTS idx_status_log_order ON ref_order_status_log(order_id)",
+    "CREATE INDEX IF NOT EXISTS idx_push_user ON ref_push_subscriptions(user_id)",
 ]
 
 # Data fixes, idempotent. Photos added to a product's gallery used to arrive
@@ -117,6 +149,31 @@ _REPAIRS = [
     """UPDATE coop_products p SET image_url = i.url
        FROM coop_product_images i
        WHERE i.product_id = p.id AND i.is_main AND COALESCE(p.image_url, '') = ''""",
+    # Orders placed before the status log: their start, their confirmation and
+    # the status they are in now, from the dates the order row kept.
+    """INSERT INTO ref_order_status_log (order_id, status, changed_at)
+       SELECT o.id, 'new', o.created_at FROM coop_orders o
+       WHERE NOT EXISTS (SELECT 1 FROM ref_order_status_log l WHERE l.order_id = o.id)""",
+    """INSERT INTO ref_order_status_log (order_id, status, changed_at)
+       SELECT o.id, 'accepted', o.confirmed_at FROM coop_orders o
+       WHERE o.confirmed_at IS NOT NULL AND o.status IN ('processing', 'shipping', 'done')
+         AND NOT EXISTS (SELECT 1 FROM ref_order_status_log l WHERE l.order_id = o.id AND l.status = 'accepted')""",
+    """INSERT INTO ref_order_status_log (order_id, status, changed_at)
+       SELECT o.id, o.status, COALESCE(o.status_changed_at, o.created_at) FROM coop_orders o
+       WHERE o.status <> 'new'
+         AND NOT EXISTS (SELECT 1 FROM ref_order_status_log l WHERE l.order_id = o.id AND l.status = o.status)""",
+    # Order numbers start at 101: "заказ №2" reads like a shop nobody uses.
+    # Orders already placed keep their numbers.
+    """DO $$
+    DECLARE seq text := pg_get_serial_sequence('coop_orders', 'id'); last bigint;
+    BEGIN
+      IF seq IS NOT NULL THEN
+        EXECUTE format('SELECT last_value FROM %s', seq) INTO last;
+        IF last < 100 THEN
+          PERFORM setval(seq, GREATEST(100, (SELECT COALESCE(MAX(id), 0) FROM coop_orders)), true);
+        END IF;
+      END IF;
+    END $$""",
 ]
 
 # The storefront has one forum: /forums opens the one with this key.

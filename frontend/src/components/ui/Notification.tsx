@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNotificationStore } from '../../store';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { OVERLAY_OPEN_EVENT } from '../../hooks/useScrollLock';
 
 /**
@@ -24,7 +24,7 @@ export default function Notification() {
       <div className="relative w-full max-w-[420px] h-12">
         <AnimatePresence initial={false}>
           {notifications.map((n) => (
-            <motion.div
+            <m.div
               key={n.id}
               initial={{ opacity: 0, y: -10, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -35,16 +35,16 @@ export default function Notification() {
               <div className={`inline-flex items-center gap-2 px-5 py-3 rounded-full border-2 border-ink text-[13px] font-semibold text-center shadow-[0_6px_0_#111] ${n.type === 'error' ? 'bg-danger text-white' : 'bg-ivory text-ink'}`}>
                 <span>{n.text}</span>
                 {n.count > 1 && (
-                  <motion.span
+                  <m.span
                     key={n.count}
                     initial={{ scale: 1.5 }} animate={{ scale: 1 }} transition={{ duration: 0.2 }}
                     className={`px-2 py-0.5 rounded-full text-[11px] font-extrabold tabular-nums ${n.type === 'error' ? 'bg-white text-danger' : 'bg-ink text-sun'}`}
                   >
                     ×{n.count}
-                  </motion.span>
+                  </m.span>
                 )}
               </div>
-            </motion.div>
+            </m.div>
           ))}
         </AnimatePresence>
       </div>

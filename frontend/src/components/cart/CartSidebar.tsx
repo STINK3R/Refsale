@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { X, Minus, Plus } from 'lucide-react';
 import { useCartStore, useAuthStore, usePromoStore, priceFor, promoKey, cartKey, runAfterAuth } from '../../store';
 import { formatPrice } from '../../utils/format';
@@ -35,8 +35,8 @@ export default function CartSidebar() {
     <AnimatePresence>
       {sidebarOpen && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} className="fixed inset-0 z-[2000] bg-ink/45" onClick={closeSidebar} />
-          <motion.aside
+          <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} className="fixed inset-0 z-[2000] bg-ink/45" onClick={closeSidebar} />
+          <m.aside
             initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
             transition={{ duration: 0.55, ease: EASE }}
             className="fixed top-0 right-0 bottom-0 z-[2100] w-[460px] max-w-full bg-bg border-l-2 border-ink sm:rounded-l-[28px] overflow-hidden flex flex-col"
@@ -112,7 +112,7 @@ export default function CartSidebar() {
                 <p className="text-[12px] text-light text-center">Оплата после подтверждения менеджером в чате заказа</p>
               </div>
             )}
-          </motion.aside>
+          </m.aside>
         </>
       )}
     </AnimatePresence>
