@@ -36,35 +36,25 @@ export default function StoreCatalog() {
   const [variantFor, setVariantFor] = useState<Product | null>(null);
   const categoryId = category?.id ?? null;
 
-  // From the main page: ?product=12 opens that product, ?q=dior searches —
-  // in the category where the product or the first match lives. The window
-  // and the search box are set as the page renders; the effect then switches
-  // the category and clears the address.
+  // From the main page: ?product=12 opens that product in its category. The
+  // window opens as the page renders; the effect then switches the category
+  // and clears the address.
   const [params, setParams] = useSearchParams();
   const setActiveCategory = useAppStore((s) => s.setActiveCategory);
   const handoffProduct = Number(params.get('product')) || 0;
-  const handoffQuery = (params.get('q') || '').trim();
-  const handoffKey = handoffProduct || handoffQuery ? `${handoffProduct}|${handoffQuery}` : '';
   const ready = !loading && products.length > 0;
-  const [handled, setHandled] = useState('');
-  if (ready && handoffKey && handoffKey !== handled) {
-    setHandled(handoffKey);
-    const p = handoffProduct ? products.find((x) => x.id === handoffProduct) : null;
+  const [handled, setHandled] = useState(0);
+  if (ready && handoffProduct && handoffProduct !== handled) {
+    setHandled(handoffProduct);
+    const p = products.find((x) => x.id === handoffProduct);
     if (p) setSelected(p);
-    else if (handoffQuery) { setQuery(handoffQuery); setDebounced(handoffQuery.toLowerCase()); }
   }
   useEffect(() => {
-    if (!ready || !handoffKey) return;
-    const ql = handoffQuery.toLowerCase();
-    const target = handoffProduct
-      ? products.find((x) => x.id === handoffProduct)
-      : products.find((x) => x.name.toLowerCase().includes(ql) || (x.description || '').toLowerCase().includes(ql));
+    if (!ready || !handoffProduct) return;
+    const target = products.find((x) => x.id === handoffProduct);
     if (target?.category_id) setActiveCategory(target.category_id);
-    if (!handoffProduct && handoffQuery) {
-      setTimeout(() => document.getElementById('catalog')?.scrollIntoView({ block: 'start' }), 350);
-    }
     setParams({}, { replace: true });
-  }, [ready, handoffKey, handoffProduct, handoffQuery, products, setParams, setActiveCategory]);
+  }, [ready, handoffProduct, products, setParams, setActiveCategory]);
 
   // A new category page starts from the top of its list.
   const [seenCategory, setSeenCategory] = useState(categoryId);

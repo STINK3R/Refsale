@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { m } from 'framer-motion';
-import { ArrowRight, BadgeCheck, ChevronDown, MessageCircle, Percent, Search, Wallet } from 'lucide-react';
+import { ArrowRight, BadgeCheck, ChevronDown, MessageCircle, Percent, Wallet } from 'lucide-react';
 import { useAppStore, usePromoStore } from '../../store';
 import { formatPrice } from '../../utils/format';
 import { priceInfo } from '../../utils/prices';
@@ -63,7 +63,6 @@ export default function HomePage() {
   const prices = usePromoStore((s) => s.prices);
   const navigate = useNavigate();
   const stats = useCategoryStats(categories, products);
-  const [query, setQuery] = useState('');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   // Most visits go on to the shop: fetch its code while the visitor reads,
@@ -77,11 +76,6 @@ export default function HomePage() {
 
   const openCategory = (id: number) => { setActiveCategory(id); navigate('/catalog'); };
   const openProduct = (p: Product) => navigate(`/catalog?product=${p.id}`);
-  const search = (e: FormEvent) => {
-    e.preventDefault();
-    const q = query.trim();
-    navigate(q ? `/catalog?q=${encodeURIComponent(q)}` : '/catalog');
-  };
 
   // Products with a known saving against the first shop, biggest first
   const savings = useMemo(() => products
@@ -104,12 +98,15 @@ export default function HomePage() {
 
   return (
     <main className="relative">
-      {/* 1. What it is, a search, the way in */}
+      {/* 1. What it is and the way in */}
       <section className="pt-[calc(var(--header-h,140px)+28px)] pb-16 max-md:pb-10">
-        <div className="max-w-[1440px] mx-auto px-8 max-sm:px-4 grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-10 items-center">
+        {/* Phones: heading and text, the picture, then the buttons under it.
+            Wide screens: text with the buttons below it on the left, the
+            picture across both rows on the right. */}
+        <div className="max-w-[1440px] mx-auto px-8 max-sm:px-4 grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-x-10 gap-y-8 max-lg:gap-y-6">
           {/* No fade on the first screen's text: it is the largest thing painted,
               and a fade would hold it back on slow phones. It only slides. */}
-          <m.div initial={{ y: 14 }} animate={{ y: 0 }} transition={{ duration: 0.7, ease: EASE }}>
+          <m.div initial={{ y: 14 }} animate={{ y: 0 }} transition={{ duration: 0.7, ease: EASE }} className="lg:col-start-1 lg:row-start-1 lg:self-end">
             <h1 className="font-display text-[clamp(34px,5vw,68px)] leading-[1.02] text-ink">
               Оригинал дешевле, чем в&nbsp;магазинах
             </h1>
@@ -117,28 +114,11 @@ export default function HomePage() {
               Парфюмерия, уходовая косметика, продукты и товары из Китая.{' '}
               <b className="text-ink">С промокодом вашего блогера цена ещё ниже</b>, а платить нужно только после того, как менеджер подтвердит наличие.
             </p>
-            <form onSubmit={search} className="mt-8 flex gap-2 max-w-[620px]" role="search">
-              <label className="relative flex-1 min-w-0">
-                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Dior, крем, наушники…"
-                  aria-label="Найти товар"
-                  className="field !h-14 !pl-11 !border-2 !border-ink !rounded-ctl-md !text-[16px]"
-                />
-              </label>
-              <button type="submit" className="btn-primary !h-14 shrink-0">Найти</button>
-            </form>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button onClick={() => navigate('/catalog')} className="btn-outline">Весь каталог <ArrowRight size={16} strokeWidth={2.2} /></button>
-              <button onClick={() => glideToElement('#how')} className="btn-outline">Как это работает <ChevronDown size={16} strokeWidth={2.2} /></button>
-            </div>
           </m.div>
 
           <m.div
             initial={{ y: 20, scale: 0.98 }} animate={{ y: 0, scale: 1 }} transition={{ duration: 0.8, delay: 0.1, ease: EASE }}
-            className="relative rounded-[36px] max-sm:rounded-[26px] border-2 border-ink accent-card overflow-hidden aspect-[4/3] max-lg:aspect-[16/11]"
+            className="relative lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-center rounded-[36px] max-sm:rounded-[26px] border-2 border-ink accent-card overflow-hidden aspect-[4/3] max-lg:aspect-[16/11]"
           >
             <img
               src="/img/hero-home-1000.webp"
@@ -156,6 +136,11 @@ export default function HomePage() {
               <Chip>Только оригинал</Chip>
             </div>
           </m.div>
+
+          <div className="lg:col-start-1 lg:row-start-2 lg:self-start flex flex-wrap gap-3 max-sm:flex-col">
+            <button onClick={() => navigate('/catalog')} className="btn-primary max-sm:w-full">Перейти в каталог <ArrowRight size={16} strokeWidth={2.2} /></button>
+            <button onClick={() => glideToElement('#how')} className="btn-outline max-sm:w-full">Как это работает <ChevronDown size={16} strokeWidth={2.2} /></button>
+          </div>
         </div>
       </section>
 

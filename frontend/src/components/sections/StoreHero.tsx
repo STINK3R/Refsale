@@ -229,7 +229,7 @@ export default function StoreHero() {
                 keeps the same lines for every category (four on phones, three
                 wider) and the slogan is sized to fit them, so neither a switch
                 nor the catalog loading moves anything below. */}
-            <div className="order-2 lg:order-1 mt-12 max-sm:mt-9 lg:mt-0 w-full flex items-center [--lines:4] sm:[--lines:3] min-h-[calc(var(--lines)*1.02em)] text-[clamp(34px,6vw,84px)] lg:text-[clamp(36px,3.7vw,58px)] max-w-[1000px] mx-auto lg:mx-0">
+            <div className="order-2 lg:order-1 mt-12 max-sm:mt-5 lg:mt-0 w-full flex items-center [--lines:4] sm:[--lines:3] min-h-[calc(var(--lines)*1.02em)] text-[clamp(34px,6vw,84px)] lg:text-[clamp(36px,3.7vw,58px)] max-w-[1000px] mx-auto lg:mx-0">
               <AnimatePresence mode="wait" initial={true}>
                 {!loading && (
                   <Slogan key={`slogan-${category?.id ?? 'default'}`}>
