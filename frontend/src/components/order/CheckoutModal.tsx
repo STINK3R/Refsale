@@ -30,7 +30,7 @@ const NEXT_STEPS = [
 export default function CheckoutModal() {
   const { checkoutOpen, closeCheckout, items, clearCart } = useCartStore();
   const user = useAuthStore((s) => s.user);
-  const { code, prices, clear: clearPromo } = usePromoStore();
+  const { codes, prices, remove: removePromo } = usePromoStore();
   const show = useNotificationStore((s) => s.show);
   const showMascot = useUiStore((s) => s.showMascot);
   const navigate = useNavigate();
@@ -60,11 +60,11 @@ export default function CheckoutModal() {
       address: address.trim(),
       comment: comment.trim(),
       contact_method: method,
-      promo_code: code,
+      promo_codes: codes.map((c) => c.code),
       items: items.map((i) => ({ id: i.id, qty: i.qty, variant_id: i.variant_id ?? null, variant_comment: i.variant_comment })),
     });
     setSending(false);
-    if (res.promo_invalid) clearPromo();
+    if (res.promo_invalid && res.promo_code) removePromo(res.promo_code);
     if (!res.order) { setError(res.error || 'Не удалось оформить заказ'); return; }
     clearCart();
     closeCheckout();
@@ -92,7 +92,7 @@ export default function CheckoutModal() {
       <div className="hairline my-5" />
       {baseTotal > total && (
         <div className="flex justify-between text-[13px] font-semibold text-primary-dark mb-2">
-          <span>Промокод {code}</span><span className="tabular-nums">−{formatPrice(baseTotal - total)}</span>
+          <span>{codes.length > 1 ? 'Промокоды' : 'Промокод'} {codes.map((c) => c.code).join(', ')}</span><span className="tabular-nums">−{formatPrice(baseTotal - total)}</span>
         </div>
       )}
       <div className="flex items-baseline justify-between">

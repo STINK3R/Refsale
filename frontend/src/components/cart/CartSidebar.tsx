@@ -108,8 +108,14 @@ export default function CartSidebar() {
                     <span className="font-display text-[30px] leading-none text-text tabular-nums">{formatPrice(total)}</span>
                   </div>
                 </div>
+                {/* Said before the button: "Оформить" usually means "pay now" */}
+                <div className="rounded-[16px] border-2 border-ink bg-accent-strong px-4 py-3">
+                  <div className="text-[14px] font-extrabold text-ink">Сейчас платить не нужно</div>
+                  <p className="mt-1 text-[12.5px] font-semibold text-ink/80 leading-snug">
+                    После оформления откроется чат с менеджером: он подтвердит наличие и сроки, там же можно задать любые вопросы. Оплата — только после подтверждения.
+                  </p>
+                </div>
                 <button onClick={checkout} className="btn-primary w-full">Оформить заказ</button>
-                <p className="text-[12px] text-light text-center">Оплата после подтверждения менеджером в чате заказа</p>
               </div>
             )}
           </m.aside>

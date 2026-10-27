@@ -302,6 +302,8 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
   .loader-pulse, .boot img { animation-duration: 1.4s !important; animation-iteration-count: infinite !important; }
   .page-loader, .boot { animation-duration: 0.3s !important; }
   .radio-bar { animation-duration: 0.9s !important; animation-iteration-count: infinite !important; }
+  /* The brand strip is slow and stops under the cursor; still, it is the point of it */
+  .marquee-track { animation-duration: var(--marquee-duration, 40s) !important; animation-iteration-count: infinite !important; }
 }
 
 /* Hero pictures on wide screens cover about the same area of the card
@@ -324,6 +326,29 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
 
 @supports (-webkit-touch-callout: none) {
   body { -webkit-text-size-adjust: 100%; }
+}
+
+/* Chats, the forum, the cabinet: Telegram-like doodles (meerkats and small
+   signs) over a light tint of the page colour, instead of plain white. */
+/* The running strip of brand logos (BrandMarquee) */
+.marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee var(--marquee-duration, 40s) linear infinite;
+}
+.marquee:hover .marquee-track,
+.marquee:focus-within .marquee-track { animation-play-state: paused; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+.chat-bg {
+  background-color: color-mix(in srgb, var(--color-accent) 18%, #FFFCF2);
+  background-image: url('/img/chat-pattern.webp');
+  background-size: 480px 480px;
 }
 
 /* Loaders: shown after a short delay, so a fast load never flickers */

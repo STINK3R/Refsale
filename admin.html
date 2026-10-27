@@ -278,7 +278,7 @@
     <button class="tab-btn" data-tab="store-promos"><i class="fas fa-ticket"></i> Промокоды лидеров</button>
     <button class="tab-btn" data-tab="store-leaders"><i class="fas fa-crown"></i> Лидеры мнений</button>
     <button class="tab-btn" data-tab="store-prices"><i class="fas fa-tags"></i> Цены</button>
-    <button class="tab-btn" data-tab="store-contacts"><i class="fas fa-address-book"></i> Контакты сайта</button>
+    <button class="tab-btn" data-tab="store-contacts"><i class="fas fa-address-book"></i> Контакты, FAQ, Метрика</button>
 </div>
 <!-- BASIC section tabs -->
 <div class="tabs section-tabs" data-section="basic">
@@ -406,6 +406,30 @@
         <div style="font-size:12px;color:#6B7280;margin:-6px 0 14px">Две пары: рабочая и административная. Пустые поля на сайте не показываются. Telegram — ник или ссылка, WhatsApp — номер, MAX — ссылка на профиль.</div>
         <div class="form-row" id="scPairs"></div>
         <button class="btn btn-primary" onclick="saveStoreContacts()"><i class="fas fa-save"></i> Сохранить контакты</button>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-people-group"></i> «О нас» на главной — три описания</div>
+        <div style="font-size:12px;color:#6B7280;margin:-6px 0 14px;line-height:1.5">Покупатели видят своё описание всегда. Лидеры мнений и поставщики видят ещё и своё — после входа, если аккаунт отмечен (лидер — во вкладке «Лидеры», поставщик — кнопкой <i class="fas fa-truck"></i> в «Пользователях»). Пустое поле — текст по умолчанию.</div>
+        <div id="aboutRows"></div>
+        <button class="btn btn-primary" onclick="saveAbout()"><i class="fas fa-save"></i> Сохранить тексты</button>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-circle-question"></i> Частые вопросы на главной</div>
+        <div style="font-size:12px;color:#6B7280;margin:-6px 0 14px">Вопрос и ответ — по одному блоку. Пустые блоки не сохраняются. Если список пуст — на сайте показываются вопросы по умолчанию.</div>
+        <div id="faqRows"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-secondary" onclick="addFaqRow()"><i class="fas fa-plus"></i> Добавить вопрос</button>
+            <button class="btn btn-primary" onclick="saveFaq()"><i class="fas fa-save"></i> Сохранить вопросы</button>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-chart-line"></i> Яндекс Метрика</div>
+        <div style="font-size:12px;color:#6B7280;margin:-6px 0 14px;line-height:1.5">Номер счётчика — цифры из metrika.yandex.ru (Настройки → Счётчик). После сохранения счётчик начнёт работать на сайте при следующей загрузке страницы. Пусто — Метрика выключена.</div>
+        <div class="form-row">
+            <div class="form-group"><label>Номер счётчика</label><input type="text" id="metrikaId" inputmode="numeric" placeholder="например, 98765432"></div>
+            <div class="form-group"><label>Вебвизор (запись действий посетителей)</label><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-top:10px"><input type="checkbox" id="metrikaWebvisor"> Включить</label></div>
+        </div>
+        <button class="btn btn-primary" onclick="saveMetrika()"><i class="fas fa-save"></i> Сохранить</button>
     </div>
 </div>
 
@@ -550,7 +574,7 @@
                     <input type="text" id="scSearch" placeholder="Поиск подкатегории..." oninput="renderSubcategoriesTable()">
                 </div>
             </div>
-            <div class="table-wrap"><table><thead><tr><th>ID</th><th>Категория</th><th>Подкатегория</th><th>Действия</th></tr></thead><tbody id="subcategoriesTableBody"></tbody></table></div>
+            <div class="table-wrap"><table><thead><tr><th>ID</th><th>Логотип</th><th>Категория</th><th>Подкатегория</th><th>Слоган</th><th>Действия</th></tr></thead><tbody id="subcategoriesTableBody"></tbody></table></div>
         </div>
     </div>
 </div>
@@ -746,6 +770,40 @@
         </div>
     </div>
 </div>
+<!-- EDIT SUBCATEGORY MODAL: a brand or a type, dressed like a category -->
+<div class="modal" id="editSubcategoryModal" style="display:none">
+    <div class="modal-box">
+        <div class="modal-title"><i class="fas fa-edit"></i> Подкатегория (бренд, тип)</div>
+        <input type="hidden" id="editScId">
+        <div class="form-group"><label>Название — на чипе над товарами</label><input type="text" id="editScName"></div>
+        <div class="form-group">
+            <label>Логотип или картинка</label>
+            <div id="editScPreview" style="margin:6px 0"></div>
+            <div class="file-upload" id="editScFileWrap" style="max-width:220px">
+                <div class="file-upload-icon"><i class="fas fa-image"></i></div>
+                <div class="file-upload-text"><strong>Загрузить</strong>квадратный, PNG с прозрачным фоном</div>
+                <input type="file" id="editScFile" accept="image/*" onchange="uploadSubcategoryImage(this)">
+            </div>
+            <input type="hidden" id="editScImage">
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;margin:-4px 0 14px"><input type="checkbox" id="editScBrand"> Это бренд — показывать в бегущей строке логотипов</label>
+        <div class="form-group"><label>Слоган — крупно, когда выбран этот чип</label><input type="text" id="editScSlogan" placeholder="Chanel — классика, которая не стареет"></div>
+        <div class="form-group"><label>Описание</label><textarea id="editScDesc" rows="3" placeholder="Пара предложений о бренде или типе товаров"></textarea></div>
+        <div class="form-row">
+            <div class="form-group"><label>Порядок (меньше — левее)</label><input type="number" id="editScSort" step="1"></div>
+            <div class="form-group"><label>Цвет плашки</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <input type="color" id="editScColor" style="width:52px;height:40px;padding:2px;cursor:pointer" oninput="document.getElementById('editScColorAuto').checked=false">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editScColorAuto"> Цвет категории</label>
+                </div>
+            </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:4px">
+            <button class="btn btn-primary" onclick="saveSubcategoryEdit()"><i class="fas fa-save"></i> Сохранить</button>
+            <button class="btn btn-secondary" onclick="closeModal('editSubcategoryModal')"><i class="fas fa-times"></i> Отмена</button>
+        </div>
+    </div>
+</div>
 <!-- EDIT CATEGORY MODAL -->
 <div class="modal" id="editCategoryModal" style="display:none">
     <div class="modal-box">
@@ -756,7 +814,8 @@
         <div style="padding:12px 14px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;margin-bottom:14px">
             <div style="font-weight:700;font-size:13px;color:#92400E;margin-bottom:10px">Страница категории на сайте</div>
             <div class="form-group"><label>Слоган — крупно под фото</label><input type="text" id="editCSlogan" placeholder="Любимые ароматы дешевле, чем в социальных сетях"></div>
-            <div class="form-group"><label>«Как это работает» — текст под кнопкой</label><textarea id="editCIntro" rows="4" placeholder="Оригинальные духи по ценам ниже крупных магазинов. С промокодом от блогера — ещё ниже."></textarea></div>
+            <div class="form-group"><label>«Как это работает» — текст под кнопкой</label><textarea id="editCIntro" rows="4" placeholder="Оригинальные духи по ценам ниже крупных магазинов. С промокодом от лидера мнений — ещё ниже."></textarea></div>
+            <div class="form-group"><label>Плашка «Не нашли?» над товарами</label><input type="text" id="editCRequest" placeholder="Не нашли свой аромат? Отправьте название — в наличии 90% ароматов из сетевых магазинов."></div>
             <div class="form-group">
                 <label>Главное фото категории</label>
                 <div id="editCHeroPreview" style="margin:6px 0"></div>
@@ -1577,6 +1636,7 @@ function openEditCategory(id){
     document.getElementById('editCDesc').value=c.description||'';
     document.getElementById('editCSlogan').value=c.slogan||'';
     document.getElementById('editCIntro').value=c.intro||'';
+    document.getElementById('editCRequest').value=c.request_text||'';
     document.getElementById('editCCmp1').value=c.compare_label_1||'';
     document.getElementById('editCCmp2').value=c.compare_label_2||'';
     document.getElementById('editCSort').value=c.sort_order??0;
@@ -1618,6 +1678,7 @@ async function saveCategoryEdit(){
             description:document.getElementById('editCDesc').value.trim(),
             slogan:document.getElementById('editCSlogan').value.trim(),
             intro:document.getElementById('editCIntro').value.trim(),
+            request_text:document.getElementById('editCRequest').value.trim(),
             hero_image:document.getElementById('editCHero').value,
             compare_label_1:document.getElementById('editCCmp1').value.trim()||'Золотое Яблоко',
             compare_label_2:document.getElementById('editCCmp2').value.trim()||'Рандеву',
@@ -1693,14 +1754,16 @@ function renderSubcategoriesTable(){
     if(!tbody) return;
     const query = (document.getElementById('scSearch')?.value || '').toLowerCase();
     const filtered = adminSubcategories.filter(sc => sc.name.toLowerCase().includes(query) || getCatName(sc.category_id).toLowerCase().includes(query));
-    if(!filtered.length){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:#9CA3AF;padding:20px">Нет подкатегорий</td></tr>';return;}
+    if(!filtered.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#9CA3AF;padding:20px">Нет подкатегорий</td></tr>';return;}
     requestAnimationFrame(()=>{
         tbody.innerHTML=filtered.map(sc=>`
             <tr>
                 <td style="color:#9CA3AF;font-size:12px">#${sc.id}</td>
+                <td>${sc.image?`<img src="${_se(sc.image)}" style="width:40px;height:40px;object-fit:contain;border-radius:8px;background:#fff;border:1px solid #E5E7EB">`:'<span style="color:#9CA3AF;font-size:12px">—</span>'}</td>
                 <td>${getCatName(sc.category_id)}</td>
-                <td><strong>${sc.name}</strong></td>
-                <td><button class="btn btn-danger btn-sm" onclick="deleteSubcategoryHandler(${sc.id})"><i class="fas fa-trash"></i></button></td>
+                <td><strong>${_se(sc.name)}</strong>${sc.is_brand?' <span style="font-size:10px;font-weight:700;color:#8A6A2F;background:#FEF3C7;border-radius:8px;padding:1px 6px">бренд</span>':''}${sc.accent_color?` <span style="display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:middle;border:1px solid #0002;background:${_se(sc.accent_color)}"></span>`:''}</td>
+                <td style="color:#6B7280;font-size:13px">${_se(sc.slogan||'—')}</td>
+                <td class="td-actions"><button class="btn btn-xs btn-warning" onclick="openEditSubcategory(${sc.id})"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-sm" onclick="deleteSubcategoryHandler(${sc.id})"><i class="fas fa-trash"></i></button></td>
             </tr>`).join('');
     });
 }
@@ -1714,6 +1777,58 @@ function toggleSection(id, element) {
         el.style.display = 'none';
         icon.style.transform = 'rotate(0deg)';
     }
+}
+function openEditSubcategory(id){
+    const sc=adminSubcategories.find(x=>x.id===id);if(!sc)return;
+    document.getElementById('editScId').value=sc.id;
+    document.getElementById('editScName').value=sc.name||'';
+    document.getElementById('editScSlogan').value=sc.slogan||'';
+    document.getElementById('editScBrand').checked=!!sc.is_brand;
+    document.getElementById('editScDesc').value=sc.description||'';
+    document.getElementById('editScSort').value=sc.sort_order??0;
+    const colorOk=/^#[0-9a-fA-F]{6}$/.test(sc.accent_color||'');
+    document.getElementById('editScColor').value=colorOk?sc.accent_color:'#FFE45C';
+    document.getElementById('editScColorAuto').checked=!colorOk;
+    setSubcategoryImage(sc.image||'');
+    resetFileInput('editScFile','editScFileWrap');
+    openModal('editSubcategoryModal');
+}
+function setSubcategoryImage(url){
+    document.getElementById('editScImage').value=url||'';
+    const box=document.getElementById('editScPreview');
+    box.innerHTML=url
+        ?`<div style="display:flex;align-items:center;gap:10px"><img src="${_se(url)}" style="width:72px;height:72px;object-fit:contain;border-radius:10px;border:1px solid #E5E7EB;background:#fff"><button type="button" class="btn btn-xs btn-danger" onclick="setSubcategoryImage('')"><i class="fas fa-trash"></i> Убрать</button></div>`
+        :'<span style="color:#9CA3AF;font-size:12px">Не задано — на чипе будет только название</span>';
+}
+async function uploadSubcategoryImage(input){
+    const file=input.files?.[0];if(!file)return;
+    _showUploadProgress('Загрузка: '+file.name,0);
+    const url=await _uploadFileWithProgress(file,'subcategory');
+    _hideUploadProgress();
+    // A logo is almost always a brand's
+    if(url){setSubcategoryImage(url);document.getElementById('editScBrand').checked=true;showAlert('Картинка загружена — не забудьте сохранить');}
+    else showAlert('Ошибка загрузки','error');
+}
+async function saveSubcategoryEdit(){
+    const id=document.getElementById('editScId').value;
+    const updates={
+        name:document.getElementById('editScName').value.trim(),
+        slogan:document.getElementById('editScSlogan').value.trim(),
+        is_brand:document.getElementById('editScBrand').checked,
+        description:document.getElementById('editScDesc').value.trim(),
+        sort_order:parseInt(document.getElementById('editScSort').value)||0,
+        image:document.getElementById('editScImage').value,
+        accent_color:document.getElementById('editScColorAuto').checked?'':document.getElementById('editScColor').value
+    };
+    if(!updates.name){showAlert('Укажите название','error');return;}
+    try{
+        const row=await _patch('/api/admin/subcategories/'+id,updates);
+        const i=adminSubcategories.findIndex(s=>String(s.id)===String(id));
+        if(i>=0)adminSubcategories[i]={...adminSubcategories[i],...(row&&row.id?row:updates)};
+        renderSubcategoriesTable();
+        closeModal('editSubcategoryModal');
+        showAlert('Подкатегория обновлена');
+    }catch(e){showAlert('Ошибка сохранения','error');}
 }
 async function deleteSubcategoryHandler(id){
     if(!confirm('Удалить подкатегорию?')) return;
@@ -1754,12 +1869,15 @@ function renderUsersTable(filtered){
         const statusBadge=blocked
             ?'<span class="badge" style="background:#FDEDEC;color:#e74c3c;">Заблокирован</span>'
             :'<span class="badge badge-status-done">Активен</span>';
-        const roleBadges=u.is_leader
+        const roleBadges=(u.is_leader
             ?'<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#78350f;border-radius:10px;font-size:10px;font-weight:700"><i class="fas fa-crown"></i> Лидер мнений</span>'
-            :'<span style="color:#9CA3AF;font-size:12px">Покупатель</span>';
+            :'')+(u.is_supplier
+            ?' <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;background:#DCEBFF;color:#1B5BB0;border-radius:10px;font-size:10px;font-weight:700"><i class="fas fa-truck"></i> Поставщик</span>'
+            :'')||'<span style="color:#9CA3AF;font-size:12px">Покупатель</span>';
         let actions='<div class="actions">';
         if(!blocked) actions+=`<button class="btn btn-sm" style="background:#f59e0b;color:white;" onclick="blockUserHandler(${u.id})" title="Заблокировать"><i class="fas fa-ban"></i></button>`;
         else actions+=`<button class="btn btn-sm" style="background:#10b981;color:white;" onclick="unblockUserHandler(${u.id})" title="Разблокировать"><i class="fas fa-unlock"></i></button>`;
+        actions+=`<button class="btn btn-sm" style="background:${u.is_supplier?'#1B5BB0':'#E5E7EB'};color:${u.is_supplier?'white':'#374151'}" onclick="toggleSupplier(${u.id},${!u.is_supplier})" title="${u.is_supplier?'Убрать статус поставщика':'Сделать поставщиком — на главной откроется описание для поставщиков'}"><i class="fas fa-truck"></i></button>`;
         actions+=`<button class="btn btn-danger btn-sm" onclick="deleteUserHandler(${u.id})" title="Удалить"><i class="fas fa-trash"></i></button>`;
         actions+='</div>';
         return `<tr${blocked?' style="opacity:.6"':''}>
@@ -2471,7 +2589,7 @@ function initSectionTabs(){
             if(this.dataset.tab==='store-promos'){ loadStoreLeaders(); loadStorePromos(); }
             if(this.dataset.tab==='store-leaders') loadStoreLeaders();
             if(this.dataset.tab==='store-prices') loadStorePrices();
-            if(this.dataset.tab==='store-contacts') renderStoreContactsForm();
+            if(this.dataset.tab==='store-contacts'){renderStoreContactsForm();renderSiteExtrasForm();}
             if(this.dataset.tab==='forum-mod') loadAdminForums();
         });
     });
@@ -2584,6 +2702,7 @@ function renderStoreOrderInfo(){
             <b>Адрес</b><span>${_se(o.address||'—')}</span>
             ${o.comment?`<b>Комментарий</b><span>${_se(o.comment)}</span>`:''}
             <b>Промокод</b><span>${o.promo_code?`<b style="color:#8A6A2F">${_se(o.promo_code)}</b> · ${_se(o.leader_name||'без лидера')}`:'—'}</span>
+            ${(()=>{let all=[];try{all=JSON.parse(o.promo_codes||'[]');}catch(e){}return all.length>1?`<b>Все промокоды</b><span>${all.map(_se).join(', ')} <span style="color:#6B7280">— у каждой позиции свой, вознаграждение — лидеру ${_se(o.promo_code)}</span></span>`:'';})()}
             ${o.leader_id?`<b>Лидеру</b><span>${formatPrice(o.leader_reward)} ${o.status==='done'?'(начислено)':'(после выдачи)'}</span>`:''}
             <b>Создан</b><span>${_dt(o.created_at)}</span>
             ${o.confirmed_at?`<b>Подтверждён</b><span>${_dt(o.confirmed_at)}</span>`:''}
@@ -2856,6 +2975,73 @@ async function renderStoreContactsForm(){
         ${SC_FIELDS.map(([k,l])=>`<div class="form-group"><label>${l}</label><input type="text" id="sc_${k}_${n}" value="${_se(s['contact_'+k+'_'+n]||(k==='label'?defaults[n]:''))}"></div>`).join('')}
     </div>`).join('');
 }
+async function toggleSupplier(id,on){
+    try{
+        await _patch('/api/admin/store/users/'+id+'/leader',{is_supplier:on});
+        const u=adminUsers.find(x=>x.id===id);if(u)u.is_supplier=on;
+        renderUsersTable();
+        showAlert(on?'Пользователь отмечен как поставщик':'Статус поставщика снят');
+    }catch(e){showAlert('Ошибка','error');}
+}
+
+// ── «О нас»: three branches ──────────────────────
+const ABOUT_BRANCHES=[['buyer','Покупателям'],['leader','Лидерам мнений — видят лидеры'],['supplier','Поставщикам — видят поставщики']];
+function renderAboutForm(s){
+    const box=document.getElementById('aboutRows');if(!box)return;
+    box.innerHTML=ABOUT_BRANCHES.map(([k,l])=>`<div style="background:#FAFAF7;border:1px solid #EEE7D6;border-radius:12px;padding:12px 14px;margin-bottom:12px">
+        <div style="font-weight:700;color:#8A6A2F;margin-bottom:8px">${l}</div>
+        <div class="form-group"><label>Заголовок</label><input type="text" id="about_${k}_title" value="${_se(s['about_'+k+'_title']||'')}" placeholder="пусто — текст по умолчанию"></div>
+        <div class="form-group"><label>Текст (абзацы — через пустую строку)</label><textarea id="about_${k}_text" rows="4" placeholder="пусто — текст по умолчанию">${_se(s['about_'+k+'_text']||'')}</textarea></div>
+    </div>`).join('');
+}
+async function saveAbout(){
+    const body={};
+    ABOUT_BRANCHES.forEach(([k])=>{body['about_'+k+'_title']=document.getElementById('about_'+k+'_title').value.trim();body['about_'+k+'_text']=document.getElementById('about_'+k+'_text').value.trim();});
+    try{await _patch('/api/admin/settings',body);showAlert('Тексты «О нас» сохранены');}
+    catch(e){showAlert('Ошибка сохранения','error');}
+}
+
+// ── FAQ and Metrika ──────────────────────────────
+const FAQ_DEFAULT=[{"q": "Это точно оригинал?", "a": "Да. Мы работаем с официальными поставщиками сетевых магазинов. Если сомневаетесь — спросите менеджера в чате, пришлём фото конкретной позиции до оплаты."}, {"q": "Почему у вас дешевле, чем в магазинах?", "a": "Нет аренды торговых залов и большой наценки сети. Продажи идут через лидеров мнений (например, блогеров), поэтому вместо рекламы скидку получает покупатель."}, {"q": "Где взять промокод?", "a": "У лидера мнений (например, блогера), через которого вы к нам пришли, — в его соцсетях. Промокод снижает цены сразу на весь каталог. Без промокода покупать тоже можно."}, {"q": "Как и когда платить?", "a": "После оформления заказа менеджер подтвердит наличие в чате и пришлёт реквизиты. Оплата — только после этого подтверждения."}, {"q": "Как доставляете?", "a": "По всей России. Адрес и удобный способ доставки менеджер уточнит в чате заказа, сроки — до оплаты."}];
+function faqRowHtml(item){
+    return `<div class="faq-row" style="background:#FAFAF7;border:1px solid #EEE7D6;border-radius:12px;padding:12px 14px;margin-bottom:12px">
+        <div class="form-group"><label>Вопрос</label><input type="text" class="faq-q" value="${_se(item.q||'')}"></div>
+        <div class="form-group"><label>Ответ</label><textarea class="faq-a" rows="3">${_se(item.a||'')}</textarea></div>
+        <div style="display:flex;gap:6px">
+            <button type="button" class="btn btn-xs btn-secondary" onclick="moveFaqRow(this,-1)"><i class="fas fa-arrow-up"></i></button>
+            <button type="button" class="btn btn-xs btn-secondary" onclick="moveFaqRow(this,1)"><i class="fas fa-arrow-down"></i></button>
+            <button type="button" class="btn btn-xs btn-danger" onclick="this.closest('.faq-row').remove()"><i class="fas fa-trash"></i> Удалить</button>
+        </div>
+    </div>`;
+}
+function addFaqRow(item){document.getElementById('faqRows').insertAdjacentHTML('beforeend',faqRowHtml(item||{}));}
+function moveFaqRow(btn,dir){
+    const row=btn.closest('.faq-row');
+    if(dir<0&&row.previousElementSibling)row.parentNode.insertBefore(row,row.previousElementSibling);
+    if(dir>0&&row.nextElementSibling)row.parentNode.insertBefore(row.nextElementSibling,row);
+}
+async function renderSiteExtrasForm(){
+    let s={};try{s=await _api('/api/settings');}catch(e){}
+    let faq=[];try{faq=JSON.parse(s.faq_json||'[]');}catch(e){}
+    const box=document.getElementById('faqRows');if(!box)return;
+    box.innerHTML='';
+    (Array.isArray(faq)&&faq.length?faq:FAQ_DEFAULT).forEach(addFaqRow);
+    document.getElementById('metrikaId').value=s.metrika_id||'';
+    renderAboutForm(s);
+    document.getElementById('metrikaWebvisor').checked=s.metrika_webvisor==='true';
+}
+async function saveFaq(){
+    const items=[...document.querySelectorAll('#faqRows .faq-row')].map(r=>({q:r.querySelector('.faq-q').value.trim(),a:r.querySelector('.faq-a').value.trim()})).filter(x=>x.q&&x.a);
+    try{await _patch('/api/admin/settings',{faq_json:JSON.stringify(items)});showAlert('Вопросы сохранены');}
+    catch(e){showAlert('Ошибка сохранения','error');}
+}
+async function saveMetrika(){
+    const id=document.getElementById('metrikaId').value.trim();
+    if(id&&!/^\d{4,12}$/.test(id)){showAlert('Номер счётчика — только цифры','error');return;}
+    try{await _patch('/api/admin/settings',{metrika_id:id,metrika_webvisor:document.getElementById('metrikaWebvisor').checked?'true':'false'});showAlert(id?'Метрика подключена':'Метрика выключена');}
+    catch(e){showAlert('Ошибка сохранения','error');}
+}
+
 async function saveStoreContacts(){
     const body={};
     [1,2].forEach(n=>SC_FIELDS.forEach(([k])=>{body['contact_'+k+'_'+n]=document.getElementById('sc_'+k+'_'+n).value.trim();}));

@@ -8,10 +8,22 @@ import Meerkat from '../mascot/Meerkat';
 
 import AttachedImages from '../ui/AttachedImages';
 import { formatDate, unescapeHtml } from '../../utils/format';
+import { initials, nickColor } from '../../utils/nick';
+import { isVideoUrl } from '../../utils/media';
 import type { Review } from '../../types';
 import useScrollLock from '../../hooks/useScrollLock';
+import { useNewsStore } from '../../store/news';
 
 const AUTO_ROTATE_MS = 7000;
+
+/** A review leads with its photo when it has one (videos stay in the list). */
+function reviewHasPhoto(r: Review) {
+  const v = r.images;
+  if (!v) return false;
+  let list: unknown = v;
+  if (typeof v === 'string') { try { list = JSON.parse(v); } catch { return false; } }
+  return Array.isArray(list) && list.some((u) => typeof u === 'string' && !isVideoUrl(u));
+}
 /** How long auto-rotation stays off after the reader touches the carousel. */
 const MANUAL_PAUSE_MS = 45000;
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -33,6 +45,16 @@ export default function Reviews() {
 
   // Each category page shows its own reviews.
   useEffect(() => { void loadReviews(); }, [loadReviews, activeCategoryId]);
+
+  // Reviews scrolled into view count as read for the menu counter
+  const sectionRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) useNewsStore.getState().markSeen('reviews'); }, { threshold: 0.25 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   useEffect(() => {
     if (reviews.length <= 1 || viewerOpen) return;
@@ -62,7 +84,7 @@ export default function Reviews() {
   const review: Review | undefined = reviews[pos];
 
   return (
-    <section id="reviews" className="border-t border-line">
+    <section ref={sectionRef} id="reviews" className="border-t border-line">
       <div className="max-w-[1440px] mx-auto px-8 max-sm:px-5 py-28 max-md:py-16 grid grid-cols-12 gap-x-8 gap-y-10">
         <div className="col-span-4 max-lg:col-span-12 flex flex-col">
           <div className="label mb-5">Отзывы</div>
@@ -76,43 +98,59 @@ export default function Reviews() {
 
         <div className="col-span-7 col-start-6 max-lg:col-span-12 max-lg:col-start-1">
           {review ? (
-            <div className="border-t border-line pt-10">
+            <div>
               <AnimatePresence mode="wait">
                 <m.figure
                   key={review.id}
                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
                   transition={{ duration: 0.6, ease: EASE }}
+                  className={`bg-card border-2 border-ink rounded-[24px] max-sm:rounded-[20px] shadow-[0_6px_0_#111] p-6 max-sm:p-4 grid gap-6 max-sm:gap-4 ${reviewHasPhoto(review) ? 'md:grid-cols-[minmax(0,260px)_1fr]' : ''}`}
                 >
-                  <div className="text-[13px] tracking-[0.3em] text-primary" aria-label={`Оценка ${review.rating} из 5`}>
-                    {'★'.repeat(review.rating)}<span className="text-light">{'★'.repeat(5 - review.rating)}</span>
+                  {reviewHasPhoto(review) && (
+                    <AttachedImages
+                      images={review.images}
+                      size="sm"
+                      className="content-start"
+                      leadClassName="w-full aspect-square max-md:aspect-[16/10] rounded-[16px]"
+                      onViewerChange={(open) => { setViewerOpen(open); if (!open) pauseAuto(); }}
+                    />
+                  )}
+                  <div className="min-w-0 flex flex-col">
+                    <figcaption className="flex items-center gap-3.5">
+                      <span className="w-14 h-14 max-sm:w-12 max-sm:h-12 rounded-full border-2 border-ink grid place-items-center shrink-0 font-display text-[18px] text-white" style={{ background: nickColor(`u${review.user_id}`) }} aria-hidden="true">
+                        {initials(unescapeHtml(review.user_name))}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block font-display text-[22px] max-sm:text-[19px] leading-tight text-ink truncate">{unescapeHtml(review.user_name)}</span>
+                        <span className="block text-[14px] text-muted mt-1">{formatDate(review.created_at)}</span>
+                      </span>
+                    </figcaption>
+                    <div className="mt-4 text-[28px] max-sm:text-[24px] leading-none tracking-[0.12em] text-[#F5A300]" aria-label={`Оценка ${review.rating} из 5`}>
+                      {'★'.repeat(review.rating)}<span className="text-ink/15">{'★'.repeat(5 - review.rating)}</span>
+                    </div>
+                    <blockquote className="mt-4 text-[15px] leading-[1.65] text-ink/80 whitespace-pre-line break-words">
+                      {unescapeHtml(review.text)}
+                    </blockquote>
+                    {!reviewHasPhoto(review) && (
+                      <AttachedImages images={review.images} className="mt-4" onViewerChange={(open) => { setViewerOpen(open); if (!open) pauseAuto(); }} />
+                    )}
                   </div>
-                  <blockquote className="font-display text-[clamp(22px,2.2vw,32px)] leading-[1.4] text-text mt-6">
-                    «{unescapeHtml(review.text)}»
-                  </blockquote>
-                  <AttachedImages
-                    images={review.images}
-                    className="mt-6"
-                    onViewerChange={(open) => { setViewerOpen(open); if (!open) pauseAuto(); }}
-                  />
-                  <figcaption className="mt-8 text-[13px] text-muted">
-                    <span className="text-text">{unescapeHtml(review.user_name)}</span> · {formatDate(review.created_at)}
-                  </figcaption>
                 </m.figure>
               </AnimatePresence>
               {reviews.length > 1 && (
-                <div className="mt-10 flex items-center gap-6">
-                  <button onClick={() => go(-1)} className="w-11 h-11 border border-line flex items-center justify-center text-text hover:border-text transition-colors cursor-pointer" aria-label="Предыдущий отзыв">
-                    <ArrowLeft size={16} strokeWidth={1.4} />
+                <div className="mt-6 flex items-center gap-3">
+                  <button onClick={() => go(-1)} className="w-11 h-11 rounded-ctl-sm border-2 border-ink bg-card flex items-center justify-center text-ink hover:bg-sun transition-colors cursor-pointer" aria-label="Предыдущий отзыв">
+                    <ArrowLeft size={17} strokeWidth={2.2} />
                   </button>
-                  <button onClick={() => go(1)} className="w-11 h-11 border border-line flex items-center justify-center text-text hover:border-text transition-colors cursor-pointer" aria-label="Следующий отзыв">
-                    <ArrowRight size={16} strokeWidth={1.4} />
+                  <button onClick={() => go(1)} className="w-11 h-11 rounded-ctl-sm border-2 border-ink bg-card flex items-center justify-center text-ink hover:bg-sun transition-colors cursor-pointer" aria-label="Следующий отзыв">
+                    <ArrowRight size={17} strokeWidth={2.2} />
                   </button>
-                  <span className="text-[12px] text-muted tabular-nums">{String(pos + 1).padStart(2, '0')} / {String(reviews.length).padStart(2, '0')}</span>
+                  <span className="ml-2 text-[13px] font-semibold text-ink/70 tabular-nums">{String(pos + 1).padStart(2, '0')} / {String(reviews.length).padStart(2, '0')}</span>
                 </div>
               )}
             </div>
           ) : (
-            <div className="border-t border-line pt-10">
+            <div className="bg-card border-2 border-ink rounded-[24px] max-sm:rounded-[20px] shadow-[0_6px_0_#111] p-8 max-sm:p-6">
               <Meerkat pose="heart" width={120} decorative className="mb-5" />
               <p className="font-display text-[28px] text-text">Отзывов пока нет.</p>
               <p className="text-[14px] text-muted mt-3">Станьте первым, кто поделится впечатлениями о покупке.</p>

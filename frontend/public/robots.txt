@@ -1,5 +1,31 @@
 User-agent: *
+Allow: /
+Allow: /api/store/catalog
+Allow: /api/settings
+Allow: /api/reviews
+Allow: /api/forums
+Allow: /api/subcategories
 Disallow: /admin
 Disallow: /cabinet
 Disallow: /orders
+Disallow: /favorites
 Disallow: /api/
+Disallow: /uploads/u
+
+# Yandex: referral links (?promo=ANNA) are the same pages
+User-agent: Yandex
+Allow: /
+Allow: /api/store/catalog
+Allow: /api/settings
+Allow: /api/reviews
+Allow: /api/forums
+Allow: /api/subcategories
+Disallow: /admin
+Disallow: /cabinet
+Disallow: /orders
+Disallow: /favorites
+Disallow: /api/
+Disallow: /uploads/u
+Clean-param: promo&ref&source&product&support /
+
+Sitemap: https://refsale.ru/sitemap.xml

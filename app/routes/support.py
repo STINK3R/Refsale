@@ -60,19 +60,12 @@ def api_create_ticket():
     # stored (the product is named in the message text); it only marks intent.
     if d.get("product_id") and user_id is None:
         return jsonify({"error": "Чтобы написать продавцу, войдите или зарегистрируйтесь"}), 401
+    # Kept for the admin's information; the question itself goes to the
+    # platform only — leaders talk to buyers in the order chats.
     promo_code = sanitize_string(d.get("promo_code") or "", 50).upper()
+    leader_id = None
     try:
         with get_db() as cur:
-            # A buyer who came with a leader's code: the leader sees this
-            # conversation in their cabinet, read-only.
-            leader_id = None
-            if promo_code:
-                from .store import load_promo
-                promo, _ = load_promo(cur, promo_code)
-                if promo:
-                    leader_id = promo.get("leader_id")
-                else:
-                    promo_code = ""
             cur.execute(
                 "INSERT INTO coop_support_tickets (user_id, user_name, subject, promo_code, leader_id) "
                 "VALUES (%s, %s, %s, %s, %s) RETURNING *",
@@ -145,8 +138,8 @@ def api_add_ticket_message(tid):
         if sender_type == 'admin':
             notify_user(
                 t.get("user_id"), key=f"ticket:{tid}",
-                title="Продавец ответил на ваш вопрос", body=snippet(text, images),
-                url=f"/?support={tid}", email_subject=f"Ответ: {t.get('subject') or 'вопрос продавцу'}",
+                title="Площадка ответила на ваш вопрос", body=snippet(text, images),
+                url=f"/?support={tid}", email_subject=f"Ответ: {t.get('subject') or 'вопрос площадке'}",
             )
         return jsonify(msg)
     except Exception as e:

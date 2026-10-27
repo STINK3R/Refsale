@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Meerkat from '../mascot/Meerkat';
 import { AnimatePresence, m } from 'framer-motion';
-import { Copy, Crown, Eye, Loader2, Send, X, Link2, MessageCircle, Package, Wallet, Clock, CheckCircle2, TrendingUp, LogIn } from 'lucide-react';
+import { Copy, Crown, Eye, Loader2, Send, X, Link2, MessageCircle, Wallet, Clock, CheckCircle2, TrendingUp, LogIn } from 'lucide-react';
 import { useAuthStore, useNotificationStore } from '../../store';
 import {
   fetchLeaderOverview, fetchLeaderOrders, fetchLeaderOrderMessages, sendLeaderOrderMessage, setLeaderOrderStatus,
-  fetchLeaderTickets, fetchLeaderTicketMessages, sendLeaderTicketMessage,
 } from '../../api/client';
-import type { LeaderOverview, LeaderOrder, LeaderTicket } from '../../api/client';
+import type { LeaderOverview, LeaderOrder } from '../../api/client';
 import type { OrderChatMessage } from '../../types';
-import { formatPrice, formatDate, unescapeHtml } from '../../utils/format';
-import { Bubble, ItemsList, parseItems, STATUS_LABEL, StatusTrack, statusTone } from './OrdersPage';
+import { formatPrice, formatDate } from '../../utils/format';
+import { Bubble, ItemsList, parseItems, STATUS_LABEL, StatusTrack, statusStripe, statusTone } from './OrdersPage';
 import useScrollLock from '../../hooks/useScrollLock';
 import ImageUploader from '../ui/ImageUploader';
 
@@ -18,7 +17,8 @@ import ImageUploader from '../ui/ImageUploader';
  * Opinion leader's cabinet. Everything here is read-only unless the admin
  * switched on "может писать" for this leader: they see every order placed
  * with their codes, the conversation between the shop and their audience,
- * and the reward accrued for delivered orders.
+ * and the reward accrued for delivered orders. Questions to the platform go to
+ * the admin alone, so they are not shown here.
  */
 export default function LeaderCabinet() {
   const { user, openAuth } = useAuthStore();
@@ -26,19 +26,14 @@ export default function LeaderCabinet() {
   const [overview, setOverview] = useState<LeaderOverview | null>(null);
   const [error, setError] = useState('');
   const [orders, setOrders] = useState<LeaderOrder[]>([]);
-  const [tickets, setTickets] = useState<LeaderTicket[]>([]);
-  const [tab, setTab] = useState<'orders' | 'tickets'>('orders');
   const [filter, setFilter] = useState<string>('all');
   const [openOrder, setOpenOrder] = useState<LeaderOrder | null>(null);
-  const [openTicket, setOpenTicket] = useState<LeaderTicket | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetchLeaderOverview();
     if (res.error) { setError(res.error); return; }
     setOverview(res.data || null);
-    const [o, t] = await Promise.all([fetchLeaderOrders(), fetchLeaderTickets()]);
-    setOrders(o);
-    setTickets(t);
+    setOrders(await fetchLeaderOrders());
   }, []);
 
   useEffect(() => {
@@ -85,17 +80,19 @@ export default function LeaderCabinet() {
     navigator.clipboard.writeText(text).then(() => show(`${what} скопирован${what === 'Ссылка' ? 'а' : ''}`)).catch(() => show(text));
   };
 
+  const plate = 'bg-card border-2 border-ink rounded-[22px] max-sm:rounded-[18px] shadow-[0_4px_0_#111]';
   return (
-    <div className="max-w-[1240px] mx-auto px-5 pt-[calc(var(--header-h,104px)+32px)] pb-16">
-      <div className="flex items-end justify-between gap-4 flex-wrap mb-8">
-        <div className="flex items-end gap-4">
-          <Meerkat pose="laptop" width={96} decorative className="max-sm:w-[70px]" />
-          <div>
-            <div className="label mb-2 flex items-center gap-2"><Crown size={13} /> Кабинет лидера мнений</div>
-            <h1 className="font-display text-[44px] leading-none text-text max-sm:text-[34px]">{overview.leader.name}</h1>
+    <div className="chat-bg min-h-screen">
+    <div className="max-w-[1240px] mx-auto px-5 max-sm:px-3 pt-[calc(var(--header-h,104px)+28px)] pb-16">
+      <div className="bg-accent border-2 border-ink rounded-[24px] max-sm:rounded-[20px] shadow-[0_6px_0_#111] px-6 py-5 max-sm:px-4 max-sm:py-4 flex items-end justify-between gap-4 flex-wrap mb-6">
+        <div className="flex items-end gap-4 min-w-0">
+          <Meerkat pose="laptop" width={96} decorative className="max-sm:w-[64px] -mb-1" />
+          <div className="min-w-0">
+            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink/70 mb-2 flex items-center gap-2"><Crown size={13} /> Кабинет лидера мнений</div>
+            <h1 className="font-display text-[40px] leading-none text-ink max-sm:text-[28px] truncate">{overview.leader.name}</h1>
           </div>
         </div>
-        <span className={`inline-flex items-center gap-2 px-4 py-2 text-[12px] border ${overview.leader.can_write ? 'border-primary/40 text-primary-light bg-primary/10' : 'border-ink/10 text-muted bg-ink/[0.04]'}`}>
+        <span className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full border-2 border-ink text-[12px] font-semibold ${overview.leader.can_write ? 'bg-[#DCEBFF] text-[#1B5BB0]' : 'bg-card text-ink'}`}>
           {overview.leader.can_write ? <><MessageCircle size={14} /> Можно писать покупателям и вести заказы</> : <><Eye size={14} /> Режим просмотра</>}
         </span>
       </div>
@@ -110,16 +107,16 @@ export default function LeaderCabinet() {
 
       {/* Promo codes */}
       <div className="mt-8">
-        <h2 className="font-display text-[28px] text-text mb-4">Ваши промокоды</h2>
+        <h2 className="inline-block font-display text-[26px] text-ink mb-4 bg-card border-2 border-ink rounded-[14px] px-4 py-1.5">Ваши промокоды</h2>
         {overview.promos.length === 0 ? (
-          <div className="bg-card border border-line p-6 text-sm text-muted">Промокоды ещё не выданы — мы создадим их и привяжем к вашему аккаунту.</div>
+          <div className={`${plate} p-6 text-sm text-muted`}>Промокоды ещё не выданы — мы создадим их и привяжем к вашему аккаунту.</div>
         ) : (
           <div className="grid grid-cols-3 gap-4 max-lg:grid-cols-2 max-sm:grid-cols-1">
             {overview.promos.map((p) => (
-              <div key={p.code} className="bg-card border border-line p-5">
+              <div key={p.code} className={`${plate} p-5`}>
                 <div className="flex items-center justify-between gap-3">
-                  <div className="font-display text-[30px] leading-none tracking-[0.08em] text-text">{p.code}</div>
-                  <span className={`text-[10px] font-medium uppercase tracking-[0.08em] px-2 py-1 border ${p.is_active ? 'text-success border-success/30 bg-success/10' : 'text-muted border-ink/10'}`}>
+                  <div className="font-display text-[28px] leading-none tracking-[0.08em] text-ink">{p.code}</div>
+                  <span className={`text-[10px] font-bold uppercase tracking-[0.08em] px-2.5 py-1 rounded-full border ${p.is_active ? 'text-[#13723A] bg-[#DDF5E5] border-[#9ED6B0]' : 'text-muted bg-surface border-ink/10'}`}>
                     {p.is_active ? 'Активен' : 'Выключен'}
                   </span>
                 </div>
@@ -130,8 +127,8 @@ export default function LeaderCabinet() {
                   <Mini label="За заказ" value={formatPrice(p.reward_amount)} />
                 </div>
                 <div className="flex gap-2 mt-4">
-                  <button onClick={() => copy(p.code, 'Промокод')} className="btn-outline flex-1 h-9 text-[12px]"><Copy size={13} /> Код</button>
-                  <button onClick={() => copy(`${origin}/?promo=${encodeURIComponent(p.code)}`, 'Ссылка')} className="btn-primary flex-1 h-9 text-[12px]"><Link2 size={13} /> Ссылка</button>
+                  <button onClick={() => copy(p.code, 'Промокод')} className="btn-outline flex-1 h-10 text-[12px]"><Copy size={13} /> Код</button>
+                  <button onClick={() => copy(`${origin}/?promo=${encodeURIComponent(p.code)}`, 'Ссылка')} className="btn-primary flex-1 h-10 text-[12px]"><Link2 size={13} /> Ссылка</button>
                 </div>
               </div>
             ))}
@@ -139,57 +136,39 @@ export default function LeaderCabinet() {
         )}
       </div>
 
-      {/* Orders and questions */}
+      {/* Orders */}
       <div className="mt-10">
-        <div className="flex items-center gap-2 flex-wrap mb-4">
-          <TabBtn active={tab === 'orders'} onClick={() => setTab('orders')}><Package size={15} /> Заказы ({orders.length})</TabBtn>
-          <TabBtn active={tab === 'tickets'} onClick={() => setTab('tickets')}><MessageCircle size={15} /> Вопросы покупателей ({tickets.length})</TabBtn>
-          {tab === 'orders' && (
-            <select value={filter} onChange={(e) => setFilter(e.target.value)} className="field !w-auto !py-2 ml-auto text-[13px]" aria-label="Фильтр по статусу">
-              <option value="all">Все статусы</option>
-              <option value="new">Ожидают подтверждения</option>
-              <option value="active">В работе</option>
-              <option value="done">Выданы</option>
-              <option value="cancelled">Отменены</option>
-            </select>
-          )}
+        <div className="flex items-center gap-3 flex-wrap mb-4">
+          <h2 className="font-display text-[26px] text-ink bg-card border-2 border-ink rounded-[14px] px-4 py-1.5">Заказы <span className="text-ink/50">{orders.length}</span></h2>
+          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="field !w-auto !h-10 !py-0 ml-auto text-[13px]" aria-label="Фильтр по статусу">
+            <option value="all">Все статусы</option>
+            <option value="new">Ожидают подтверждения</option>
+            <option value="active">В работе</option>
+            <option value="done">Выданы</option>
+            <option value="cancelled">Отменены</option>
+          </select>
         </div>
 
-        {tab === 'orders' ? (
-          shown.length === 0 ? (
-            <div className="bg-card border border-line p-10 text-center text-sm text-muted">Заказов по вашим промокодам пока нет.</div>
-          ) : (
-            <div className="bg-card border border-line overflow-hidden">
-              <div className="grid grid-cols-[80px_1.2fr_1fr_1fr_1fr_1.2fr] gap-3 px-5 py-3 text-[11px] uppercase tracking-[0.15em] text-light border-b border-ink/[0.06] max-md:hidden">
-                <span>Заказ</span><span>Покупатель</span><span>Дата</span><span>Сумма</span><span>Ваше вознагр.</span><span>Статус</span>
-              </div>
-              {shown.map((o) => (
-                <button
-                  key={o.id}
-                  onClick={() => setOpenOrder(o)}
-                  className="w-full grid grid-cols-[80px_1.2fr_1fr_1fr_1fr_1.2fr] max-md:grid-cols-2 gap-3 px-5 py-4 text-left text-[13px] border-b border-ink/[0.04] last:border-b-0 hover:bg-ink/[0.03] cursor-pointer transition-colors items-center"
-                >
-                  <span className="font-semibold text-text">#{o.id}</span>
-                  <span className="text-text truncate">{o.buyer}</span>
-                  <span className="text-muted">{formatDate(o.created_at)}</span>
-                  <span className="text-text">{formatPrice(o.total)}</span>
-                  <span className={o.status === 'done' ? 'text-primary-light font-semibold' : o.status === 'cancelled' ? 'text-light line-through' : 'text-muted'}>{formatPrice(o.leader_reward)}</span>
-                  <span><span className={`text-[11px] font-medium uppercase tracking-[0.08em] px-2.5 py-1 border ${statusTone(o.status)}`}>{STATUS_LABEL[o.status]}</span></span>
-                </button>
-              ))}
-            </div>
-          )
-        ) : tickets.length === 0 ? (
-          <div className="bg-card border border-line p-10 text-center text-sm text-muted">Вопросов от вашей аудитории пока нет.</div>
+        {shown.length === 0 ? (
+          <div className={`${plate} p-10 text-center text-sm text-muted`}>Заказов по вашим промокодам пока нет.</div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1">
-            {tickets.map((t) => (
-              <button key={t.id} onClick={() => setOpenTicket(t)} className="bg-card border border-line p-4 text-left cursor-pointer">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[14px] font-semibold text-text truncate">{unescapeHtml(t.subject)}</span>
-                  <span className="text-[11px] text-light shrink-0">{formatDate(t.updated_at)}</span>
-                </div>
-                <div className="text-[12px] text-muted mt-1 truncate">{t.user_name}: {unescapeHtml(t.last_text) || '—'}</div>
+          <div className={`${plate} overflow-hidden`}>
+            <div className="grid grid-cols-[80px_1.2fr_1fr_1fr_1fr_1.2fr] gap-3 pl-6 pr-5 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-ink/60 bg-surface border-b-2 border-ink max-md:hidden">
+              <span>Заказ</span><span>Покупатель</span><span>Дата</span><span>Сумма</span><span>Ваше вознагр.</span><span>Статус</span>
+            </div>
+            {shown.map((o) => (
+              <button
+                key={o.id}
+                onClick={() => setOpenOrder(o)}
+                className="relative w-full grid grid-cols-[80px_1.2fr_1fr_1fr_1fr_1.2fr] max-md:grid-cols-2 gap-3 pl-6 pr-5 py-4 text-left text-[13px] border-b border-ink/[0.08] last:border-b-0 hover:bg-surface/60 cursor-pointer transition-colors items-center"
+              >
+                <span className={`absolute left-0 inset-y-0 w-1.5 ${statusStripe(o.status)}`} aria-hidden="true" />
+                <span className="font-bold text-ink">№{o.id}</span>
+                <span className="text-ink truncate">{o.buyer}</span>
+                <span className="text-muted">{formatDate(o.created_at)}</span>
+                <span className="text-ink font-semibold tabular-nums">{formatPrice(o.total)}</span>
+                <span className={o.status === 'done' ? 'text-[#13723A] font-bold' : o.status === 'cancelled' ? 'text-light line-through' : 'text-muted'}>{formatPrice(o.leader_reward)}</span>
+                <span><span className={`text-[11px] font-bold uppercase tracking-[0.06em] px-2.5 py-1 border ${statusTone(o.status)}`}>{STATUS_LABEL[o.status]}</span></span>
               </button>
             ))}
           </div>
@@ -199,37 +178,27 @@ export default function LeaderCabinet() {
       <AnimatePresence>
         {openOrder && <OrderDrawer order={openOrder} onClose={() => setOpenOrder(null)} onChanged={load} />}
       </AnimatePresence>
-      <AnimatePresence>
-        {openTicket && <TicketDrawer ticket={openTicket} onClose={() => setOpenTicket(null)} />}
-      </AnimatePresence>
+    </div>
     </div>
   );
 }
 
 function Stat({ icon, label, value, hint, accent }: { icon: React.ReactNode; label: string; value: string; hint: string; accent?: boolean }) {
   return (
-    <div className={`bg-card border border-line p-5 ${accent ? 'border-primary/30' : ''}`}>
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] text-muted"><span className="text-primary">{icon}</span>{label}</div>
-      <div className={`font-display text-[34px] leading-none mt-3 max-sm:text-[26px] ${accent ? 'text-text' : 'text-text'}`}>{value}</div>
-      <div className="text-[11.5px] text-light mt-2">{hint}</div>
+    <div className={`border-2 border-ink rounded-[22px] max-sm:rounded-[18px] shadow-[0_4px_0_#111] p-5 max-sm:p-4 ${accent ? 'bg-sun' : 'bg-card'}`}>
+      <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-ink/70"><span className="text-ink">{icon}</span>{label}</div>
+      <div className="font-display text-[32px] leading-none mt-3 max-sm:text-[24px] text-ink tabular-nums">{value}</div>
+      <div className="text-[11.5px] text-ink/60 mt-2">{hint}</div>
     </div>
   );
 }
 
 function Mini({ label, value }: { label: string; value: string }) {
   return (
-    <div className=" bg-ink/[0.03] border border-ink/[0.06] py-2">
-      <div className="text-[14px] font-semibold text-text">{value}</div>
-      <div className="text-[10px] text-light uppercase tracking-wider mt-0.5">{label}</div>
+    <div className="bg-surface border border-ink/10 rounded-ctl-sm py-2">
+      <div className="text-[14px] font-bold text-ink tabular-nums">{value}</div>
+      <div className="text-[10px] text-muted uppercase tracking-wider mt-0.5">{label}</div>
     </div>
-  );
-}
-
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button onClick={onClick} className={`inline-flex items-center gap-2 h-10 px-4 text-[12px] uppercase tracking-[0.1em] border transition-colors cursor-pointer ${active ? 'bg-primary/15 border-primary/45 text-primary-light' : 'border-ink/10 text-muted hover:text-text'}`}>
-      {children}
-    </button>
   );
 }
 
@@ -240,14 +209,14 @@ function Drawer({ title, subtitle, onClose, children, footer }: { title: string;
       <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[2400] bg-ink/45 backdrop-blur-sm" onClick={onClose} />
       <m.aside
         initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-        className="fixed top-0 right-0 bottom-0 z-[2500] w-[520px] max-w-full bg-bg border border-line flex flex-col"
+        className="fixed top-0 right-0 bottom-0 z-[2500] w-[520px] max-w-full bg-card border-l-2 border-ink flex flex-col"
       >
-        <div className="flex items-start justify-between gap-3 px-6 py-5 border-b border-ink/[0.07]">
+        <div className="flex items-start justify-between gap-3 px-6 py-5 bg-accent border-b-2 border-ink">
           <div className="min-w-0">
-            <div className="font-display text-[28px] leading-none text-text">{title}</div>
-            {subtitle && <div className="text-[12px] text-muted mt-2">{subtitle}</div>}
+            <div className="font-display text-[26px] leading-none text-ink">{title}</div>
+            {subtitle && <div className="text-[12px] text-ink/70 mt-2">{subtitle}</div>}
           </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-ctl-sm bg-ink/5 border border-ink/10 flex items-center justify-center text-muted hover:text-text cursor-pointer shrink-0" aria-label="Закрыть"><X size={18} /></button>
+          <button onClick={onClose} className="w-10 h-10 rounded-ctl-sm bg-card border-2 border-ink flex items-center justify-center text-ink hover:bg-sun transition-colors cursor-pointer shrink-0" aria-label="Закрыть"><X size={18} strokeWidth={2.2} /></button>
         </div>
         {children}
         {footer}
@@ -306,7 +275,7 @@ function OrderDrawer({ order, onClose, onChanged }: { order: LeaderOrder; onClos
   const closed = status === 'done' || status === 'cancelled';
   return (
     <Drawer
-      title={`Заказ #${order.id}`}
+      title={`Заказ №${order.id}`}
       subtitle={<>{order.buyer} · {formatDate(order.created_at)} · {formatPrice(order.total)}{order.promo_code ? ` · ${order.promo_code}` : ''}</>}
       onClose={onClose}
       footer={canWrite && !closed ? (
@@ -322,7 +291,7 @@ function OrderDrawer({ order, onClose, onChanged }: { order: LeaderOrder; onClos
     >
       <div className="px-6 py-4 border-b border-ink/[0.07] space-y-4">
         <div className="flex items-center gap-3">
-          <span className={`text-[11px] font-medium uppercase tracking-[0.08em] px-2.5 py-1 border ${statusTone(status)}`}>{STATUS_LABEL[status]}</span>
+          <span className={`text-[11px] font-bold uppercase tracking-[0.06em] px-2.5 py-1 border ${statusTone(status)}`}>{STATUS_LABEL[status]}</span>
           <span className="ml-auto text-right leading-tight">
             <span className="block text-[11px] text-muted">Ваше вознаграждение{status !== 'done' && status !== 'cancelled' ? ' · после выдачи' : ''}</span>
             <b className="block font-display text-[24px] text-primary-dark tabular-nums">{formatPrice(order.leader_reward)}</b>
@@ -336,61 +305,9 @@ function OrderDrawer({ order, onClose, onChanged }: { order: LeaderOrder; onClos
         )}
         <ItemsList items={parseItems(order.items)} />
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
-        {loading ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-primary" /></div>
-          : messages.length === 0 ? <div className="text-center text-sm text-muted py-8">Сообщений пока нет</div>
-          : messages.map((m) => <Bubble key={m.id} msg={m} mineType="leader" />)}
-      </div>
-    </Drawer>
-  );
-}
-
-function TicketDrawer({ ticket, onClose }: { ticket: LeaderTicket; onClose: () => void }) {
-  const show = useNotificationStore((s) => s.show);
-  const [messages, setMessages] = useState<OrderChatMessage[]>([]);
-  const [canWrite, setCanWrite] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [text, setText] = useState('');
-
-  const load = useCallback(async () => {
-    const res = await fetchLeaderTicketMessages(ticket.id);
-    setMessages(res.messages.map((m) => ({ ...m, order_id: 0 })) as OrderChatMessage[]);
-    setCanWrite(res.can_write);
-    setLoading(false);
-  }, [ticket.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  const [images, setImages] = useState<string[]>([]);
-  const [sending, setSending] = useState(false);
-  const send = async () => {
-    if ((!text.trim() && !images.length) || sending) return;
-    setSending(true);
-    try {
-      const msg = await sendLeaderTicketMessage(ticket.id, text.trim(), images);
-      setMessages((m) => [...m, { ...msg, order_id: 0 } as OrderChatMessage]);
-      setText('');
-      setImages([]);
-    } catch (e) { show((e as Error).message, 'error'); }
-    setSending(false);
-  };
-
-  return (
-    <Drawer
-      title={unescapeHtml(ticket.subject)}
-      subtitle={<>{ticket.user_name}{ticket.promo_code ? ` · промокод ${ticket.promo_code}` : ''}</>}
-      onClose={onClose}
-      footer={canWrite && ticket.status !== 'closed' ? (
-        <LeaderComposer
-          text={text} setText={setText} images={images} setImages={setImages}
-          onSend={send} sending={sending} placeholder="Ответить…" prefix="leader_ticket"
-        />
-      ) : (
-        <div className="px-6 py-3.5 border-t border-ink/[0.07] text-[12px] text-muted flex items-center gap-2"><Eye size={14} className="text-primary" /> Только просмотр</div>
-      )}
-    >
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
-        {loading ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-primary" /></div>
+      <div className="chat-bg flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
+        {loading ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-ink" /></div>
+          : messages.length === 0 ? <div className="mx-auto w-fit text-center text-sm text-muted py-2 px-4 bg-card/90 rounded-full mt-6">Сообщений пока нет</div>
           : messages.map((m) => <Bubble key={m.id} msg={m} mineType="leader" />)}
       </div>
     </Drawer>

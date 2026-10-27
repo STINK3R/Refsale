@@ -178,8 +178,15 @@ export interface PromoResult {
   prices?: Record<string, number>;
   /** 'all' | 'category' | 'products', and the same in words for the buyer */
   scope?: string;
+  scope_category_id?: number | null;
+  scope_product_ids?: number[];
   scope_text?: string;
   error?: string;
+}
+
+/** A code the buyer took off: the server stops reminding them about it. */
+export async function forgetStorePromo(code: string): Promise<void> {
+  try { await _post('/api/store/promo/forget', { code }); } catch { /* not signed in, or offline */ }
 }
 
 export async function validateStorePromo(code: string): Promise<PromoResult> {
@@ -209,17 +216,19 @@ export interface StoreOrderPayload {
   comment?: string;
   contact_method: string;
   promo_code?: string | null;
+  /** Every code on: one per category at most */
+  promo_codes?: string[];
   items: { id: number; qty: number; variant_id?: number | null; variant_comment?: string }[];
 }
 
-export async function createStoreOrder(data: StoreOrderPayload): Promise<{ order?: Order; error?: string; promo_invalid?: boolean }> {
+export async function createStoreOrder(data: StoreOrderPayload): Promise<{ order?: Order; error?: string; promo_invalid?: boolean; promo_code?: string }> {
   const res = await fetch(API_BASE + '/api/store/orders', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   const body = await res.json().catch(() => ({ error: 'Ошибка сервера' }));
-  if (!res.ok) return { error: body.error || 'Не удалось оформить заказ', promo_invalid: !!body.promo_invalid };
+  if (!res.ok) return { error: body.error || 'Не удалось оформить заказ', promo_invalid: !!body.promo_invalid, promo_code: body.promo_code };
   return { order: body as Order };
 }
 
@@ -270,17 +279,6 @@ export interface LeaderOrder {
   msg_count: number;
 }
 
-export interface LeaderTicket {
-  id: number;
-  user_name: string;
-  subject: string;
-  status: string;
-  promo_code: string | null;
-  created_at: string;
-  updated_at: string;
-  last_text: string | null;
-}
-
 export async function fetchLeaderOverview(): Promise<{ data?: LeaderOverview; error?: string }> {
   try { return { data: await _api<LeaderOverview>('/api/leader/overview') }; }
   catch (e: unknown) { return { error: (e as Error).message }; }
@@ -304,15 +302,3 @@ export async function setLeaderOrderStatus(orderId: number, status: string): Pro
   catch (e: unknown) { return { error: (e as Error).message }; }
 }
 
-export async function fetchLeaderTickets(): Promise<LeaderTicket[]> {
-  try { return await _api('/api/leader/tickets'); } catch { return []; }
-}
-
-export async function fetchLeaderTicketMessages(ticketId: number): Promise<{ messages: import('../types').SupportMessage[]; can_write: boolean }> {
-  try { return await _api(`/api/leader/tickets/${ticketId}/messages`); }
-  catch { return { messages: [], can_write: false }; }
-}
-
-export async function sendLeaderTicketMessage(ticketId: number, text: string, images: string[] = []): Promise<import('../types').SupportMessage> {
-  return _post(`/api/leader/tickets/${ticketId}/messages`, { text, images });
-}

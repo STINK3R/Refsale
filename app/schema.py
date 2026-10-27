@@ -70,10 +70,38 @@ _TABLES = [
         status VARCHAR(20) NOT NULL,
         changed_at TIMESTAMPTZ DEFAULT NOW()
     )""",
+    # Which codes a signed-in buyer holds (they live in the browser), so the
+    # site can remind them a week before one runs out (promo_reminders.py)
+    """CREATE TABLE IF NOT EXISTS ref_promo_activations (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES coop_users(id) ON DELETE CASCADE,
+        promo_id INTEGER NOT NULL REFERENCES ref_promos(id) ON DELETE CASCADE,
+        activated_at TIMESTAMPTZ DEFAULT NOW(),
+        seen_at TIMESTAMPTZ DEFAULT NOW(),
+        reminded_for TIMESTAMPTZ DEFAULT NULL,
+        UNIQUE (user_id, promo_id)
+    )""",
 ]
 
 # (table, column, definition) — added after the tables above exist.
 _COLUMNS = [
+    # A supplier's account: «О нас» shows them the supplier's branch
+    ("coop_users", "is_supplier", "BOOLEAN DEFAULT FALSE"),
+    # Every code an order was placed with (several, one per category); the
+    # leader of promo_code is the one credited for it
+    ("coop_orders", "promo_codes", "TEXT DEFAULT NULL"),
+    # "Не нашли?" plate at the top of a category page
+    ("coop_categories", "request_text", "TEXT DEFAULT ''"),
+    # Subcategories (brands, types) dress like categories: a logo or picture,
+    # a colour, a slogan and a description, in an order the admin sets
+    ("coop_subcategories", "image", "TEXT DEFAULT ''"),
+    ("coop_subcategories", "accent_color", "VARCHAR(20) DEFAULT ''"),
+    ("coop_subcategories", "slogan", "TEXT DEFAULT ''"),
+    ("coop_subcategories", "sort_order", "INTEGER DEFAULT 0"),
+    # A brand (not a type): it runs in the strip of logos
+    ("coop_subcategories", "is_brand", "BOOLEAN DEFAULT FALSE"),
+    # Forum posts can carry photos, like chat messages
+    ("coop_forum_posts", "images", "TEXT DEFAULT '[]'"),
     # Catalog
     ("coop_products", "promo_price", "NUMERIC(12,2) DEFAULT NULL"),
     ("coop_products", "requires_variant", "BOOLEAN DEFAULT FALSE"),
@@ -181,6 +209,93 @@ FORUM_KEY = "general"
 _FORUM = (FORUM_KEY, "Общий форум", "Ароматы, находки и советы друг другу")
 
 
+# One-off text fixes, each run once (a marker in coop_settings): the platform
+# says "лидер мнений" where the first texts said "блогер".
+_TEXT_FIXES = [
+    ("Промокод от вашего блогера", "Промокод от вашего лидера мнений"),
+    ("промокодом от вашего блогера", "промокодом от вашего лидера мнений"),
+    ("С промокодом блогера", "С промокодом лидера мнений"),
+    ("с промокодом блогера", "с промокодом лидера мнений"),
+    ("Промокод блогера", "Промокод лидера мнений"),
+    ("промокод блогера", "промокод лидера мнений"),
+]
+
+
+def _fix_texts(cur):
+    cur.execute("SELECT 1 FROM coop_settings WHERE key = 'texts_leader_v1'")
+    if cur.fetchone():
+        return
+    for col in ("intro", "slogan", "description"):
+        for a, b in _TEXT_FIXES:
+            cur.execute(f"UPDATE coop_categories SET {col} = REPLACE({col}, %s, %s) WHERE {col} LIKE %s", (a, b, f"%{a}%"))
+    cur.execute("INSERT INTO coop_settings (key, value) VALUES ('texts_leader_v1', '1') ON CONFLICT (key) DO NOTHING")
+
+
+# The perfume brands the brief names, so the strip of logos has something
+# to show from the start; the admin adds logos and removes what is not needed.
+_PERFUME_BRANDS = ["Clive Christian", "Chanel", "Tom Ford", "Givenchy", "Dior", "Amouage",
+                   "Versace", "Ex Nihilo", "Memo", "Creed", "Nasomatto", "Sisley"]
+
+
+def _seed_perfume_brands(cur):
+    cur.execute("SELECT 1 FROM coop_settings WHERE key = 'perfume_brands_v1'")
+    if cur.fetchone():
+        return
+    cur.execute("SELECT id FROM coop_categories WHERE name ILIKE %s ORDER BY id LIMIT 1", ("%парфюм%",))
+    row = cur.fetchone()
+    if row:
+        for i, name in enumerate(_PERFUME_BRANDS, start=1):
+            cur.execute(
+                """UPDATE coop_subcategories SET is_brand = TRUE
+                   WHERE category_id = %s AND LOWER(name) = LOWER(%s)""",
+                (row["id"], name),
+            )
+            cur.execute(
+                """INSERT INTO coop_subcategories (name, category_id, is_brand, sort_order)
+                   SELECT %s, %s, TRUE, %s
+                   WHERE NOT EXISTS (SELECT 1 FROM coop_subcategories
+                                     WHERE category_id = %s AND LOWER(name) = LOWER(%s))""",
+                (name, row["id"], i, row["id"], name),
+            )
+    cur.execute("INSERT INTO coop_settings (key, value) VALUES ('perfume_brands_v1', '1') ON CONFLICT (key) DO NOTHING")
+
+
+# Logos for those brands, shipped in frontend/public/img/brands
+_BRAND_LOGOS = {
+    "Clive Christian": "clive-christian", "Chanel": "chanel", "Tom Ford": "tom-ford",
+    "Givenchy": "givenchy", "Dior": "dior", "Amouage": "amouage", "Versace": "versace",
+    "Ex Nihilo": "ex-nihilo", "Memo": "memo", "Creed": "creed", "Nasomatto": "nasomatto",
+    "Sisley": "sisley",
+}
+
+
+def _seed_brand_logos(cur):
+    """Once: a brand with no picture of its own gets the shipped logo."""
+    cur.execute("SELECT 1 FROM coop_settings WHERE key = 'brand_logos_v1'")
+    if cur.fetchone():
+        return
+    for name, slug in _BRAND_LOGOS.items():
+        cur.execute(
+            """UPDATE coop_subcategories SET image = %s, is_brand = TRUE
+               WHERE LOWER(name) = LOWER(%s) AND COALESCE(image, '') = ''""",
+            (f"/img/brands/{slug}.png", name),
+        )
+    cur.execute("INSERT INTO coop_settings (key, value) VALUES ('brand_logos_v1', '1') ON CONFLICT (key) DO NOTHING")
+
+
+def _seed_request_texts(cur):
+    """The perfume page asks for a scent by name; once, so the admin's own
+    wording (or an empty field) stays as set."""
+    cur.execute("SELECT 1 FROM coop_settings WHERE key = 'request_text_v1'")
+    if cur.fetchone():
+        return
+    cur.execute(
+        "UPDATE coop_categories SET request_text = %s WHERE name ILIKE %s AND COALESCE(request_text, '') = ''",
+        ("Не нашли свой аромат? Отправьте название — в наличии 90% ароматов из сетевых магазинов.", "%парфюм%"),
+    )
+    cur.execute("INSERT INTO coop_settings (key, value) VALUES ('request_text_v1', '1') ON CONFLICT (key) DO NOTHING")
+
+
 def ensure_schema():
     try:
         with get_db() as cur:
@@ -192,6 +307,10 @@ def ensure_schema():
                 cur.execute(sql)
             for sql in _REPAIRS:
                 cur.execute(sql)
+            _fix_texts(cur)
+            _seed_request_texts(cur)
+            _seed_perfume_brands(cur)
+            _seed_brand_logos(cur)
             cur.execute(
                 """INSERT INTO coop_forums (name, address_key, description)
                    SELECT %s, %s, %s WHERE NOT EXISTS (SELECT 1 FROM coop_forums WHERE address_key = %s)""",

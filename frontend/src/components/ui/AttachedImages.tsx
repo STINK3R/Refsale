@@ -26,9 +26,11 @@ interface AttachedImagesProps {
   className?: string;
   /** Fires when the viewer opens/closes — lets a carousel pause itself. */
   onViewerChange?: (open: boolean) => void;
+  /** Classes for the first photo, shown large (reviews); the rest stay thumbnails. */
+  leadClassName?: string;
 }
 
-export default function AttachedImages({ images, size = 'md', className = '', onViewerChange }: AttachedImagesProps) {
+export default function AttachedImages({ images, size = 'md', className = '', onViewerChange, leadClassName }: AttachedImagesProps) {
   const all = useMemo(() => parseImages(images), [images]);
   const urls = useMemo(() => all.filter((u) => !isVideoUrl(u)), [all]);
   const videos = useMemo(() => all.filter(isVideoUrl), [all]);
@@ -63,7 +65,7 @@ export default function AttachedImages({ images, size = 'md', className = '', on
             type="button"
             onClick={(e) => { e.stopPropagation(); setOpen(i); }}
             title="Открыть фото"
-            className={`${box} overflow-hidden rounded-ctl-xs border border-border bg-bg cursor-zoom-in hover:opacity-90 transition-opacity p-0`}
+            className={`${i === 0 && leadClassName ? leadClassName : `${box} rounded-ctl-xs`} overflow-hidden border border-border bg-bg cursor-zoom-in hover:opacity-90 transition-opacity p-0`}
           >
             <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
           </button>

@@ -385,13 +385,16 @@ def api_create_forum_post():
         return auth_err
     user_name = sanitize_string(d.get("user_name") or "", 200)
     text = sanitize_string(d.get("text") or "", 5000)
-    if not forum_id or not text:
+    # Photos need an upload, and uploads need an account, so a guest post
+    # carries text only.
+    images = sanitize_image_urls(d.get("images")) if user_id else "[]"
+    if not forum_id or (not text and images == "[]"):
         return jsonify({"error": "Заполните текст сообщения"}), 400
     try:
         with get_db() as cur:
             cur.execute(
-                "INSERT INTO coop_forum_posts (forum_id, user_id, user_name, text) VALUES (%s, %s, %s, %s) RETURNING *",
-                (forum_id, user_id, user_name, text)
+                "INSERT INTO coop_forum_posts (forum_id, user_id, user_name, text, images) VALUES (%s, %s, %s, %s, %s) RETURNING *",
+                (forum_id, user_id, user_name, text, images)
             )
             result = _row_to_dict(cur.fetchone())
         return jsonify(result)

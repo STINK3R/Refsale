@@ -159,4 +159,7 @@ def create_app():
     ensure_schema()
     _bootstrap_admin_password()
 
+    from .promo_reminders import start_promo_reminders
+    start_promo_reminders()
+
     return app

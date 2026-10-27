@@ -126,7 +126,7 @@ def api_admin_save_settings():
 # ── CRUD: categories ───────────────────────────
 # Each category is a page of its own on the storefront: picture, slogan,
 # "как это работает" text and the two shops its prices are compared with.
-_CATEGORY_COLS = {'name', 'description', 'hero_image', 'slogan', 'intro',
+_CATEGORY_COLS = {'name', 'description', 'hero_image', 'slogan', 'intro', 'request_text',
                   'compare_label_1', 'compare_label_2', 'sort_order', 'accent_color', 'accent_strong'}
 
 
@@ -189,7 +189,7 @@ def api_add_subcategory():
 @bp.route("/api/admin/subcategories/<int:sid>", methods=["PATCH"])
 def api_update_subcategory(sid):
     d = request.json or {}
-    _COLS = {'name', 'category_id', 'description'}
+    _COLS = {'name', 'category_id', 'description', 'image', 'accent_color', 'slogan', 'sort_order', 'is_brand'}
     try:
         with get_db() as cur:
             row = safe_update(cur, 'coop_subcategories', _COLS, d, 'id', sid)

@@ -234,11 +234,11 @@ def _store_items_table(items_str) -> str:
 def email_store_welcome(name: str, email: str):
     content = f"""
     <h2 style="margin:0 0 12px;color:#8A6A2F;font-size:22px;font-weight:700;text-align:center">Добро пожаловать, {name}!</h2>
-    <p style="color:#444;font-size:15px;line-height:1.6;margin:0 0 16px">Аккаунт на <b>RefSale</b> создан и уже активен. Теперь вы можете оформлять заказы, задавать вопросы продавцу и следить за статусами заказов.</p>
+    <p style="color:#444;font-size:15px;line-height:1.6;margin:0 0 16px">Аккаунт на <b>RefSale</b> создан и уже активен. Теперь вы можете оформлять заказы, задавать вопросы площадке и следить за статусами заказов.</p>
     <div style="text-align:center;margin:24px 0">
       <a href="{SITE_DOMAIN}" style="display:inline-block;padding:13px 30px;background:linear-gradient(135deg,#C9A24A,#9F7A3B);color:#fff;text-decoration:none;border-radius:10px;font-size:15px;font-weight:700">Перейти в каталог</a>
     </div>
-    <p style="color:#888;font-size:13px;line-height:1.5;margin:0">Есть промокод от блогера или друга? Введите его на сайте — цены сразу станут ниже.</p>"""
+    <p style="color:#888;font-size:13px;line-height:1.5;margin:0">Есть промокод от лидера мнений (например, блогера) или друга? Введите его на сайте — цены сразу станут ниже.</p>"""
     send_email(email, "Добро пожаловать в RefSale", _email_wrapper(content))
 
 

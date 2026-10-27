@@ -32,6 +32,8 @@ export default function SupportChatModal() {
 
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [activeTicket, setActiveTicket] = useState<SupportTicket | null>(null);
+  const [ticketFilter, setTicketFilter] = useState('all');
+  const [ticketSort, setTicketSort] = useState('newest');
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -175,11 +177,18 @@ export default function SupportChatModal() {
     } catch { /* ignore */ }
   };
 
-  const statusLabel: Record<string, { text: string; color: string }> = {
-    open: { text: 'Открыт', color: 'bg-primary/20 text-primary' },
-    in_progress: { text: 'В работе', color: 'bg-yellow-500/20 text-yellow-600' },
-    closed: { text: 'Закрыт', color: 'bg-surface text-muted' },
+  // Same colours as orders: new — purple, in work — blue, closed — green
+  const statusLabel: Record<string, { text: string; color: string; stripe: string }> = {
+    open: { text: 'Новый', color: 'text-[#6326C9] bg-[#EDE4FF] border-[#C4B0F5]', stripe: 'bg-[#8E4EC6]' },
+    in_progress: { text: 'В работе', color: 'text-[#1B5BB0] bg-[#DCEBFF] border-[#9DC3F0]', stripe: 'bg-[#3E8BE6]' },
+    closed: { text: 'Закрыт', color: 'text-[#13723A] bg-[#DDF5E5] border-[#9ED6B0]', stripe: 'bg-[#30A46C]' },
   };
+  const shownTickets = [...tickets]
+    .filter((t) => ticketFilter === 'all' || t.status === ticketFilter)
+    .sort((a, b) => {
+      const d = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+      return ticketSort === 'oldest' ? d : -d;
+    });
 
   return (
     <AnimatePresence>
@@ -220,10 +229,10 @@ export default function SupportChatModal() {
                 {!activeTicket && <Meerkat pose="phone" width={40} decorative className="-my-1" />}
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-[15px] truncate">
-                    {activeTicket ? unescapeHtml(activeTicket.subject) : 'Чаты с продавцом'}
+                    {activeTicket ? unescapeHtml(activeTicket.subject) : 'Вопросы площадке'}
                   </div>
                   {!activeTicket && (
-                    <div className="text-[11px] opacity-80">Спросите о товаре, наличии или доставке</div>
+                    <div className="text-[11px] opacity-80">Ответит администратор: о товаре, наличии, доставке</div>
                   )}
                 </div>
                 <button
@@ -237,7 +246,7 @@ export default function SupportChatModal() {
               {/* Content */}
               <div className="flex-1 min-h-0 overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
                 {activeTicket ? (
-                  <div className="p-4 space-y-3">
+                  <div className="chat-bg min-h-full p-4 space-y-3">
                     {activeTicket.status !== 'closed' && <NotifyPrompt />}
                     {loading ? (
                       <div className="text-center text-muted py-8 text-sm">Загрузка...</div>
@@ -246,13 +255,13 @@ export default function SupportChatModal() {
                     ) : (
                       messages.map(msg => (
                         <div key={msg.id} className={`flex ${msg.sender_type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[80%] px-3.5 py-2 text-[13px] leading-relaxed ${
+                          <div className={`max-w-[80%] px-3.5 py-2 rounded-[16px] text-[13px] leading-relaxed shadow-[0_1px_0_rgba(17,17,17,0.08)] ${
                             msg.sender_type === 'user'
-                              ? 'bg-primary text-ink rounded-br-sm'
-                              : 'bg-surface text-text rounded-bl-sm'
+                              ? 'bg-card border border-ink/15 text-ink rounded-br-[6px]'
+                              : 'bg-[#DCEBFF] border border-[#9DC3F0] text-ink rounded-bl-[6px]'
                           }`}>
                             {msg.sender_type !== 'user' && (
-                              <div className="text-[10px] font-bold mb-0.5 text-primary">{msg.sender_type === 'leader' ? `${msg.sender_name} · лидер мнений` : 'Продавец'}</div>
+                              <div className="text-[10px] font-bold mb-0.5 text-[#1B5BB0]">{msg.sender_type === 'leader' ? `${msg.sender_name} · лидер мнений` : 'RefSale'}</div>
                             )}
                             <span className="whitespace-pre-line">{unescapeHtml(msg.text)}</span>
                             <AttachedImages images={msg.images} size="sm" className="mt-1.5" />
@@ -297,10 +306,10 @@ export default function SupportChatModal() {
                       </div>
 
                       {selectedProduct ? (
-                        <div className="mb-2 flex items-center gap-2.5 p-2 pr-2.5 border border-primary/30 bg-primary/5">
-                          <div className="w-10 h-10 overflow-hidden bg-card border border-border flex-shrink-0">
+                        <div className="mb-2 flex items-center gap-2.5 p-2 pr-2.5 rounded-ctl-sm border-2 border-ink bg-card">
+                          <div className="w-10 h-10 overflow-hidden rounded-ctl-xs bg-tile flex-shrink-0">
                             {selectedProduct.image_url ? (
-                              <img src={selectedProduct.image_url} alt="" className="w-full h-full object-cover" />
+                              <img src={selectedProduct.image_url} alt="" className="w-full h-full object-contain p-0.5" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-muted">
                                 <Package size={16} />
@@ -317,19 +326,19 @@ export default function SupportChatModal() {
                             type="button"
                             onClick={() => { setSelectedProduct(null); setSubject(''); }}
                             aria-label="Убрать товар"
-                            className="w-6 h-6 rounded-full bg-card border border-border text-muted hover:text-danger hover:border-danger transition flex items-center justify-center cursor-pointer flex-shrink-0"
+                            className="w-7 h-7 rounded-full bg-card border-2 border-ink/15 text-muted hover:text-danger hover:border-danger transition flex items-center justify-center cursor-pointer flex-shrink-0"
                           >
                             <X size={12} />
                           </button>
                         </div>
                       ) : pickerOpen && (
-                        <div className="mb-2 border border-border bg-surface/40 p-2.5">
+                        <div className="mb-2 rounded-ctl-md border-2 border-ink/10 bg-surface p-2.5">
                           <input
                             type="text"
                             placeholder="Поиск товара..."
                             value={pickerQuery}
                             onChange={e => setPickerQuery(e.target.value)}
-                            className="w-full px-3 py-2 mb-2 border border-border text-[13px] bg-card focus:outline-none focus:border-primary"
+                            className="field !h-10 !py-0 !text-[13px] mb-2"
                           />
                           <div className="flex gap-2 overflow-x-auto pb-1 -mx-0.5 px-0.5 [scrollbar-width:thin]">
                             {/* "Иная тема" as first card in product list */}
@@ -339,10 +348,10 @@ export default function SupportChatModal() {
                                 setSubject('Иная тема');
                                 setPickerOpen(false);
                               }}
-                              className="flex-shrink-0 w-[108px] bg-primary/5 border-2 border-primary/25 hover:border-primary/50 hover:shadow-md transition p-1.5 text-left cursor-pointer"
+                              className="flex-shrink-0 w-[108px] rounded-ctl-sm bg-sun border-2 border-ink/20 hover:border-ink transition p-1.5 text-left cursor-pointer"
                             >
-                              <div className="w-full h-16 bg-primary/10 flex items-center justify-center mb-1">
-                                <HelpCircle size={24} className="text-primary" />
+                              <div className="w-full h-16 rounded-[10px] bg-card/70 flex items-center justify-center mb-1">
+                                <HelpCircle size={24} className="text-ink" />
                               </div>
                               <div className="text-[11px] font-bold text-text leading-tight line-clamp-2">Иная тема</div>
                               <div className="text-[10px] text-muted mt-0.5">без привязки</div>
@@ -364,11 +373,11 @@ export default function SupportChatModal() {
                                     setPickerOpen(false);
                                     setPickerQuery('');
                                   }}
-                                  className="flex-shrink-0 w-[108px] bg-card border border-border hover:border-primary hover:shadow-md transition p-1.5 text-left cursor-pointer"
+                                  className="flex-shrink-0 w-[108px] rounded-ctl-sm bg-card border-2 border-ink/10 hover:border-ink transition p-1.5 text-left cursor-pointer"
                                 >
-                                  <div className="w-full h-16 overflow-hidden bg-surface mb-1">
+                                  <div className="w-full h-16 rounded-[10px] overflow-hidden bg-tile mb-1">
                                     {p.image_url ? (
-                                      <img src={p.image_url} alt="" className="w-full h-full object-cover" />
+                                      <img src={p.image_url} alt="" className="w-full h-full object-contain p-1" />
                                     ) : (
                                       <div className="w-full h-full flex items-center justify-center text-muted">
                                         <Package size={20} />
@@ -442,13 +451,34 @@ export default function SupportChatModal() {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4">
+                  <div className="chat-bg min-h-full p-4">
                     <button
                       onClick={() => setShowNew(true)}
-                      className="w-full flex items-center justify-center gap-2 py-3 mb-3 bg-primary/10 text-primary border border-primary/25 text-sm font-semibold cursor-pointer hover:bg-primary/15 transition"
+                      className="btn-primary w-full mb-3"
                     >
-                      <Plus size={16} /> Новое обращение
+                      <Plus size={16} /> Новый вопрос
                     </button>
+                    {tickets.length > 0 && (
+                      <div className="mb-3 flex items-center gap-2">
+                        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide flex-1" role="tablist" aria-label="Статус вопроса">
+                          {[['all', 'Все'], ['open', 'Новые'], ['in_progress', 'В работе'], ['closed', 'Закрытые']].map(([id, label]) => (
+                            <button
+                              key={id}
+                              role="tab"
+                              aria-selected={ticketFilter === id}
+                              onClick={() => setTicketFilter(id)}
+                              className={`shrink-0 h-8 px-3 rounded-ctl-xs border-2 text-[12px] font-bold whitespace-nowrap cursor-pointer transition-colors ${ticketFilter === id ? 'bg-ink text-sun border-ink' : 'bg-card text-ink border-ink/15 hover:border-ink'}`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        <select value={ticketSort} onChange={(e) => setTicketSort(e.target.value)} className="field !h-8 !w-auto !py-0 !pl-2.5 !text-[12px] !rounded-ctl-xs shrink-0" aria-label="Порядок вопросов">
+                          <option value="newest">Сначала новые</option>
+                          <option value="oldest">Сначала старые</option>
+                        </select>
+                      </div>
+                    )}
                     {tickets.length === 0 ? (
                       <div className="text-center text-muted py-6 text-sm">
                         <MessageCircle size={32} className="mx-auto mb-2 opacity-30" />
@@ -456,17 +486,19 @@ export default function SupportChatModal() {
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {tickets.map(t => {
+                        {shownTickets.length === 0 && <div className="text-center text-muted py-6 text-sm">Вопросов с таким статусом нет</div>}
+                        {shownTickets.map(t => {
                           const st = statusLabel[t.status] || statusLabel.open;
                           return (
                             <button
                               key={t.id}
                               onClick={() => openTicket(t)}
-                              className="w-full text-left p-3 border border-border hover:border-primary/30 hover:bg-primary/5 transition cursor-pointer"
+                              className="relative w-full text-left pl-5 pr-3 py-3 rounded-[16px] border-2 border-transparent bg-card overflow-hidden hover:border-ink/25 transition cursor-pointer shadow-[0_1px_0_rgba(17,17,17,0.08)]"
                             >
+                              <span className={`absolute left-0 inset-y-0 w-1.5 ${st.stripe}`} aria-hidden="true" />
                               <div className="flex items-center justify-between gap-2 mb-1">
-                                <span className="text-[13px] font-semibold text-text truncate">{unescapeHtml(t.subject)}</span>
-                                <span className={`text-[10px] font-medium uppercase tracking-[0.08em] px-2 py-0.5 shrink-0 ${st.color}`}>{st.text}</span>
+                                <span className="text-[14px] font-bold text-ink truncate">{unescapeHtml(t.subject)}</span>
+                                <span className={`text-[10px] font-bold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full border shrink-0 ${st.color}`}>{st.text}</span>
                               </div>
                               <div className="text-[11px] text-muted">
                                 {new Date(t.updated_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
@@ -482,7 +514,7 @@ export default function SupportChatModal() {
 
               {/* Message input (when viewing a ticket) */}
               {activeTicket && activeTicket.status !== 'closed' && (
-                <div className="px-4 py-3 border-t border-border bg-card shrink-0">
+                <div className="px-4 py-3 border-t-2 border-ink bg-card shrink-0">
                   {user && msgImages.length > 0 && (
                     <div className="mb-2">
                       <ImageUploader value={msgImages} onChange={setMsgImages} userId={user.id} prefix="support" max={4} compact video />
@@ -511,7 +543,7 @@ export default function SupportChatModal() {
                 </div>
               )}
               {activeTicket && activeTicket.status === 'closed' && (
-                <div className="px-4 py-3 border-t border-border bg-surface text-center text-[12px] text-muted font-semibold shrink-0">
+                <div className="px-4 py-3 border-t-2 border-ink bg-surface text-center text-[12px] text-muted font-semibold shrink-0">
                   Обращение закрыто
                 </div>
               )}

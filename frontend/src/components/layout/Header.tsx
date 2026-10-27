@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, m } from 'framer-motion';
 import { X, ShoppingBag, User, Package, Heart } from 'lucide-react';
 import { useAppStore, useAuthStore, useCartStore, useFavoritesStore, useNotificationStore, usePromoStore } from '../../store';
+import { useNewsStore } from '../../store/news';
 import { useSupportStore } from '../../store/support';
 import { fetchOrderChatsUnread } from '../../api/client';
 import { useContacts, ContactBlock, ContactLinks, telHref } from '../ui/Contacts';
@@ -41,11 +42,12 @@ export default function Header() {
   const radioOn = useRadioStore((s) => s.playing);
   const cartCount = totalItems();
   const promoCode = usePromoStore((s) => s.code);
+  const promoMore = usePromoStore((s) => s.codes.length - 1);
   const openSupport = useSupportStore((s) => s.open);
   const show = useNotificationStore((s) => s.show);
   const contacts = useContacts();
   const favCount = useFavoritesStore((s) => s.ids.length);
-  const { categories, activeCategoryId, setActiveCategory, loading: catalogLoading } = useAppStore();
+  const { categories, activeCategoryId, loading: catalogLoading } = useAppStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [orderUnread, setOrderUnread] = useState(0);
@@ -88,6 +90,15 @@ export default function Header() {
 
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
+  // What is new on the forum, in reviews and in the catalog: counters in the menu
+  const { forumNew, reviewsNew, catalogNew, refresh: refreshNews } = useNewsStore();
+  useEffect(() => {
+    void refreshNews();
+    const t = setInterval(refreshNews, 60000);
+    return () => clearInterval(t);
+  }, [refreshNews]);
+  const anyNews = orderUnread > 0 || forumNew > 0 || reviewsNew > 0 || catalogNew;
+
   const goToSection = useCallback((hash: string) => {
     setMenuOpen(false);
     const scroll = () => glideToElement(hash);
@@ -96,6 +107,13 @@ export default function Header() {
     if (location.pathname === '/catalog') setTimeout(scroll, 80);
     else { navigate('/catalog'); setTimeout(scroll, 250); }
   }, [location.pathname, navigate]);
+
+  // The catalog from the menu starts with the choice of a category
+  const openCatalog = () => {
+    setMenuOpen(false);
+    navigate('/catalog');
+    setTimeout(() => window.scrollTo({ top: 0 }), 60);
+  };
 
   // "О нас" is on the main page, right under its first screen
   const goToAbout = () => {
@@ -107,7 +125,7 @@ export default function Header() {
 
   const openChats = () => {
     setMenuOpen(false);
-    if (!user) { openAuth('register', 'Создайте аккаунт за полминуты — и сразу пишите продавцу. Ответ придёт сюда же, в чат.'); return; }
+    if (!user) { openAuth('register', 'Создайте аккаунт за полминуты — и задайте вопрос площадке. Ответит администратор, сюда же, в чат.'); return; }
     openSupport();
   };
 
@@ -116,9 +134,9 @@ export default function Header() {
   // colours, picture, products — fades in once it is at the top.
   const [pendingCategory, setPendingCategory] = useState<number | null>(null);
   const pickCategory = (id: number) => {
-    if (!isCatalog) { setActiveCategory(id); navigate('/catalog'); return; }
+    if (!isCatalog || activeCategoryId === null) { navigate(`/catalog?c=${id}`); window.scrollTo(0, 0); return; }
     setPendingCategory(id);
-    glidePageToTop(() => { setActiveCategory(id); setPendingCategory(null); });
+    glidePageToTop(() => { navigate(`/catalog?c=${id}`); setPendingCategory(null); });
   };
 
   const solid = scrolled || !isHome;
@@ -153,12 +171,13 @@ export default function Header() {
                   <span className="h-[2.5px] rounded-full w-4 bg-ink transition-all duration-300 group-hover:w-6" />
                 </span>
                 <span className="label !text-text max-md:hidden">Меню</span>
+                {anyNews && <span className="w-2 h-2 -ml-1.5 rounded-full bg-primary" aria-label="Есть новое" />}
                 {radioOn && <RadioBars className="text-primary" />}
               </button>
               <nav className="hidden xl:flex items-center gap-7">
-                <NavItem onClick={() => goToSection('#catalog')}>Каталог</NavItem>
-                <NavItem to="/forums">Форум</NavItem>
-                <NavItem onClick={() => goToSection('#reviews')}>Отзывы</NavItem>
+                <NavItem onClick={openCatalog} badge={catalogNew}>Каталог</NavItem>
+                <NavItem to="/forums" badge={forumNew}>Форум</NavItem>
+                <NavItem onClick={() => goToSection('#reviews')} badge={reviewsNew}>Отзывы</NavItem>
                 <NavItem onClick={goToAbout}>О нас</NavItem>
               </nav>
             </div>
@@ -172,7 +191,7 @@ export default function Header() {
             <div className="flex items-center justify-end gap-6 max-sm:gap-4">
               {promoCode && (
                 <span className="hidden md:inline px-3 py-1 rounded-full bg-primary text-white text-[11px] font-bold tracking-[0.08em]" title="Промокод активен — цены со скидкой">
-                  Промокод · {promoCode}
+                  Промокод · {promoCode}{promoMore > 0 ? ` +${promoMore}` : ''}
                 </span>
               )}
               <Link to="/favorites" className="relative text-text hover:text-primary transition-colors max-sm:hidden" aria-label="Избранное" title="Избранное">
@@ -181,7 +200,7 @@ export default function Header() {
               </Link>
               <Link to="/orders" className="relative text-text hover:text-primary transition-colors max-sm:hidden" aria-label="Сообщения и заказы" title="Сообщения и заказы">
                 <Package size={21} strokeWidth={2} />
-                {orderUnread > 0 && <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-primary" />}
+                {orderUnread > 0 && <Count n={orderUnread} className="absolute -top-2 -right-2.5" />}
               </Link>
               <button
                 onClick={() => (user ? openProfile() : openAuth('login'))}
@@ -211,14 +230,16 @@ export default function Header() {
               {categories.map((c) => {
                 const active = isCatalog && (c.id === (pendingCategory ?? activeCategoryId));
                 return (
-                  <button
+                  <a
                     key={c.id}
-                    onClick={() => pickCategory(c.id)}
+                    href={`/catalog?c=${c.id}`}
+                    data-own-nav
+                    onClick={(e) => { e.preventDefault(); pickCategory(c.id); }}
                     aria-current={active ? 'page' : undefined}
-                    className={`shrink-0 h-9 px-4 rounded-ctl-sm border-2 text-[12.5px] font-bold whitespace-nowrap cursor-pointer transition-[color,border-color] ${active ? 'bg-accent-strong border-ink text-ink' : 'bg-card border-line text-muted hover:border-ink hover:text-ink'}`}
+                    className={`shrink-0 h-9 px-4 inline-flex items-center rounded-ctl-sm border-2 text-[12.5px] font-bold whitespace-nowrap cursor-pointer transition-[color,border-color] ${active ? 'bg-accent-strong border-ink text-ink' : 'bg-card border-line text-muted hover:border-ink hover:text-ink'}`}
                   >
                     {c.name}
-                  </button>
+                  </a>
                 );
               })}
             </div>
@@ -250,13 +271,13 @@ export default function Header() {
               <div className="flex-1 overflow-y-auto modal-scroll px-8 max-sm:px-6 py-8">
                 <nav className="flex flex-col">
                   <MenuItem n="01" to="/home">Главная</MenuItem>
-                  <MenuItem n="02" onClick={() => goToSection('#catalog')}>Каталог</MenuItem>
-                  <MenuItem n="03" to="/orders" badge={orderUnread > 0}>Сообщения и заказы</MenuItem>
+                  <MenuItem n="02" onClick={openCatalog} badge={catalogNew}>Каталог</MenuItem>
+                  <MenuItem n="03" to="/orders" badge={orderUnread}>Сообщения и заказы</MenuItem>
                   <MenuItem n="04" to="/favorites">Избранное{favCount > 0 && <sup className="ml-1.5 text-[13px] text-primary">{favCount}</sup>}</MenuItem>
-                  <MenuItem n="05" to="/forums">Форум</MenuItem>
-                  <MenuItem n="06" onClick={() => goToSection('#reviews')}>Отзывы</MenuItem>
+                  <MenuItem n="05" to="/forums" badge={forumNew}>Форум</MenuItem>
+                  <MenuItem n="06" onClick={() => goToSection('#reviews')} badge={reviewsNew}>Отзывы</MenuItem>
                   <MenuItem n="07" onClick={goToAbout}>О нас</MenuItem>
-                  <MenuItem n="08" onClick={openChats}>Вопрос продавцу</MenuItem>
+                  <MenuItem n="08" onClick={openChats}>Вопрос площадке</MenuItem>
                   {user?.is_leader && <MenuItem n="09" to="/cabinet">Кабинет лидера мнений</MenuItem>}
                 </nav>
 
@@ -281,7 +302,7 @@ export default function Header() {
                 <div className="mt-10 flex items-end gap-3">
                   <Meerkat pose="thumbs-up" width={92} className="shrink-0" decorative />
                   <div className="relative mb-8 px-4 py-3 rounded-2xl rounded-bl-sm bg-sun border-2 border-ink text-[13px] font-semibold leading-snug">
-                    Привет! Введите промокод блогера — и все цены станут ниже.
+                    Привет! Введите промокод лидера мнений — и все цены станут ниже.
                   </div>
                 </div>
                 {/* Music while shopping, only when asked for */}
@@ -301,20 +322,36 @@ export default function Header() {
   );
 }
 
-function NavItem({ to, onClick, children }: { to?: string; onClick?: () => void; children: React.ReactNode }) {
-  const { pathname } = useLocation();
-  const active = !!to && pathname.startsWith(to);
-  const cls = `label !text-[11px] transition-colors cursor-pointer ${active ? '!text-text' : '!text-muted hover:!text-text'}`;
-  if (to) return <Link to={to} className={cls}>{children}</Link>;
-  return <button onClick={onClick} className={cls}>{children}</button>;
+/** How many new things: a number in a pink pill, 99+ at most. */
+function Count({ n, className = '' }: { n: number; className?: string }) {
+  return (
+    <span className={`min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10.5px] font-bold leading-[18px] text-center tabular-nums ${className}`}>
+      {n > 99 ? '99+' : n}
+    </span>
+  );
 }
 
-function MenuItem({ n, to, onClick, children, badge }: { n: string; to?: string; onClick?: () => void; children: React.ReactNode; badge?: boolean }) {
+/** A number for counted news, a dot for "something new" (the catalog). */
+function Badge({ value, className = '' }: { value?: number | boolean; className?: string }) {
+  if (typeof value === 'number') return value > 0 ? <Count n={value} className={className} /> : null;
+  return value ? <span className={`w-2 h-2 rounded-full bg-primary ${className}`} aria-label="новое" /> : null;
+}
+
+function NavItem({ to, onClick, children, badge }: { to?: string; onClick?: () => void; children: React.ReactNode; badge?: number | boolean }) {
+  const { pathname } = useLocation();
+  const active = !!to && pathname.startsWith(to);
+  const cls = `label !text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1.5 ${active ? '!text-text' : '!text-muted hover:!text-text'}`;
+  const inner = <>{children}<Badge value={badge} className="!tracking-normal" /></>;
+  if (to) return <Link to={to} className={cls}>{inner}</Link>;
+  return <button onClick={onClick} className={cls}>{inner}</button>;
+}
+
+function MenuItem({ n, to, onClick, children, badge }: { n: string; to?: string; onClick?: () => void; children: React.ReactNode; badge?: number | boolean }) {
   const inner = (
     <>
       <span className="text-[11px] text-muted tabular-nums w-7 pt-3">{n}</span>
       <span className="font-display text-[30px] max-sm:text-[26px] leading-[1.25] text-text group-hover:translate-x-1.5 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]">{children}</span>
-      {badge && <span className="ml-2 mt-4 w-1.5 h-1.5 rounded-full bg-primary" />}
+      <Badge value={badge} className={typeof badge === 'number' ? 'ml-2.5 mt-3 !h-5 !min-w-5 !leading-5 !text-[11px]' : 'ml-2 mt-4'} />
     </>
   );
   const cls = 'group flex items-start py-2.5 border-b border-line/60 text-left cursor-pointer';

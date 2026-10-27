@@ -22,11 +22,55 @@ export const STATUS_LABEL: Record<string, string> = {
 export const STATUS_STEPS = ['accepted', 'processing', 'shipping', 'done'];
 const CLOSED = new Set(['done', 'cancelled']);
 
+/** Status colours: new — purple, in work — blue, done — green, cancelled — red. */
 export function statusTone(status: string) {
-  if (status === 'cancelled') return 'text-danger bg-danger/10 border-danger/25';
-  if (status === 'done') return 'text-success bg-success/10 border-success/25';
-  if (status === 'new') return 'text-muted bg-ink/[0.05] border-ink/10';
-  return 'text-primary-light bg-primary/12 border-primary/30';
+  if (status === 'cancelled') return 'rounded-full text-[#B4232A] bg-[#FDE2E2] border-[#F2A9AC]';
+  if (status === 'done') return 'rounded-full text-[#13723A] bg-[#DDF5E5] border-[#9ED6B0]';
+  if (status === 'new') return 'rounded-full text-[#6326C9] bg-[#EDE4FF] border-[#C4B0F5]';
+  return 'rounded-full text-[#1B5BB0] bg-[#DCEBFF] border-[#9DC3F0]';
+}
+
+/** The same colour as a solid stripe, for the edge of an order in a list. */
+export function statusStripe(status: string) {
+  if (status === 'cancelled') return 'bg-[#E5484D]';
+  if (status === 'done') return 'bg-[#30A46C]';
+  if (status === 'new') return 'bg-[#8E4EC6]';
+  return 'bg-[#3E8BE6]';
+}
+
+const OPEN = new Set(['new', 'accepted', 'processing', 'shipping']);
+
+const FILTERS: { id: string; label: string; test: (s: string) => boolean }[] = [
+  { id: 'all', label: 'Все', test: () => true },
+  { id: 'new', label: 'Новые', test: (s) => s === 'new' },
+  { id: 'work', label: 'В работе', test: (s) => ['accepted', 'processing', 'shipping'].includes(s) },
+  { id: 'done', label: 'Выданы', test: (s) => s === 'done' },
+  { id: 'cancelled', label: 'Отменены', test: (s) => s === 'cancelled' },
+];
+
+const SORTS: { id: string; label: string }[] = [
+  { id: 'recent', label: 'По последнему сообщению' },
+  { id: 'newest', label: 'Сначала новые' },
+  { id: 'oldest', label: 'Сначала старые' },
+  { id: 'open', label: 'Сначала актуальные' },
+  { id: 'closed', label: 'Сначала закрытые' },
+];
+
+function sortChats(list: OrderChatSummary[], sort: string): OrderChatSummary[] {
+  const created = (c: OrderChatSummary) => new Date(c.created_at).getTime();
+  const recent = (c: OrderChatSummary) => new Date(c.last_at || c.created_at).getTime();
+  const out = [...list];
+  if (sort === 'newest') out.sort((a, b) => created(b) - created(a));
+  else if (sort === 'oldest') out.sort((a, b) => created(a) - created(b));
+  else if (sort === 'open') out.sort((a, b) => Number(OPEN.has(b.status)) - Number(OPEN.has(a.status)) || recent(b) - recent(a));
+  else if (sort === 'closed') out.sort((a, b) => Number(OPEN.has(a.status)) - Number(OPEN.has(b.status)) || recent(b) - recent(a));
+  else out.sort((a, b) => recent(b) - recent(a));
+  return out;
+}
+
+function createdLabel(iso: string): string {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' })}, ${d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 export function parseItems(raw: string): OrderItem[] {
@@ -111,6 +155,9 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<OrderChatSummary | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [filter, setFilter] = useState('all');
+  const [sort, setSort] = useState('recent');
+  const shown = sortChats(chats.filter((c) => (FILTERS.find((f) => f.id === filter) || FILTERS[0]).test(c.status)), sort);
 
   const loadChats = useCallback(async (silent?: boolean) => {
     if (!user?.id) return;
@@ -162,9 +209,32 @@ export default function OrdersPage() {
         <h1 className="font-display text-[40px] leading-none text-text max-sm:text-[32px]">Статусы и чаты</h1>
       </div>
 
-      <div className="bg-card border border-line overflow-hidden flex h-[calc(100dvh-220px)] min-h-[480px] max-h-[760px]">
-        <aside className={`w-full sm:w-[340px] sm:min-w-[340px] sm:border-r border-ink/[0.07] flex-col ${selected ? 'hidden sm:flex' : 'flex'}`}>
-          <div className="flex-1 min-h-0 overflow-y-auto" style={{ overscrollBehavior: 'contain' }}>
+      <div className="bg-card border-2 border-ink rounded-[24px] max-sm:rounded-[20px] shadow-[0_6px_0_#111] overflow-hidden flex h-[calc(100dvh-220px)] min-h-[480px] max-h-[760px]">
+        <aside className={`w-full sm:w-[360px] sm:min-w-[360px] sm:border-r-2 border-ink/10 bg-surface flex-col ${selected ? 'hidden sm:flex' : 'flex'}`}>
+          {chats.length > 0 && (
+            <div className="shrink-0 px-3 pt-3 pb-2.5 border-b-2 border-ink/10 space-y-2.5">
+              <div className="flex gap-1.5 overflow-x-auto scrollbar-hide" role="tablist" aria-label="Статус заказа">
+                {FILTERS.map((f) => {
+                  const n = chats.filter((c) => f.test(c.status)).length;
+                  return (
+                    <button
+                      key={f.id}
+                      role="tab"
+                      aria-selected={filter === f.id}
+                      onClick={() => setFilter(f.id)}
+                      className={`shrink-0 h-8 px-3 rounded-ctl-xs border-2 text-[12px] font-bold whitespace-nowrap cursor-pointer transition-colors ${filter === f.id ? 'bg-ink text-sun border-ink' : 'bg-card text-ink border-ink/15 hover:border-ink'}`}
+                    >
+                      {f.label} <span className="opacity-60 tabular-nums">{n}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <select value={sort} onChange={(e) => setSort(e.target.value)} className="field !h-9 !py-0 !text-[12.5px] !rounded-ctl-xs" aria-label="Порядок заказов">
+                {SORTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+              </select>
+            </div>
+          )}
+          <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2" style={{ overscrollBehavior: 'contain' }}>
             {loading ? (
               <div className="flex justify-center py-16"><Loader2 className="animate-spin text-primary" /></div>
             ) : chats.length === 0 ? (
@@ -172,25 +242,29 @@ export default function OrdersPage() {
                 <Meerkat pose="boxes" width={110} decorative className="mx-auto mb-4" />
                 Заказов пока нет. После оформления здесь появится чат с менеджером и статусы.
               </div>
-            ) : chats.map((c) => {
+            ) : shown.length === 0 ? (
+              <div className="text-center py-12 px-6 text-[13px] text-muted">Заказов с таким статусом нет</div>
+            ) : shown.map((c) => {
               const active = selected?.order_id === c.order_id;
-              const preview = c.last_text ? (c.last_sender === 'user' ? 'Вы: ' : '') + c.last_text : 'Напишите менеджеру';
+              const preview = c.last_text ? (c.last_sender === 'user' ? 'Вы: ' : '') + unescapeHtml(c.last_text) : 'Напишите менеджеру';
               return (
                 <button
                   key={c.order_id}
                   onClick={() => openChat(c)}
-                  className={`w-full text-left px-4 py-3.5 border-b border-ink/[0.05] cursor-pointer transition-colors ${active ? 'bg-primary/10' : 'hover:bg-ink/[0.03]'}`}
+                  className={`relative w-full text-left pl-5 pr-3.5 py-3 rounded-[16px] border-2 overflow-hidden cursor-pointer transition-colors ${active ? 'bg-card border-ink' : 'bg-card/70 border-transparent hover:border-ink/20 hover:bg-card'}`}
                 >
+                  <span className={`absolute left-0 inset-y-0 w-1.5 ${statusStripe(c.status)}`} aria-hidden="true" />
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[14px] font-semibold text-text flex items-center gap-2">
-                      Заказ #{c.order_id}
-                      {c.unread && <span className="w-2 h-2 rounded-full bg-danger" />}
+                    <span className="text-[15px] font-bold text-ink flex items-center gap-2">
+                      Заказ №{c.order_id}
+                      {c.unread && <span className="w-2 h-2 rounded-full bg-danger" aria-label="Есть новые сообщения" />}
                     </span>
-                    <span className="text-[11px] text-light">{chatTime(c.last_at || c.created_at)}</span>
+                    <span className="text-[11px] text-muted tabular-nums">{chatTime(c.last_at || c.created_at)}</span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 mt-1">
-                    <span className={`text-[12px] truncate ${c.unread ? 'text-text font-semibold' : 'text-muted'}`}>{preview}</span>
-                    <span className={`text-[10px] font-medium uppercase tracking-[0.08em] px-2 py-0.5 border shrink-0 ${statusTone(c.status)}`}>{STATUS_LABEL[c.status] || c.status}</span>
+                  <div className="text-[11.5px] text-muted mt-0.5 tabular-nums">создан {createdLabel(c.created_at)} · {formatPrice(c.total)}</div>
+                  <div className="flex items-center justify-between gap-2 mt-1.5">
+                    <span className={`text-[12.5px] truncate ${c.unread ? 'text-ink font-semibold' : 'text-muted'}`}>{preview}</span>
+                    <span className={`text-[10px] font-bold uppercase tracking-[0.06em] px-2 py-0.5 border shrink-0 ${statusTone(c.status)}`}>{STATUS_LABEL[c.status] || c.status}</span>
                   </div>
                 </button>
               );
@@ -275,13 +349,12 @@ function OrderThread({ chat, userId, userName, onBack }: { chat: OrderChatSummar
         <div className="flex items-center gap-3">
           <button onClick={onBack} className="sm:hidden w-8 h-8 rounded-ctl-xs bg-ink/5 flex items-center justify-center text-muted cursor-pointer" aria-label="Назад"><ArrowLeft size={16} /></button>
           <div className="flex-1 min-w-0">
-            <div className="font-display text-[24px] leading-none text-text">Заказ #{chat.order_id}</div>
-            <div className="text-[12px] text-muted mt-1">{formatPrice(chat.total)} · чат с менеджером</div>
+            <div className="font-display text-[22px] leading-none text-text">Заказ №{chat.order_id}</div>
+            <div className="text-[12px] text-muted mt-1">{formatPrice(chat.total)} · создан {createdLabel(chat.created_at)}</div>
           </div>
           <span className={`text-[11px] font-medium uppercase tracking-[0.08em] px-2.5 py-1 border shrink-0 ${statusTone(status)}`}>{STATUS_LABEL[status] || status}</span>
         </div>
-        <StatusTrack status={status} history={history} />
-        {status !== 'done' && status !== 'cancelled' && <NotifyPrompt />}
+        {status !== 'new' && <StatusTrack status={status} history={history} />}
         <div className="flex items-center gap-3">
           <button onClick={() => setShowItems((v) => !v)} className="flex items-center gap-1.5 text-[12px] text-muted hover:text-text cursor-pointer">
             <Package size={13} /> Состав заказа ({items.length}) <ChevronDown size={13} className={`transition-transform ${showItems ? 'rotate-180' : ''}`} />
@@ -299,7 +372,9 @@ function OrderThread({ chat, userId, userName, onBack }: { chat: OrderChatSummar
         </AnimatePresence>
       </div>
 
-      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3" style={{ overscrollBehavior: 'contain' }}>
+      <div ref={listRef} className="chat-bg flex-1 min-h-0 overflow-y-auto p-4 space-y-3" style={{ overscrollBehavior: 'contain' }}>
+        {status === 'new' && <StatusTrack status={status} history={history} />}
+        {!closed && <NotifyPrompt />}
         {loading ? (
           <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" /></div>
         ) : messages.map((m) => <Bubble key={m.id} msg={m} />)}
@@ -359,14 +434,16 @@ export function Bubble({ msg, mineType = 'user' }: { msg: OrderChatMessage; mine
   // RefSale's own notes (order received, status changed) are instructions:
   // they stand out, in bold, so the buyer knows what happens next.
   const system = msg.sender_type === 'admin' && msg.sender_name === 'RefSale';
+  // The platform's side (manager, leader) in blue, the buyer's own in white
+  const org = msg.sender_type === 'admin' || msg.sender_type === 'leader';
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[80%] px-3.5 py-2.5 rounded-[16px] text-[13.5px] leading-relaxed ${
-        system ? 'bg-accent-strong border-2 border-ink text-ink font-semibold rounded-bl-[6px]'
-          : mine ? 'bg-ink/[0.06] border border-line text-text rounded-br-[6px]'
-          : 'bg-ink/[0.05] border border-ink/[0.08] text-text rounded-bl-[6px]'
-      }`}>
-        {!mine && <div className={`text-[10.5px] font-bold mb-0.5 ${system ? 'text-ink' : 'text-primary'}`}>{who}</div>}
+      <div className={`max-w-[80%] px-3.5 py-2.5 rounded-[16px] text-[13.5px] leading-relaxed shadow-[0_1px_0_rgba(17,17,17,0.08)] ${
+        system ? 'bg-accent-strong border-2 border-ink text-ink font-semibold'
+          : org ? 'bg-[#DCEBFF] border border-[#9DC3F0] text-ink'
+          : 'bg-card border border-ink/15 text-ink'
+      } ${mine ? 'rounded-br-[6px]' : 'rounded-bl-[6px]'}`}>
+        {!mine && <div className={`text-[10.5px] font-bold mb-0.5 ${system ? 'text-ink' : org ? 'text-[#1B5BB0]' : 'text-primary-dark'}`}>{who}</div>}
         <div className="whitespace-pre-line break-words">{unescapeHtml(msg.text)}</div>
         <AttachedImages images={msg.images} size="sm" className="mt-1.5" />
         <div className={`text-[9.5px] mt-1 text-right ${system ? 'text-ink/60' : 'text-light'}`}>

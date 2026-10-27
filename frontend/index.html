@@ -2,27 +2,52 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Tab icons for every browser. ?v=3: browsers keep an old favicon for
+         weeks; a new address makes them fetch the meerkat. Google wants a
+         multiple of 48 px, Yandex 120 px. -->
+    <link rel="icon" href="/favicon.ico?v=3" sizes="16x16 32x32 48x48" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png?v=3" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96.png?v=3" />
+    <link rel="icon" type="image/png" sizes="120x120" href="/favicon-120.png?v=3" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=3" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=3" />
+    <meta name="msapplication-TileColor" content="#FFD60A" />
+    <meta name="msapplication-TileImage" content="/icon-192.png?v=3" />
     <!-- Installable app: icon on the home screen, opens without the browser -->
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="manifest" href="/manifest.webmanifest?v=3" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="RefSale" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#FFD60A" />
-    <meta name="description" content="RefSale — оригинальные товары дешевле, чем в магазинах: парфюмерия, уходовая косметика, продукты и доставка из Китая. Промокод от вашего блогера снижает цену ещё сильнее." />
+    <meta name="description" content="RefSale (РефСейл): оригинальная парфюмерия, косметика, продукты и товары из Китая дешевле сетевых магазинов. С промокодом — ещё до −50%." />
+    <meta name="keywords" content="RefSale, РефСейл, рефсейл, оригинальная парфюмерия дешевле, купить духи оригинал, косметика дешевле магазинов, промокод на парфюмерию, скидка по промокоду, товары из Китая" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://refsale.ru/" />
 
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="RefSale — скидка по промокоду блогера" />
-    <meta property="og:description" content="Парфюмерия, уход, продукты и товары из Китая дешевле, чем в магазинах. Введите промокод — и цена станет ещё ниже." />
+    <meta property="og:url" content="https://refsale.ru/" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:title" content="RefSale — оригинальные товары дешевле сетевых магазинов" />
+    <meta property="og:description" content="Парфюмерия, уход, продукты и товары из Китая дешевле, чем в магазинах. Введите промокод лидера мнений — и цена станет ещё ниже." />
     <meta property="og:site_name" content="RefSale" />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content="https://refsale.ru/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="RefSale — оригинальные товары дешевле сетевых магазинов" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://refsale.ru/og-image.jpg" />
+    <!-- Who we are, for search engines: the shop and the site -->
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@graph":[
+        {"@type":"Organization","@id":"https://refsale.ru/#org","name":"RefSale","alternateName":"РефСейл","url":"https://refsale.ru/","logo":"https://refsale.ru/icon-512.png","image":"https://refsale.ru/og-image.jpg","description":"Оригинальная парфюмерия, уходовая косметика, продукты и товары из Китая дешевле сетевых магазинов."},
+        {"@type":"WebSite","@id":"https://refsale.ru/#site","name":"RefSale","alternateName":"РефСейл","url":"https://refsale.ru/","inLanguage":"ru-RU","publisher":{"@id":"https://refsale.ru/#org"}}
+      ]}
+    </script>
 
-    <title>RefSale — дешевле, чем в магазинах, по промокоду блогера</title>
+    <title>RefSale — оригинальная парфюмерия и косметика дешевле магазинов</title>
     <!-- The main page opens on the meerkat with the goods: start fetching it
          before the app has even loaded, it is what the visitor sees first. -->
     <!-- The fonts of the first screen's heading and text, fetched while the
@@ -54,6 +79,18 @@
         <div class="boot-dots"><i></i><i></i><i></i></div>
       </div>
     </div>
+    <noscript>
+      <main style="max-width:720px;margin:40px auto;padding:0 20px;font-family:system-ui,sans-serif;color:#111;line-height:1.6">
+        <h1>RefSale — оригинальные товары дешевле сетевых магазинов</h1>
+        <p>Парфюмерия, уходовая косметика, продукты и товары из Китая — только оригинал и по ценам ниже крупных сетей. С промокодом лидера мнений (например, блогера) цена становится ещё ниже, до −50%.</p>
+        <p>Оформляете заказ — менеджер в чате подтверждает наличие и сроки, платить нужно только после подтверждения. Доставка по всей России.</p>
+        <ul>
+          <li><a href="/catalog">Каталог</a></li>
+          <li><a href="/forums">Форум покупателей</a></li>
+        </ul>
+        <p>Для работы сайта включите JavaScript в браузере.</p>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

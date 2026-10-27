@@ -8,6 +8,7 @@ import Notification from './components/ui/Notification';
 import SupportWidget from './components/support/SupportWidget';
 import MascotLayer from './components/mascot/MascotLayer';
 import useCategoryAccent from './hooks/useCategoryAccent';
+import useMetrika from './hooks/useMetrika';
 import { scrollPageToTop, glidePageToTop, glideToElement, isScrollLocked } from './hooks/useScrollLock';
 import { resyncPushDevice } from './store/pwa';
 import { useSupportStore } from './store/support';
@@ -64,6 +65,8 @@ function useGlidingLinks() {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
       if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+      // Links that move the page themselves (category cards and tabs)
+      if (a.hasAttribute('data-own-nav')) return;
       const url = new URL(a.href, window.location.href);
       // Other sites, files and the admin page are left to the browser
       if (url.origin !== window.location.origin || /\.[a-z0-9]+$/i.test(url.pathname)) return;
@@ -96,6 +99,7 @@ function App() {
   const { pathname } = useLocation();
   useReferralLink();
   useCategoryAccent();
+  useMetrika();
 
   useEffect(() => {
     void loadData();

@@ -4,15 +4,17 @@ import { m, AnimatePresence } from 'framer-motion';
 import { Search, X, ChevronLeft, ChevronRight, MessageCircle, Plus, Minus, Trash2, Check, Maximize2, Heart } from 'lucide-react';
 import {
   useAppStore, useCartStore, useNotificationStore, usePromoStore, useFavoritesStore, useActiveCategory,
-  priceFor, promoKey, cartKey,
+  priceFor, promoKey, cartKey, codesForCategory,
 } from '../../store';
 import { formatPrice } from '../../utils/format';
 import { priceInfo, availableVariants, type PriceInfo } from '../../utils/prices';
-import { askSeller } from '../../utils/askSeller';
+import { askSeller, askToFind } from '../../utils/askSeller';
+import { useNewsStore } from '../../store/news';
 import Lightbox from '../ui/Lightbox';
 import Meerkat from '../mascot/Meerkat';
 
-import useScrollLock from '../../hooks/useScrollLock';
+import useScrollLock, { glideToElement } from '../../hooks/useScrollLock';
+import BrandMarquee from './BrandMarquee';
 import type { CartItem, Category, Product, ProductVariant } from '../../types';
 
 const PAGE = 12;
@@ -26,7 +28,7 @@ export default function StoreCatalog() {
   const { products, subcategories, loading } = useAppStore();
   const category = useActiveCategory();
   const prices = usePromoStore((s) => s.prices);
-  const promoCode = usePromoStore((s) => s.code);
+  const promoCodes = usePromoStore((s) => s.codes);
   const [subcategory, setSubcategory] = useState<number | null>(null);
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -37,10 +39,9 @@ export default function StoreCatalog() {
   const categoryId = category?.id ?? null;
 
   // From the main page: ?product=12 opens that product in its category. The
-  // window opens as the page renders; the effect then switches the category
-  // and clears the address.
+  // window opens as the page renders; the effect then puts its category in
+  // the address in place of the product.
   const [params, setParams] = useSearchParams();
-  const setActiveCategory = useAppStore((s) => s.setActiveCategory);
   const handoffProduct = Number(params.get('product')) || 0;
   const ready = !loading && products.length > 0;
   const [handled, setHandled] = useState(0);
@@ -52,9 +53,14 @@ export default function StoreCatalog() {
   useEffect(() => {
     if (!ready || !handoffProduct) return;
     const target = products.find((x) => x.id === handoffProduct);
-    if (target?.category_id) setActiveCategory(target.category_id);
-    setParams({}, { replace: true });
-  }, [ready, handoffProduct, products, setParams, setActiveCategory]);
+    setParams(target?.category_id ? { c: String(target.category_id) } : {}, { replace: true });
+  }, [ready, handoffProduct, products, setParams]);
+
+  // An open catalog has shown its new products: the menu's dot goes
+  useEffect(() => {
+    if (!ready) return;
+    useNewsStore.getState().markSeen('products', products.reduce((m, p) => Math.max(m, p.id), 0));
+  }, [ready, products]);
 
   // A new category page starts from the top of its list.
   const [seenCategory, setSeenCategory] = useState(categoryId);
@@ -63,6 +69,18 @@ export default function StoreCatalog() {
     setSubcategory(null);
     setShown(PAGE);
   }
+  // A brand picked in the strip on the main page arrives as ?b=7
+  const brandParam = Number(params.get('b')) || 0;
+  const [brandHandled, setBrandHandled] = useState(0);
+  if (brandParam && brandParam !== brandHandled && subcategories.some((s) => s.id === brandParam && s.category_id === categoryId)) {
+    setBrandHandled(brandParam);
+    setSubcategory(brandParam);
+  }
+  useEffect(() => {
+    if (!brandParam || brandHandled !== brandParam) return;
+    setParams((p) => { p.delete('b'); return p; }, { replace: true });
+    setTimeout(() => glideToElement('#catalog-filters'), 300);
+  }, [brandParam, brandHandled, setParams]);
 
   const onSearch = (v: string) => {
     setQuery(v);
@@ -74,10 +92,20 @@ export default function StoreCatalog() {
     () => (categoryId ? products.filter((p) => p.category_id === categoryId) : products),
     [products, categoryId],
   );
+  // Chips for what has products, plus a brand picked from the strip even
+  // before it has any (its empty list then offers to find it)
   const subs = useMemo(
-    () => subcategories.filter((s) => s.category_id === categoryId && inCategory.some((p) => p.subcategory_id === s.id)),
-    [subcategories, categoryId, inCategory],
+    () => subcategories.filter((s) => s.category_id === categoryId && (s.id === subcategory || inCategory.some((p) => p.subcategory_id === s.id))),
+    [subcategories, categoryId, inCategory, subcategory],
   );
+  const brands = useMemo(
+    () => subcategories.filter((s) => s.category_id === categoryId && s.is_brand),
+    [subcategories, categoryId],
+  );
+  const pickBrand = (id: number) => {
+    setQuery(''); setDebounced(''); setSubcategory(id); setShown(PAGE);
+    glideToElement('#catalog-filters');
+  };
 
   const filtered = useMemo(() => {
     let list = inCategory;
@@ -90,6 +118,14 @@ export default function StoreCatalog() {
   }, [inCategory, subcategory, debounced]);
 
   const visible = filtered.slice(0, shown);
+  // The codes on that lower something here — a food code says nothing on perfume
+  const categoryCodes = useMemo(
+    () => codesForCategory(promoCodes, categoryId, inCategory.map((p) => p.id)).map((c) => c.code),
+    [promoCodes, categoryId, inCategory],
+  );
+  const activeSub = !debounced && subcategory ? subcategories.find((x) => x.id === subcategory) : undefined;
+  const requestText = category?.request_text?.trim()
+    || 'Не нашли нужный товар? Отправьте название — найдём и привезём: в наличии 90% ассортимента сетевых магазинов.';
   const promoCount = useMemo(
     () => inCategory.filter((p) => prices[String(p.id)] != null || (p.variants || []).some((v) => prices[promoKey(p.id, v.id)] != null)).length,
     [inCategory, prices],
@@ -97,6 +133,11 @@ export default function StoreCatalog() {
 
   return (
     <section id="catalog" className="pt-8 pb-24 max-md:pt-6 max-md:pb-14">
+      {brands.length >= 3 && (
+        <div className="mb-12 max-md:mb-8">
+          <BrandMarquee brands={brands} onPick={(b) => pickBrand(b.id)} label={`Бренды · ${category?.name || ''}`} />
+        </div>
+      )}
       <div className="max-w-[1440px] mx-auto px-8 max-sm:px-5">
         <div className="flex items-end justify-between gap-10 pb-6 max-md:flex-col max-md:items-stretch max-md:gap-5">
           <div>
@@ -118,7 +159,19 @@ export default function StoreCatalog() {
           </label>
         </div>
 
-        <div className="flex items-center justify-between gap-6 pt-6 max-md:flex-col max-md:items-start max-md:gap-4">
+        {category && (
+          <div className="mt-2 mb-2 flex items-center gap-5 max-md:gap-4 bg-card border-2 border-ink rounded-[22px] max-sm:rounded-[18px] shadow-[0_4px_0_#111] pl-4 pr-5 py-3 max-sm:p-4 max-sm:flex-col max-sm:items-stretch">
+            <div className="flex items-center gap-4 min-w-0 flex-1">
+              <Meerkat pose="thinking" width={64} decorative className="shrink-0 max-sm:w-[52px]" />
+              <p className="text-[16px] max-sm:text-[14.5px] font-bold leading-snug text-ink">{requestText}</p>
+            </div>
+            <button onClick={() => askToFind(category.name)} className="btn-primary shrink-0">
+              <MessageCircle size={16} strokeWidth={2.2} /> Отправить название
+            </button>
+          </div>
+        )}
+
+        <div id="catalog-filters" className="flex items-center justify-between gap-6 pt-6 max-md:flex-col max-md:items-start max-md:gap-4">
           {!debounced && subs.length > 0 ? (
             <div className="flex gap-2 overflow-x-auto scrollbar-hide max-w-full">
               <Tab active={subcategory === null} onClick={() => { setSubcategory(null); setShown(PAGE); }} count={inCategory.length}>Все</Tab>
@@ -128,6 +181,7 @@ export default function StoreCatalog() {
                   active={subcategory === s.id}
                   onClick={() => { setSubcategory(s.id); setShown(PAGE); }}
                   count={inCategory.filter((p) => p.subcategory_id === s.id).length}
+                  image={s.is_brand ? undefined : s.image}
                 >
                   {s.name}
                 </Tab>
@@ -135,11 +189,30 @@ export default function StoreCatalog() {
             </div>
           ) : <div className="text-[13px] text-muted">{debounced ? `Найдено: ${filtered.length}` : ''}</div>}
           <div className="text-[13px] font-semibold text-muted shrink-0">
-            {promoCode
-              ? <>Цены по промокоду <span className="px-2 py-0.5 rounded-full bg-primary text-white tracking-[0.06em]">{promoCode}</span> · {promoCount} {plural(promoCount, 'позиция', 'позиции', 'позиций')} дешевле</>
+            {categoryCodes.length
+              ? <>Цены по {categoryCodes.length > 1 ? 'промокодам' : 'промокоду'} {categoryCodes.map((c) => <span key={c} className="px-2 py-0.5 mr-1 rounded-full bg-primary text-white tracking-[0.06em]">{c}</span>)}· {promoCount} {plural(promoCount, 'позиция', 'позиции', 'позиций')} дешевле</>
               : 'Цены без промокода — с ним будет дешевле'}
           </div>
         </div>
+
+        {activeSub && (activeSub.slogan?.trim() || activeSub.description?.trim() || activeSub.image) && (
+          <m.div
+            key={activeSub.id}
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: EASE }}
+            className="mt-8 flex items-center gap-6 max-sm:gap-4 rounded-[24px] max-sm:rounded-[20px] border-2 border-ink p-6 max-sm:p-4"
+            style={{ background: /^#[0-9a-fA-F]{6}$/.test(activeSub.accent_color?.trim() || '') ? activeSub.accent_color : 'var(--color-accent)' }}
+          >
+            {activeSub.image && (
+              <span className="w-24 h-24 max-sm:w-16 max-sm:h-16 shrink-0 rounded-[18px] max-sm:rounded-[14px] bg-card border-2 border-ink grid place-items-center overflow-hidden p-2">
+                <img src={activeSub.image} alt="" className="max-w-full max-h-full object-contain" />
+              </span>
+            )}
+            <div className="min-w-0">
+              <div className="font-display text-[28px] max-sm:text-[21px] leading-tight text-ink">{activeSub.slogan?.trim() || activeSub.name}</div>
+              {activeSub.description?.trim() && <p className="mt-2 text-[14.5px] max-sm:text-[13.5px] leading-relaxed text-ink/75 whitespace-pre-line">{activeSub.description}</p>}
+            </div>
+          </m.div>
+        )}
 
         <div className="mt-12">
           {loading ? (
@@ -151,6 +224,13 @@ export default function StoreCatalog() {
                   <div className="h-3.5 bg-ink/[0.05] w-1/3 mt-3" />
                 </div>
               ))}
+            </div>
+          ) : visible.length === 0 && activeSub ? (
+            <div className="py-14 text-center">
+              <Meerkat pose="thinking" width={130} decorative className="mx-auto mb-6" />
+              <div className="font-display text-[28px] max-sm:text-[23px] text-text">{activeSub.name} пока нет на витрине</div>
+              <p className="text-[14px] text-muted mt-3 max-w-[460px] mx-auto">Напишите, что нужно, — в наличии 90% ассортимента сетевых магазинов, привезём.</p>
+              <button onClick={() => askToFind(activeSub.name)} className="btn-primary mt-6"><MessageCircle size={16} strokeWidth={2.2} /> Отправить название</button>
             </div>
           ) : visible.length === 0 ? (
             <div className="py-16 text-center">
@@ -216,12 +296,14 @@ function plural(n: number, one: string, few: string, many: string) {
   return many;
 }
 
-function Tab({ active, onClick, children, count }: { active: boolean; onClick: () => void; children: React.ReactNode; count?: number }) {
+function Tab({ active, onClick, children, count, image }: { active: boolean; onClick: () => void; children: React.ReactNode; count?: number; image?: string }) {
   return (
     <button
       onClick={onClick}
-      className={`shrink-0 h-9 px-4 rounded-ctl-sm border-2 whitespace-nowrap cursor-pointer transition-colors text-[13px] font-bold ${active ? 'bg-ink border-ink text-sun' : 'bg-card border-line text-muted hover:border-ink hover:text-ink'}`}
+      className={`shrink-0 h-9 rounded-ctl-sm border-2 whitespace-nowrap cursor-pointer transition-colors text-[13px] font-bold inline-flex items-center ${image ? 'pl-1 pr-4' : 'px-4'} ${active ? 'bg-ink border-ink text-sun' : 'bg-card border-line text-muted hover:border-ink hover:text-ink'}`}
     >
+      {/* A brand's logo sits on its own white chip, so it reads on the dark active tab too */}
+      {image && <span className="w-[26px] h-[26px] mr-2 rounded-[8px] bg-white grid place-items-center overflow-hidden shrink-0"><img src={image} alt="" loading="lazy" className="max-w-[22px] max-h-[22px] object-contain" /></span>}
       {children}
       {count != null && <span className="ml-1.5 text-[11px] opacity-60">{count}</span>}
     </button>
@@ -232,7 +314,6 @@ function Tab({ active, onClick, children, count }: { active: boolean; onClick: (
 
 /** Base price, or было/стало once a promo code is active. */
 export function PriceTag({ info, size = 'md' }: { info: PriceInfo; size?: 'md' | 'lg' }) {
-  const code = usePromoStore((s) => s.code);
   const { base, now, hasPromo, from } = info;
   const discounted = now < base;
   const pre = from ? 'от ' : '';
@@ -244,8 +325,8 @@ export function PriceTag({ info, size = 'md' }: { info: PriceInfo; size?: 'md' |
           {discounted && <span className="text-[16px] text-light line-through">{formatPrice(base)}</span>}
           {discounted && <span className="px-3 py-1 rounded-full bg-primary text-white text-[12px] font-bold">−{Math.round((1 - now / base) * 100)}% по промокоду</span>}
         </div>
-        {!discounted && !code && hasPromo && (
-          <div className="text-[13px] font-semibold text-primary mt-3">С промокодом от блогера эта позиция дешевле</div>
+        {!discounted && hasPromo && (
+          <div className="text-[13px] font-semibold text-primary mt-3">С промокодом от лидера мнений эта позиция дешевле</div>
         )}
       </div>
     );
@@ -257,7 +338,7 @@ export function PriceTag({ info, size = 'md' }: { info: PriceInfo; size?: 'md' |
       <span className="text-[12px] leading-tight min-w-0">
         {discounted
           ? <span className="text-light line-through tabular-nums text-[13px]">{formatPrice(base)}</span>
-          : !code && hasPromo && <span className="font-semibold text-primary-dark">дешевле с промокодом</span>}
+          : hasPromo && <span className="font-semibold text-primary-dark">дешевле с промокодом</span>}
       </span>
       <span className={`ml-auto text-[22px] max-sm:text-[18px] leading-none font-extrabold tabular-nums whitespace-nowrap ${discounted ? 'text-primary' : 'text-ink'}`}>
         {pre && <span className="text-[13px] max-sm:text-[12px] font-bold">{pre}</span>}{formatPrice(now)}
@@ -453,7 +534,7 @@ export const ProductCard = memo(function ProductCard({ product, index, onOpen, o
           <button
             onClick={() => askSeller(product.id)}
             className={`${unavailable ? 'flex-1' : 'w-10 max-sm:hidden'} h-10 rounded-ctl-sm flex items-center justify-center gap-1.5 border-2 border-ink bg-card text-ink hover:bg-sun-soft cursor-pointer`}
-            aria-label="Спросить продавца"
+            aria-label="Спросить о товаре"
           >
             <MessageCircle size={14} strokeWidth={1.4} />{unavailable && <span className="text-[10.5px] uppercase tracking-[0.12em]">Спросить</span>}
           </button>
@@ -502,7 +583,6 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
   const [zoom, setZoom] = useState(false);
 
   const discounted = info.now < info.base;
-  const code = usePromoStore((s) => s.code);
 
   return (
     <Overlay onClose={onClose}>
@@ -601,8 +681,8 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
               {discounted && <span className="text-[14px] text-light line-through tabular-nums">{formatPrice(info.base)}</span>}
               {discounted && <span className="px-2.5 py-0.5 rounded-full bg-primary text-white text-[11px] font-bold">−{Math.round((1 - info.now / info.base) * 100)}%</span>}
             </div>
-            {!discounted && !code && info.hasPromo && (
-              <div className="mt-1.5 text-[12px] font-semibold text-primary-dark">С промокодом блогера дешевле</div>
+            {!discounted && info.hasPromo && (
+              <div className="mt-1.5 text-[12px] font-semibold text-primary-dark">С промокодом лидера мнений дешевле</div>
             )}
           </div>
           <div className="flex gap-2 shrink-0 max-sm:w-full">
@@ -616,8 +696,8 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
             <button
               onClick={() => { onClose(); askSeller(product.id); }}
               className="w-[50px] h-[50px] shrink-0 rounded-ctl-md bg-card border-2 border-ink text-ink flex items-center justify-center hover:bg-sun-soft cursor-pointer"
-              aria-label="Спросить продавца"
-              title="Спросить продавца"
+              aria-label="Спросить о товаре"
+              title="Спросить о товаре"
             >
               <MessageCircle size={19} strokeWidth={2} />
             </button>

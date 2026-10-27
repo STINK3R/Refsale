@@ -6,6 +6,8 @@ export interface Category {
   hero_image?: string;
   slogan?: string;
   intro?: string;
+  /** "Не нашли свой аромат?…" — the plate at the top of the category's products. */
+  request_text?: string;
   /** The two shops this category's prices are compared with. */
   compare_label_1?: string;
   compare_label_2?: string;
@@ -62,6 +64,12 @@ export interface Subcategory {
   category_id: number;
   name: string;
   description?: string;
+  /** A brand's logo or a type's picture, shown on its chip and plate. */
+  image?: string;
+  accent_color?: string;
+  slogan?: string;
+  /** A brand (not a type): it runs in the strip of logos */
+  is_brand?: boolean;
   created_at?: string;
 }
 
@@ -73,6 +81,8 @@ export interface User {
   address: string;
   telegram_username?: string;
   is_leader?: boolean;
+  /** A supplier's account (set in the admin panel) */
+  is_supplier?: boolean;
   leader_can_write?: boolean;
   created_at?: string;
 }

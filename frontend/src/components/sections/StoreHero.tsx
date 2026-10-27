@@ -10,7 +10,7 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 const FACTS = [
   { n: '01', title: 'Только оригинал', text: 'Каждая позиция — от проверенных поставщиков. Без распива и реплик.', tone: 'bg-accent-strong' },
   { n: '02', title: 'Дешевле сетей', text: 'Даже без промокода цены ниже, чем в крупных магазинах.', tone: 'bg-card' },
-  { n: '03', title: 'Промокод — ещё ниже', text: 'Слово от вашего блогера снижает цену на весь каталог сразу.', tone: 'bg-primary text-white' },
+  { n: '03', title: 'Промокод — ещё ниже', text: 'Слово от вашего лидера мнений снижает цену на весь каталог сразу.', tone: 'bg-primary text-white' },
 ];
 
 /** Width / height of pictures seen this visit, so a category opened again is
@@ -95,7 +95,7 @@ function Slogan({ children }: { children: ReactNode }) {
   );
 }
 
-const DEFAULT_INTRO = 'Оригинальные товары по ценам ниже крупных магазинов. С промокодом от вашего блогера цена станет ещё ниже — сразу на всех товарах.';
+const DEFAULT_INTRO = 'Оригинальные товары по ценам ниже крупных магазинов. С промокодом от вашего лидера мнений цена станет ещё ниже — сразу на всех товарах.';
 
 /**
  * A category page opens in the brief's order: the category photo, the promo

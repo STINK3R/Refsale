@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Category, Subcategory, Product, ProductVariant, User, CartItem, Review } from '../types';
-import { fetchCatalog, fetchSettings, fetchUserById, fetchReviews, validateStorePromo } from '../api/client';
+import { fetchCatalog, fetchSettings, fetchUserById, fetchReviews, validateStorePromo, forgetStorePromo } from '../api/client';
 import { getToken, clearToken } from '../api/authToken';
 import { forgetPushDevice } from './pwa';
 
@@ -12,14 +12,14 @@ interface AppState {
   reviews: Review[];
   settings: Record<string, string>;
   loading: boolean;
-  /** The category whose page is open: hero, products and reviews follow it. */
+  /** The category whose page is open: hero, products and reviews follow it.
+   *  Set from the address (/catalog?c=3) by the catalog page; null while the
+   *  visitor is choosing one. */
   activeCategoryId: number | null;
-  setActiveCategory: (id: number) => void;
+  setActiveCategory: (id: number | null) => void;
   loadData: () => Promise<void>;
   loadReviews: () => Promise<void>;
 }
-
-const CATEGORY_KEY = 'refsale_category';
 
 export const useAppStore = create<AppState>((set, get) => ({
   categories: [],
@@ -28,27 +28,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   reviews: [],
   settings: {},
   loading: true,
-  activeCategoryId: Number(localStorage.getItem(CATEGORY_KEY)) || null,
+  activeCategoryId: window.location.pathname === '/catalog'
+    ? Number(new URLSearchParams(window.location.search).get('c')) || null
+    : null,
   setActiveCategory: (id) => {
     if (id === get().activeCategoryId) return;
-    localStorage.setItem(CATEGORY_KEY, String(id));
     set({ activeCategoryId: id, reviews: [] });
   },
   loadData: async () => {
     set({ loading: true });
     try {
       const [catalog, settings] = await Promise.all([fetchCatalog(), fetchSettings()]);
-      // Keep the remembered category if it still exists, else open the first one.
-      const remembered = get().activeCategoryId;
-      const active = catalog.categories.some((c) => c.id === remembered)
-        ? remembered
-        : catalog.categories[0]?.id ?? null;
       set({
         categories: catalog.categories,
         subcategories: catalog.subcategories,
         products: catalog.products,
         settings,
-        activeCategoryId: active,
         loading: false,
       });
       useCartStore.getState().syncWithCatalog(catalog.products);
@@ -145,35 +140,109 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 }));
 
 // ==================== PROMO STORE ====================
-interface PromoState {
-  code: string | null;
+/** One working code: what it lowers and until when. */
+export interface PromoEntry {
+  code: string;
   label: string;
   leaderName: string;
   /** ISO date the code stops working; null means no end date. */
   expiresAt: string | null;
-  /** product id → promo price, only for products that have one */
+  /** product id (or "v" + variant id) → promo price, for what this code covers */
   prices: Record<string, number>;
+  scope: 'all' | 'category' | 'products';
+  scopeCategoryId: number | null;
+  scopeProductIds: number[];
   /** What the code lowers, in words: "на весь каталог", "на категорию «Еда»" */
   scopeText: string;
+}
+
+interface PromoState {
+  /** Every code on, oldest first: one per category, so a perfume code and a
+   *  food code work side by side. */
+  codes: PromoEntry[];
+  /** The newest code — for the places that name a single one. */
+  code: string | null;
+  label: string;
+  leaderName: string;
+  expiresAt: string | null;
+  scopeText: string;
+  /** All codes' promo prices together, the lowest where two overlap */
+  prices: Record<string, number>;
   checking: boolean;
-  apply: (code: string) => Promise<{ ok: boolean; error?: string }>;
+  apply: (code: string) => Promise<{ ok: boolean; error?: string; replaced?: string }>;
   revalidate: () => Promise<void>;
+  remove: (code: string) => void;
   clear: () => void;
 }
 
 const PROMO_KEY = 'refsale_promo';
-const savedPromo = (() => {
-  try { return JSON.parse(localStorage.getItem(PROMO_KEY) || 'null') as { code: string; label: string; leaderName: string; expiresAt?: string | null; prices: Record<string, number>; scopeText?: string } | null; }
-  catch { return null; }
+const MAX_CODES = 6;
+
+/** Codes for the same thing replace each other: one for the whole catalog,
+ *  one per category, product codes each on their own. */
+function slotOf(e: PromoEntry): string {
+  if (e.scope === 'category') return `c${e.scopeCategoryId}`;
+  if (e.scope === 'products') return `p${e.code}`;
+  return 'all';
+}
+
+function toEntry(res: import('../api/client').PromoResult): PromoEntry {
+  const scope = res.scope === 'category' || res.scope === 'products' ? res.scope : 'all';
+  return {
+    code: res.code || '',
+    label: res.label || '',
+    leaderName: res.leader_name || '',
+    expiresAt: res.expires_at ?? null,
+    prices: res.prices || {},
+    scope,
+    scopeCategoryId: res.scope_category_id ?? null,
+    scopeProductIds: res.scope_product_ids || [],
+    scopeText: scope !== 'all' ? res.scope_text || '' : '',
+  };
+}
+
+function derive(codes: PromoEntry[]) {
+  const prices: Record<string, number> = {};
+  for (const c of codes) {
+    for (const [k, v] of Object.entries(c.prices)) {
+      if (prices[k] == null || v < prices[k]) prices[k] = v;
+    }
+  }
+  const last = codes[codes.length - 1];
+  return {
+    codes,
+    prices,
+    code: last?.code ?? null,
+    label: last?.label ?? '',
+    leaderName: last?.leaderName ?? '',
+    expiresAt: last?.expiresAt ?? null,
+    scopeText: last?.scopeText ?? '',
+  };
+}
+
+function saveCodes(codes: PromoEntry[]) {
+  if (codes.length) localStorage.setItem(PROMO_KEY, JSON.stringify({ codes }));
+  else localStorage.removeItem(PROMO_KEY);
+}
+
+const savedCodes: PromoEntry[] = (() => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PROMO_KEY) || 'null');
+    if (!raw) return [];
+    if (Array.isArray(raw.codes)) return raw.codes as PromoEntry[];
+    // The single-code form saved before: checked again on load anyway
+    if (raw.code) {
+      return [{
+        code: raw.code, label: raw.label || '', leaderName: raw.leaderName || '', expiresAt: raw.expiresAt ?? null,
+        prices: raw.prices || {}, scope: 'all', scopeCategoryId: null, scopeProductIds: [], scopeText: raw.scopeText || '',
+      }];
+    }
+  } catch { /* ignore */ }
+  return [];
 })();
 
 export const usePromoStore = create<PromoState>((set, get) => ({
-  code: savedPromo?.code || null,
-  label: savedPromo?.label || '',
-  leaderName: savedPromo?.leaderName || '',
-  expiresAt: savedPromo?.expiresAt ?? null,
-  prices: savedPromo?.prices || {},
-  scopeText: savedPromo?.scopeText || '',
+  ...derive(savedCodes),
   checking: false,
   apply: async (raw) => {
     const code = raw.trim().toUpperCase();
@@ -184,30 +253,56 @@ export const usePromoStore = create<PromoState>((set, get) => ({
       set({ checking: false });
       return { ok: false, error: res.error || 'Промокод не найден' };
     }
-    const next = { code: res.code, label: res.label || '', leaderName: res.leader_name || '', expiresAt: res.expires_at ?? null, prices: res.prices || {}, scopeText: res.scope && res.scope !== 'all' ? res.scope_text || '' : '' };
-    localStorage.setItem(PROMO_KEY, JSON.stringify(next));
-    set({ ...next, checking: false });
-    return { ok: true };
+    const entry = toEntry(res);
+    const slot = slotOf(entry);
+    const replaced = get().codes.find((c) => c.code !== entry.code && slotOf(c) === slot);
+    let codes = [...get().codes.filter((c) => c.code !== entry.code && slotOf(c) !== slot), entry];
+    if (codes.length > MAX_CODES) codes = codes.slice(-MAX_CODES);
+    saveCodes(codes);
+    set({ ...derive(codes), checking: false });
+    if (replaced) void forgetStorePromo(replaced.code);
+    return { ok: true, replaced: replaced?.code };
   },
-  // Prices and the code itself can change after it was saved — refresh on load
-  // and drop it quietly if it no longer works.
+  // Prices and the codes themselves can change after they were saved —
+  // refresh on load and drop quietly the ones that no longer work.
   revalidate: async () => {
-    const { code } = get();
-    if (!code) return;
-    const res = await validateStorePromo(code);
-    if (res.valid && res.code) {
-      const next = { code: res.code, label: res.label || '', leaderName: res.leader_name || '', expiresAt: res.expires_at ?? null, prices: res.prices || {}, scopeText: res.scope && res.scope !== 'all' ? res.scope_text || '' : '' };
-      localStorage.setItem(PROMO_KEY, JSON.stringify(next));
-      set(next);
-    } else if (res.error && !/rate|попыток/i.test(res.error)) {
-      get().clear();
-    }
+    const before = get().codes;
+    if (!before.length) return;
+    const results = await Promise.all(before.map((c) => validateStorePromo(c.code)));
+    const kept: PromoEntry[] = [];
+    results.forEach((res, i) => {
+      if (res.valid && res.code) kept.push(toEntry(res));
+      else if (!res.error || /rate|попыток/i.test(res.error)) kept.push(before[i]);
+    });
+    // Codes put on while the check ran stay too
+    const added = get().codes.filter((c) => !before.some((b) => b.code === c.code));
+    const codes = [...kept, ...added];
+    saveCodes(codes);
+    set(derive(codes));
+  },
+  remove: (code) => {
+    const codes = get().codes.filter((c) => c.code !== code);
+    saveCodes(codes);
+    set(derive(codes));
+    void forgetStorePromo(code);
   },
   clear: () => {
-    localStorage.removeItem(PROMO_KEY);
-    set({ code: null, label: '', leaderName: '', expiresAt: null, prices: {}, scopeText: '' });
+    const was = get().codes;
+    saveCodes([]);
+    set(derive([]));
+    for (const c of was) void forgetStorePromo(c.code);
   },
 }));
+
+/** The codes that make something in this category cheaper, narrowest first. */
+export function codesForCategory(codes: PromoEntry[], categoryId: number | null | undefined, productIds: number[] = []): PromoEntry[] {
+  const rank = { products: 0, category: 1, all: 2 } as const;
+  return codes
+    .filter((c) => c.scope === 'all'
+      || (c.scope === 'category' && c.scopeCategoryId === categoryId)
+      || (c.scope === 'products' && c.scopeProductIds.some((id) => productIds.includes(id))))
+    .sort((a, b) => rank[a.scope] - rank[b.scope]);
+}
 
 /**
  * Price the buyer pays right now: the promo price when a code is active.

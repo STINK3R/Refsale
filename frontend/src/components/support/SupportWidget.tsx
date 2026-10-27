@@ -21,8 +21,8 @@ export default function SupportWidget() {
   const isOpen = useSupportStore((s) => s.isOpen);
   const [unreadCount, setUnreadCount] = useState(0);
   const { pathname } = useLocation();
-  // Order and cabinet pages are chats themselves; the floating button would cover their input.
-  const hidden = pathname.startsWith('/orders') || pathname.startsWith('/cabinet');
+  // Order, cabinet and forum pages are chats themselves; the floating button would cover their input.
+  const hidden = pathname.startsWith('/orders') || pathname.startsWith('/cabinet') || pathname.startsWith('/forums');
 
   useEffect(() => {
     if (!user?.id) { setUnreadCount(0); return; }
@@ -48,13 +48,13 @@ export default function SupportWidget() {
       onClick={() => {
         if (user) { openSupport(); return; }
         runAfterAuth(() => openSupport());
-        useAuthStore.getState().openAuth('register', 'Создайте аккаунт за полминуты — и сразу пишите продавцу. Ответ придёт сюда же, в чат.');
+        useAuthStore.getState().openAuth('register', 'Создайте аккаунт за полминуты — и задайте вопрос площадке. Ответит администратор, сюда же, в чат.');
       }}
       className="fixed bottom-5 right-5 max-sm:right-3 max-sm:bottom-3 z-[1500] btn-primary !h-11 !px-5 max-sm:!w-11 max-sm:!px-0"
-      aria-label="Чат с продавцом"
+      aria-label="Вопрос площадке"
     >
       <MessageCircle size={16} strokeWidth={1.6} className="shrink-0" />
-      <span className="max-sm:hidden">Чат с продавцом</span>
+      <span className="max-sm:hidden">Вопрос площадке</span>
       {unreadCount > 0 && (
         <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center px-1 rounded-full bg-primary text-ink text-[10px] font-semibold leading-none tracking-normal">{unreadCount}</span>
       )}

@@ -9,16 +9,17 @@ import { glideToElement } from '../../hooks/useScrollLock';
 import Meerkat from '../mascot/Meerkat';
 import PromoForm from '../promo/PromoForm';
 import About from './About';
+import CategoryCards from './CategoryCards';
+import BrandMarquee from './BrandMarquee';
 import { loadCatalogPage } from './catalogChunk';
-import type { Category, Product } from '../../types';
+import usePageMeta from '../../hooks/usePageMeta';
+import type { Product } from '../../types';
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const DEFAULT_HERO = '/img/hero-1000.webp';
-const DEFAULT_ACCENT = '#FFE45C';
 
 const STEPS = [
   { title: 'Выберите товар', text: 'В каталоге цены уже ниже, чем в сетевых магазинах. Под каждой — сравнение с двумя магазинами.' },
-  { title: 'Введите промокод блогера', text: 'Цена станет ещё ниже — сразу на все товары. Нет промокода? Покупайте и без него.' },
+  { title: 'Введите промокод лидера мнений', text: 'Цена станет ещё ниже — сразу на все товары. Нет промокода? Покупайте и без него.' },
   { title: 'Оформите заказ — без оплаты', text: 'Менеджер напишет в чате заказа, подтвердит наличие, сроки и пришлёт реквизиты.' },
   { title: 'Оплатите и получите', text: 'После оплаты заказ подтверждается. Статусы с датами — в разделе «Мои заказы».' },
 ];
@@ -30,28 +31,13 @@ const TRUST = [
   { icon: MessageCircle, title: 'Живой менеджер в чате', text: 'Каждый заказ — отдельный чат: вопросы, фото, статусы доставки в одном месте.' },
 ];
 
-const FAQ = [
+const DEFAULT_FAQ = [
   { q: 'Это точно оригинал?', a: 'Да. Мы работаем с официальными поставщиками сетевых магазинов. Если сомневаетесь — спросите менеджера в чате, пришлём фото конкретной позиции до оплаты.' },
-  { q: 'Почему у вас дешевле, чем в магазинах?', a: 'Нет аренды торговых залов и большой наценки сети. Продажи идут через блогеров, поэтому вместо рекламы скидку получает покупатель.' },
-  { q: 'Где взять промокод?', a: 'У блогера, через которого вы к нам пришли, — в его соцсетях. Промокод снижает цены сразу на весь каталог. Без промокода покупать тоже можно.' },
+  { q: 'Почему у вас дешевле, чем в магазинах?', a: 'Нет аренды торговых залов и большой наценки сети. Продажи идут через лидеров мнений (например, блогеров), поэтому вместо рекламы скидку получает покупатель.' },
+  { q: 'Где взять промокод?', a: 'У лидера мнений (например, блогера), через которого вы к нам пришли, — в его соцсетях. Промокод снижает цены сразу на весь каталог. Без промокода покупать тоже можно.' },
   { q: 'Как и когда платить?', a: 'После оформления заказа менеджер подтвердит наличие в чате и пришлёт реквизиты. Оплата — только после этого подтверждения.' },
   { q: 'Как доставляете?', a: 'По всей России. Адрес и удобный способ доставки менеджер уточнит в чате заказа, сроки — до оплаты.' },
 ];
-
-function useCategoryStats(categories: Category[], products: Product[]) {
-  return useMemo(() => {
-    const count = new Map<number, number>();
-    for (const p of products) if (p.category_id) count.set(p.category_id, (count.get(p.category_id) || 0) + 1);
-    return categories.map((c) => ({ category: c, count: count.get(c.id) || 0 }));
-  }, [categories, products]);
-}
-
-const plural = (n: number, one: string, few: string, many: string) => {
-  const m10 = n % 10, m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-  return many;
-};
 
 /**
  * The main page: what RefSale is and how buying works, the categories, a real
@@ -59,11 +45,20 @@ const plural = (n: number, one: string, few: string, many: string) => {
  * the usual questions. The shop itself lives at /catalog.
  */
 export default function HomePage() {
-  const { categories, products, loading, setActiveCategory } = useAppStore();
+  const { categories, subcategories, products, loading } = useAppStore();
+  const brands = useMemo(() => subcategories.filter((s) => s.is_brand), [subcategories]);
   const prices = usePromoStore((s) => s.prices);
   const navigate = useNavigate();
-  const stats = useCategoryStats(categories, products);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  // The admin panel can rewrite the questions; until then, the defaults
+  const faqJson = useAppStore((s) => s.settings.faq_json);
+  const faq = useMemo(() => {
+    try {
+      const list = JSON.parse(faqJson || '[]');
+      const clean = Array.isArray(list) ? list.filter((x) => x && typeof x.q === 'string' && typeof x.a === 'string' && x.q.trim() && x.a.trim()) : [];
+      return clean.length ? (clean as { q: string; a: string }[]) : DEFAULT_FAQ;
+    } catch { return DEFAULT_FAQ; }
+  }, [faqJson]);
 
   // Most visits go on to the shop: fetch its code while the visitor reads,
   // so the catalog opens at once
@@ -74,7 +69,13 @@ export default function HomePage() {
     return () => { if (!idle) window.clearTimeout(t); };
   }, []);
 
-  const openCategory = (id: number) => { setActiveCategory(id); navigate('/catalog'); };
+  usePageMeta(
+    'RefSale — оригинальная парфюмерия и косметика дешевле магазинов',
+    'RefSale (РефСейл): оригинальная парфюмерия, косметика, продукты и товары из Китая дешевле сетевых магазинов. С промокодом — ещё до −50%.',
+    '/',
+  );
+
+  const openCategory = (id: number) => navigate(`/catalog?c=${id}`);
   const openProduct = (p: Product) => navigate(`/catalog?product=${p.id}`);
 
   // Products with a known saving against the first shop, biggest first
@@ -112,7 +113,7 @@ export default function HomePage() {
             </h1>
             <p className="mt-5 text-[18px] max-sm:text-[16px] leading-relaxed text-muted max-w-[620px]">
               Парфюмерия, уходовая косметика, продукты и товары из Китая.{' '}
-              <b className="text-ink">С промокодом вашего блогера цена ещё ниже</b>, а платить нужно только после того, как менеджер подтвердит наличие.
+              <b className="text-ink">С промокодом вашего лидера мнений (например, блогера) цена ещё ниже</b>, а платить нужно только после того, как менеджер подтвердит наличие.
             </p>
           </m.div>
 
@@ -144,44 +145,16 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* The brands we carry, running — a tap opens that brand in its category */}
+      <BrandMarquee brands={brands} onPick={(b) => navigate(`/catalog?c=${b.category_id}&b=${b.id}`)} label="Бренды в каталоге" />
+
       <About />
 
       {/* 2. Categories as the first way in */}
       <section id="categories" className="pb-20 max-md:pb-14">
         <div className="max-w-[1440px] mx-auto px-8 max-sm:px-4">
           <SectionHead label="Каталог" title="Что у нас есть" />
-          <div className="grid grid-cols-4 max-lg:grid-cols-2 gap-5 max-sm:gap-3">
-            {(loading && !stats.length ? [0, 1, 2, 3] : stats).map((s, i) => {
-              if (typeof s === 'number') return <div key={i} className="rounded-[28px] bg-ink/[0.05] aspect-[4/5]" />;
-              const { category: c, count } = s;
-              return (
-                <m.button
-                  key={c.id}
-                  initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-40px' }}
-                  transition={{ duration: 0.6, delay: i * 0.06, ease: EASE }}
-                  onClick={() => openCategory(c.id)}
-                  className="group relative flex flex-col justify-start text-left rounded-[28px] max-sm:rounded-[20px] border-2 border-ink overflow-hidden aspect-[4/5] max-sm:aspect-[3/4] cursor-pointer hover:-translate-y-1 hover:shadow-[0_6px_0_#111] transition-[translate,box-shadow] duration-300"
-                  style={{ background: `radial-gradient(ellipse at 60% 30%, #fff 0%, ${c.accent_color || DEFAULT_ACCENT} 62%)` }}
-                >
-                  <div className="relative z-[1] p-5 max-sm:p-3.5">
-                    <div className="font-display text-[22px] max-sm:text-[16px] leading-tight text-ink">{c.name}</div>
-                    <div className="mt-1 text-[13px] max-sm:text-[11.5px] font-semibold text-ink/70">{count} {plural(count, 'товар', 'товара', 'товаров')}</div>
-                  </div>
-                  <img
-                    src={c.hero_image || DEFAULT_HERO}
-                    alt=""
-                    aria-hidden="true"
-                    loading="lazy"
-                    className="absolute inset-x-[4%] bottom-[14%] max-sm:bottom-[18%] w-[92%] h-[52%] object-contain transition-transform duration-500 group-hover:scale-[1.04]"
-                  />
-                  <span className="absolute left-4 right-4 bottom-4 max-sm:left-2.5 max-sm:right-2.5 max-sm:bottom-2.5 h-10 max-sm:h-9 rounded-ctl-sm bg-card border-2 border-ink flex items-center justify-between px-3.5 text-[13px] max-sm:text-[11.5px] font-bold">
-                    <span className="truncate"><span className="max-sm:hidden">Смотреть: {c.name}</span><span className="sm:hidden">Смотреть</span></span>
-                    <ArrowRight size={15} strokeWidth={2.4} className="shrink-0" />
-                  </span>
-                </m.button>
-              );
-            })}
-          </div>
+          <CategoryCards onOpen={openCategory} />
         </div>
       </section>
 
@@ -213,7 +186,7 @@ export default function HomePage() {
               <SectionHead label="Пример из каталога" title={`Экономия ${formatPrice(best.saved)} на одном товаре`} inline />
               <p className="text-[16px] leading-relaxed text-muted max-w-[520px]">
                 Так выглядит сравнение на каждой карточке: наша цена и цены того же товара в двух сетевых магазинах.
-                {Object.keys(prices).length === 0 && ' С промокодом блогера разница ещё больше.'}
+                {Object.keys(prices).length === 0 && ' С промокодом лидера мнений разница ещё больше.'}
               </p>
             </div>
             <button
@@ -315,7 +288,7 @@ export default function HomePage() {
         <div className="max-w-[920px] mx-auto px-8 max-sm:px-4">
           <SectionHead label="Вопросы" title="Частые вопросы" />
           <div className="grid gap-3">
-            {FAQ.map((f, i) => {
+            {faq.map((f, i) => {
               const open = openFaq === i;
               return (
                 <div key={f.q} className="rounded-[20px] border-2 border-ink bg-card overflow-hidden">
@@ -323,7 +296,7 @@ export default function HomePage() {
                     <span className="text-[16px] max-sm:text-[15px] font-bold text-ink">{f.q}</span>
                     <ChevronDown size={18} strokeWidth={2.4} className={`shrink-0 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
                   </button>
-                  {open && <p className="px-5 pb-5 -mt-1 text-[15px] leading-relaxed text-muted">{f.a}</p>}
+                  {open && <p className="px-5 pb-5 -mt-1 text-[15px] leading-relaxed text-muted whitespace-pre-line">{f.a}</p>}
                 </div>
               );
             })}
@@ -336,7 +309,7 @@ export default function HomePage() {
         <div className="max-w-[1440px] mx-auto px-8 max-sm:px-4">
           <div className="relative rounded-[36px] max-sm:rounded-[26px] border-2 border-ink accent-card px-10 py-12 max-sm:px-5 max-sm:py-8 grid lg:grid-cols-[1fr_auto] gap-8 items-center overflow-hidden">
             <div className="relative z-[1]">
-              <div className="font-display text-[clamp(26px,3.4vw,44px)] leading-[1.05] text-ink">Есть промокод от блогера?</div>
+              <div className="font-display text-[clamp(26px,3.4vw,44px)] leading-[1.05] text-ink">Есть промокод от лидера мнений?</div>
               <p className="mt-3 text-[16px] text-ink/80 max-w-[560px]">Введите его — цены снизятся сразу на весь каталог.</p>
               <div className="mt-6 max-w-[560px]"><PromoForm variant="pill" /></div>
               <button onClick={() => navigate('/catalog')} className="btn-outline mt-5">В каталог <ArrowRight size={16} strokeWidth={2.2} /></button>
