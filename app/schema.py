@@ -72,6 +72,17 @@ _TABLES = [
     )""",
     # Which codes a signed-in buyer holds (they live in the browser), so the
     # site can remind them a week before one runs out (promo_reminders.py)
+    # Every consent given or withdrawn (152-ФЗ): when, which version, from where
+    """CREATE TABLE IF NOT EXISTS ref_consent_log (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES coop_users(id) ON DELETE SET NULL,
+        kind VARCHAR(20) NOT NULL,
+        granted BOOLEAN NOT NULL,
+        version VARCHAR(20) NOT NULL,
+        ip VARCHAR(64) DEFAULT '',
+        user_agent TEXT DEFAULT '',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+    )""",
     """CREATE TABLE IF NOT EXISTS ref_promo_activations (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES coop_users(id) ON DELETE CASCADE,
@@ -85,6 +96,12 @@ _TABLES = [
 
 # (table, column, definition) — added after the tables above exist.
 _COLUMNS = [
+    # Consents (152-ФЗ, 38-ФЗ) and the deleted account's mark
+    ("coop_users", "pd_consent_at", "TIMESTAMPTZ DEFAULT NULL"),
+    ("coop_users", "pd_consent_version", "VARCHAR(20) DEFAULT NULL"),
+    ("coop_users", "marketing_consent", "BOOLEAN DEFAULT FALSE"),
+    ("coop_users", "marketing_consent_at", "TIMESTAMPTZ DEFAULT NULL"),
+    ("coop_users", "deleted_at", "TIMESTAMPTZ DEFAULT NULL"),
     # A supplier's account: «О нас» shows them the supplier's branch
     ("coop_users", "is_supplier", "BOOLEAN DEFAULT FALSE"),
     # Every code an order was placed with (several, one per category); the

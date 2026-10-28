@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Loader2, MessagesSquare, Send, User } from 'lucide-react';
 import { useAuthStore } from '../../store';
 import { API_BASE } from '../../api/client';
@@ -194,6 +195,9 @@ export default function StoreForum() {
                 {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
               </button>
             </div>
+            <p className="mt-2 px-1 text-[11px] leading-snug text-muted">
+              Сообщения видят все{user ? ' — вы подписаны как имя и первая буква фамилии' : ''}. Не публикуйте телефоны, адреса и другие личные данные · <Link to="/terms" className="underline">правила</Link>
+            </p>
           </div>
         </div>
       </div>

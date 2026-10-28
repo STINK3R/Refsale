@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import NotifySettings from './NotifySettings';
+import PrivacyControls from './PrivacyControls';
 import { Link } from 'react-router-dom';
 import { Loader2, Package, Crown } from 'lucide-react';
 import Modal from '../ui/Modal';
@@ -75,6 +76,8 @@ export default function ProfileModal() {
       <button onClick={save} disabled={saving} className="btn-primary w-full h-12 text-[15px] mt-6">
         {saving ? <Loader2 size={18} className="animate-spin" /> : 'Сохранить'}
       </button>
+
+      <PrivacyControls />
     </Modal>
   );
 }

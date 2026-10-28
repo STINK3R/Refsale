@@ -408,6 +408,21 @@
         <button class="btn btn-primary" onclick="saveStoreContacts()"><i class="fas fa-save"></i> Сохранить контакты</button>
     </div>
     <div class="card">
+        <div class="card-title"><i class="fas fa-scale-balanced"></i> Реквизиты для документов (152-ФЗ)</div>
+        <div style="font-size:12px;color:#6B7280;margin:-6px 0 14px;line-height:1.5">Подставляются в «Политику обработки персональных данных», «Согласие» и «Условия продажи» (refsale.ru/privacy, /consent, /terms). Без них документы недействительны — заполните до запуска продаж.</div>
+        <div class="form-group"><label>Оператор / продавец — ИП ФИО или название организации</label><input type="text" id="legal_name" placeholder="ИП Иванов Иван Иванович"></div>
+        <div class="form-row">
+            <div class="form-group"><label>ИНН</label><input type="text" id="legal_inn" inputmode="numeric"></div>
+            <div class="form-group"><label>ОГРН / ОГРНИП</label><input type="text" id="legal_ogrn" inputmode="numeric"></div>
+        </div>
+        <div class="form-group"><label>Адрес (юридический или регистрации ИП)</label><input type="text" id="legal_address"></div>
+        <div class="form-row">
+            <div class="form-group"><label>Почта для обращений по персональным данным</label><input type="email" id="legal_email" placeholder="privacy@refsale.ru"></div>
+            <div class="form-group"><label>Хостинг (компания, страна) — по желанию</label><input type="text" id="legal_hosting" placeholder="ООО «…», Россия"></div>
+        </div>
+        <button class="btn btn-primary" onclick="saveLegal()"><i class="fas fa-save"></i> Сохранить реквизиты</button>
+    </div>
+    <div class="card">
         <div class="card-title"><i class="fas fa-people-group"></i> «О нас» на главной — три описания</div>
         <div style="font-size:12px;color:#6B7280;margin:-6px 0 14px;line-height:1.5">Покупатели видят своё описание всегда. Лидеры мнений и поставщики видят ещё и своё — после входа, если аккаунт отмечен (лидер — во вкладке «Лидеры», поставщик — кнопкой <i class="fas fa-truck"></i> в «Пользователях»). Пустое поле — текст по умолчанию.</div>
         <div id="aboutRows"></div>
@@ -2984,6 +2999,14 @@ async function toggleSupplier(id,on){
     }catch(e){showAlert('Ошибка','error');}
 }
 
+// ── Operator details for the legal pages ─────────
+const LEGAL_FIELDS=['legal_name','legal_inn','legal_ogrn','legal_address','legal_email','legal_hosting'];
+async function saveLegal(){
+    const body={};LEGAL_FIELDS.forEach(k=>{body[k]=document.getElementById(k).value.trim();});
+    try{await _patch('/api/admin/settings',body);showAlert('Реквизиты сохранены — документы на сайте обновятся при следующей загрузке');}
+    catch(e){showAlert('Ошибка сохранения','error');}
+}
+
 // ── «О нас»: three branches ──────────────────────
 const ABOUT_BRANCHES=[['buyer','Покупателям'],['leader','Лидерам мнений — видят лидеры'],['supplier','Поставщикам — видят поставщики']];
 function renderAboutForm(s){
@@ -3028,6 +3051,7 @@ async function renderSiteExtrasForm(){
     (Array.isArray(faq)&&faq.length?faq:FAQ_DEFAULT).forEach(addFaqRow);
     document.getElementById('metrikaId').value=s.metrika_id||'';
     renderAboutForm(s);
+    LEGAL_FIELDS.forEach(k=>{const el=document.getElementById(k);if(el)el.value=s[k]||'';});
     document.getElementById('metrikaWebvisor').checked=s.metrika_webvisor==='true';
 }
 async function saveFaq(){

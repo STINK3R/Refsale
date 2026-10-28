@@ -147,6 +147,7 @@ def create_app():
     from .routes.order_chat import bp as order_chat_bp
     from .routes.store import bp as store_bp
     from .routes.push import bp as push_bp
+    from .routes.privacy import bp as privacy_bp
     from .schema import ensure_schema
 
     app.register_blueprint(public_bp)
@@ -155,6 +156,7 @@ def create_app():
     app.register_blueprint(order_chat_bp)
     app.register_blueprint(store_bp)
     app.register_blueprint(push_bp)
+    app.register_blueprint(privacy_bp)
 
     ensure_schema()
     _bootstrap_admin_password()

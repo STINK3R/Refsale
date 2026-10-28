@@ -204,6 +204,7 @@ export default function Reviews() {
               <button onClick={submit} disabled={submitting} className="btn-primary w-full mt-8">
                 {submitting ? 'Отправляем…' : 'Опубликовать отзыв'}
               </button>
+              <p className="mt-3 text-center text-[12px] text-muted">Отзыв увидят все — с именем и первой буквой фамилии, например «Анна К.»</p>
               </div>
             </m.div>
           </m.div>

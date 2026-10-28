@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { BellRing, Download, Mail, Share, Smartphone } from 'lucide-react';
+import { BellRing, Download, Mail, Megaphone, Share, Smartphone } from 'lucide-react';
+import { fetchConsent, setMarketingConsent } from '../../api/client';
 import { useNotificationStore } from '../../store';
 import { iosNeedsInstall, usePwaStore } from '../../store/pwa';
 
@@ -8,10 +9,12 @@ export default function NotifySettings() {
   const { push, busy, enablePush, disablePush, installEvent, install, installed, refresh } = usePwaStore();
   const show = useNotificationStore((s) => s.show);
   const [email, setEmail] = useState<boolean | null>(null);
+  const [marketing, setMarketing] = useState<boolean | null>(null);
 
   useEffect(() => {
     void refresh();
     fetch('/api/notify/settings').then((r) => r.json()).then((d) => setEmail(!!d.email)).catch(() => setEmail(null));
+    fetchConsent().then((c) => setMarketing(c ? c.marketing : null));
   }, [refresh]);
 
   const toggleEmail = async () => {
@@ -20,6 +23,13 @@ export default function NotifySettings() {
     const r = await fetch('/api/notify/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: next }) }).catch(() => null);
     if (!r?.ok) { setEmail(!next); show('Не удалось сохранить', 'error'); return; }
     show(next ? 'Письма об ответах включены' : 'Письма об ответах выключены');
+  };
+
+  const toggleMarketing = async () => {
+    const next = !marketing;
+    setMarketing(next);
+    if (!(await setMarketingConsent(next))) { setMarketing(!next); show('Не удалось сохранить', 'error'); return; }
+    show(next ? 'Письма об акциях включены' : 'Письма об акциях выключены — согласие отозвано');
   };
 
   const togglePush = async () => {
@@ -47,6 +57,10 @@ export default function NotifySettings() {
 
       <Row icon={<Mail size={17} />} title="Письма об ответах" hint="Не чаще раза в 10 минут на один чат">
         {email !== null && <Switch on={email} onClick={toggleEmail} label="Письма об ответах" />}
+      </Row>
+
+      <Row icon={<Megaphone size={17} />} title="Письма об акциях и промокодах" hint="Скидки и напоминание за неделю до конца срока промокода">
+        {marketing !== null && <Switch on={marketing} onClick={toggleMarketing} label="Письма об акциях и промокодах" />}
       </Row>
 
       <Row

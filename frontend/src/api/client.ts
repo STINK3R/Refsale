@@ -113,6 +113,25 @@ export async function uploadFile(file: File, prefix: string, userId?: number): P
   }
 }
 
+// ==================== PERSONAL DATA ====================
+/** Confirms the processing consent (and sets letters about offers). */
+export async function grantConsent(marketing: boolean): Promise<boolean> {
+  try { await _post('/api/privacy/consent', { pd: true, marketing }); return true; } catch { return false; }
+}
+
+export async function setMarketingConsent(on: boolean): Promise<boolean> {
+  try { await _post('/api/privacy/consent', { marketing: on }); return true; } catch { return false; }
+}
+
+export async function fetchConsent(): Promise<{ pd: boolean; marketing: boolean } | null> {
+  try { return await _api('/api/privacy/consent'); } catch { return null; }
+}
+
+/** Deletes the account (withdraws consent). Returns an error text, or null. */
+export async function deleteAccount(password: string): Promise<string | null> {
+  try { await _post('/api/privacy/delete-account', { password }); return null; } catch (e) { return (e as Error).message || 'Не удалось удалить аккаунт'; }
+}
+
 // ==================== SUPPORT ====================
 export async function createSupportTicket(data: { user_id: number; user_name: string; subject: string; text: string; product_id?: number | null; images?: string[]; promo_code?: string | null }): Promise<unknown> {
   return _post('/api/support/tickets', data);
@@ -197,7 +216,7 @@ export async function validateStorePromo(code: string): Promise<PromoResult> {
   }
 }
 
-export async function storeRegister(data: { full_name: string; email: string; password: string; phone?: string }): Promise<{ user?: User; error?: string; exists?: boolean }> {
+export async function storeRegister(data: { full_name: string; email: string; password: string; phone?: string; consent_pd: boolean; consent_marketing: boolean }): Promise<{ user?: User; error?: string; exists?: boolean }> {
   const res = await fetch(API_BASE + '/api/store/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

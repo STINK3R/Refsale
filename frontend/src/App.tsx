@@ -7,6 +7,7 @@ import Footer from './components/layout/Footer';
 import Notification from './components/ui/Notification';
 import SupportWidget from './components/support/SupportWidget';
 import MascotLayer from './components/mascot/MascotLayer';
+import CookieBanner from './components/ui/CookieBanner';
 import useCategoryAccent from './hooks/useCategoryAccent';
 import useMetrika from './hooks/useMetrika';
 import { scrollPageToTop, glidePageToTop, glideToElement, isScrollLocked } from './hooks/useScrollLock';
@@ -23,6 +24,8 @@ const OrdersPage = lazy(() => import('./components/sections/OrdersPage'));
 const LeaderCabinet = lazy(() => import('./components/sections/LeaderCabinet'));
 const FavoritesPage = lazy(() => import('./components/sections/FavoritesPage'));
 const NotFound = lazy(() => import('./components/sections/NotFound'));
+const LegalPage = lazy(() => import('./components/sections/LegalPage'));
+const ConsentGate = lazy(() => import('./components/profile/ConsentGate'));
 const SupportChatModal = lazy(() => import('./components/support/SupportChatModal'));
 // The main page comes with the first load: it is where most visits start.
 // The shop is its own chunk, fetched in the background from the main page.
@@ -140,6 +143,9 @@ function App() {
         <Route path="/orders" element={<Suspense fallback={<PageFallback />}><OrdersPage /></Suspense>} />
         <Route path="/cabinet" element={<Suspense fallback={<PageFallback />}><LeaderCabinet /></Suspense>} />
         <Route path="/favorites" element={<Suspense fallback={<PageFallback />}><FavoritesPage /></Suspense>} />
+        <Route path="/privacy" element={<Suspense fallback={<PageFallback />}><LegalPage /></Suspense>} />
+        <Route path="/consent" element={<Suspense fallback={<PageFallback />}><LegalPage /></Suspense>} />
+        <Route path="/terms" element={<Suspense fallback={<PageFallback />}><LegalPage /></Suspense>} />
         <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
       </Routes>
       <Footer />
@@ -149,7 +155,9 @@ function App() {
         <CartSidebar />
         <CheckoutModal />
         <ProfileModal />
+        {userId && <ConsentGate />}
       </Suspense>
+      <CookieBanner />
       <Notification />
       <SupportWidget />
       {supportOpened && <Suspense fallback={null}><SupportChatModal /></Suspense>}

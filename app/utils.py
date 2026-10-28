@@ -253,3 +253,15 @@ def sanitize_image_urls(value, max_items: int = MAX_ATTACHED_IMAGES) -> str:
             continue
         clean.append(url)
     return _json.dumps(clean, ensure_ascii=False)
+
+
+def public_name(full_name: str) -> str:
+    """'Иван Петров' → 'Иван П.': how a member is named where anyone can read
+    it (forum, reviews). A full name in public would need a separate consent
+    to its dissemination (152-ФЗ, ст. 10.1)."""
+    parts = (full_name or "").split()
+    if not parts:
+        return "Покупатель"
+    if len(parts) == 1:
+        return parts[0]
+    return f"{parts[0]} {parts[1][0]}."

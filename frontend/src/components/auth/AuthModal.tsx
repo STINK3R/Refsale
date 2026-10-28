@@ -3,6 +3,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import Modal from '../ui/Modal';
 import { useAuthStore, useNotificationStore } from '../../store';
 import { loginUser, storeRegister } from '../../api/client';
+import { ConsentChecks } from '../profile/ConsentGate';
 
 const emailValid = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
@@ -19,6 +20,8 @@ export default function AuthModal() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [consentPd, setConsentPd] = useState(false);
+  const [consentMarketing, setConsentMarketing] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -34,8 +37,9 @@ export default function AuthModal() {
     if (!name.trim()) { setError('Укажите имя'); return; }
     if (!emailValid(email.trim())) { setError('Укажите корректный email'); return; }
     if (password.length < 6) { setError('Пароль — минимум 6 символов'); return; }
+    if (!consentPd) { setError('Отметьте согласие на обработку персональных данных'); return; }
     setLoading(true);
-    const res = await storeRegister({ full_name: name.trim(), email: email.trim(), password, phone: phone.trim() });
+    const res = await storeRegister({ full_name: name.trim(), email: email.trim(), password, phone: phone.trim(), consent_pd: true, consent_marketing: consentMarketing });
     setLoading(false);
     if (res.exists) { switchTab('login'); setError('Этот email уже зарегистрирован — войдите с паролем'); return; }
     if (!res.user) { setError(res.error || 'Не удалось зарегистрироваться'); return; }
@@ -102,6 +106,7 @@ export default function AuthModal() {
             <Labeled label="Телефон"><input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" autoComplete="tel" placeholder="+7" className="field" /></Labeled>
           </div>
         )}
+        {isReg && <ConsentChecks pd={consentPd} setPd={setConsentPd} marketing={consentMarketing} setMarketing={setConsentMarketing} />}
 
         {error && <div className="text-[13px] text-danger pt-1">{error}</div>}
 

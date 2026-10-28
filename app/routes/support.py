@@ -55,6 +55,8 @@ def api_create_ticket():
     images = sanitize_image_urls(d.get("images"))
     if not subject or not text:
         return jsonify({"error": "Заполните тему и текст обращения"}), 400
+    if user_id is None:
+        return jsonify({"error": "Чтобы задать вопрос, войдите или зарегистрируйтесь"}), 401
     # Product enquiries ("Связь с продавцом") are a members-only channel — the
     # UI sends guests to register, and this backs that up. The id itself isn't
     # stored (the product is named in the message text); it only marks intent.

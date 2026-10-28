@@ -253,13 +253,15 @@ body {
   .field-line:focus { outline: none; border-bottom-color: var(--color-text); }
 }
 
-/* Inputs: never zoom on iOS, never draw the default glow */
-input, textarea, select {
+/* Inputs: never zoom on iOS, never draw the default glow. Tick boxes keep
+   their own look — without it a checkbox is not drawn at all. */
+input:not([type="checkbox"]):not([type="radio"]), textarea, select {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
-  font-size: 16px !important;
 }
+input, textarea, select { font-size: 16px !important; }
+input[type="checkbox"], input[type="radio"] { cursor: pointer; }
 @media (min-width: 640px) {
   input, textarea, select { font-size: inherit !important; }
 }
@@ -330,6 +332,13 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
 
 /* Chats, the forum, the cabinet: Telegram-like doodles (meerkats and small
    signs) over a light tint of the page colour, instead of plain white. */
+/* The legal pages (LegalPage): readable long text */
+.legal h2 { margin-top: 2rem; font-weight: 800; font-size: 18px; color: var(--color-ink); scroll-margin-top: calc(var(--header-h, 110px) + 16px); }
+.legal p, .legal li { margin-top: 0.75rem; font-size: 15px; line-height: 1.7; color: color-mix(in srgb, var(--color-ink) 82%, transparent); }
+.legal ul { margin-top: 0.5rem; padding-left: 1.25rem; list-style: disc; }
+.legal li { margin-top: 0.4rem; }
+.legal a { text-decoration: underline; font-weight: 600; color: var(--color-ink); }
+
 /* The running strip of brand logos (BrandMarquee) */
 .marquee {
   overflow: hidden;

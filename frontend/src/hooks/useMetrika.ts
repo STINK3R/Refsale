@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAppStore } from '../store';
+import { useCookieStore } from '../store/cookies';
 
 type Ym = ((...args: unknown[]) => void) & { a?: unknown[][]; l?: number };
 let counter = 0;
@@ -28,7 +29,9 @@ function start(id: number, webvisor: boolean) {
 export default function useMetrika() {
   const settings = useAppStore((s) => s.settings);
   const { pathname, search } = useLocation();
-  const id = Number(settings.metrika_id) || 0;
+  // Only after «Принять все» in the cookie banner
+  const allowed = useCookieStore((s) => s.choice === 'all');
+  const id = allowed ? Number(settings.metrika_id) || 0 : 0;
   const webvisor = settings.metrika_webvisor === 'true';
 
   useEffect(() => { if (id) start(id, webvisor); }, [id, webvisor]);

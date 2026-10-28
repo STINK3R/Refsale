@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useContacts, ContactBlock } from '../ui/Contacts';
+import { openCookieSettings } from '../../store/cookies';
 
 const LINKS: { label: string; href: string; route?: boolean }[] = [
   { label: 'Каталог', href: '/catalog', route: true },
@@ -53,6 +54,12 @@ export default function Footer() {
           <span>© {year} RefSale · Только оригинальная продукция · <b className="text-ink">Проект создан в целях научной деятельности</b></span>
           <span className="tracking-[0.12em] uppercase font-semibold">refsale.ru</span>
         </div>
+        <nav className={`${plate} mt-4 !py-3.5 flex flex-wrap items-center gap-x-6 gap-y-2 text-[12.5px] font-semibold text-ink`} aria-label="Документы">
+          <Link to="/privacy" className="hover:text-primary transition-colors">Политика обработки персональных данных</Link>
+          <Link to="/consent" className="hover:text-primary transition-colors">Согласие на обработку данных</Link>
+          <Link to="/terms" className="hover:text-primary transition-colors">Условия продажи</Link>
+          <button type="button" onClick={openCookieSettings} className="hover:text-primary transition-colors cursor-pointer">Настройки cookie</button>
+        </nav>
       </div>
     </footer>
   );

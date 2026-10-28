@@ -81,6 +81,10 @@ export interface User {
   address: string;
   telegram_username?: string;
   is_leader?: boolean;
+  /** When the consent to personal data processing was given; null — not yet */
+  pd_consent_at?: string | null;
+  /** Letters about offers and promo codes (38-ФЗ) */
+  marketing_consent?: boolean;
   /** A supplier's account (set in the admin panel) */
   is_supplier?: boolean;
   leader_can_write?: boolean;

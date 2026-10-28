@@ -430,6 +430,10 @@ def store_quick_register():
     email = sanitize_string(d.get("email") or "", 255).strip().lower()
     phone = sanitize_string(d.get("phone") or "", 30)
     password = (d.get("password") or "").strip()
+    # 152-ФЗ: the consent is its own tick, given before any data is kept
+    if d.get("consent_pd") is not True:
+        return jsonify({"error": "Нужно согласие на обработку персональных данных"}), 400
+    marketing = d.get("consent_marketing") is True
     if not full_name:
         return jsonify({"error": "Укажите имя"}), 400
     if not email or "@" not in email or "." not in email.split("@")[-1]:
@@ -450,6 +454,10 @@ def store_quick_register():
                    VALUES (%s, %s, %s, '', %s, TRUE) RETURNING *""",
                 (full_name, phone or None, email, hash_password(password))
             )
+            uid = cur.fetchone()["id"]
+            from .privacy import grant_signup_consents
+            grant_signup_consents(cur, uid, marketing)
+            cur.execute("SELECT * FROM coop_users WHERE id = %s", (uid,))
             user = _row_to_dict(cur.fetchone())
             user.pop("password", None)
         try:

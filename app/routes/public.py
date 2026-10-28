@@ -9,7 +9,7 @@ import secrets
 from flask import Blueprint, request, jsonify
 
 from ..db import get_db, _row_to_dict, _rows_to_list
-from ..utils import rate_limited, rate_limited_auth, check_brute_force, record_login_fail, record_login_success, hash_password, verify_password, sanitize_string, validate_upload, sanitize_image_urls
+from ..utils import rate_limited, rate_limited_auth, check_brute_force, record_login_fail, record_login_success, hash_password, verify_password, sanitize_string, validate_upload, sanitize_image_urls, public_name
 from ..auth import create_user_token, require_auth, require_self, claimed_user_id, invalidate_user_tokens
 from ..email_service import email_forgot_password
 from ..config import UPLOAD_DIR
@@ -273,6 +273,8 @@ def api_get_reviews():
             else:
                 cur.execute("SELECT * FROM coop_reviews ORDER BY created_at DESC LIMIT 50")
             reviews = _rows_to_list(cur.fetchall())
+        for r in reviews or []:
+            r["user_name"] = public_name(r.get("user_name") or "")
         return jsonify(reviews or [])
     except:
         return jsonify({"error": "Ошибка получения отзывов"}), 500
@@ -369,6 +371,9 @@ def api_forum_posts(fid):
         with get_db() as cur:
             cur.execute("SELECT * FROM coop_forum_posts WHERE forum_id = %s ORDER BY created_at DESC LIMIT 100", (fid,))
             posts = _rows_to_list(cur.fetchall())
+        for p in posts or []:
+            if p.get("user_id"):
+                p["user_name"] = public_name(p.get("user_name") or "")
         return jsonify(posts or [])
     except:
         return jsonify({"error": "Ошибка получения постов форума"}), 500
@@ -392,6 +397,9 @@ def api_create_forum_post():
         return jsonify({"error": "Заполните текст сообщения"}), 400
     try:
         with get_db() as cur:
+            if user_id:
+                cur.execute("SELECT full_name FROM coop_users WHERE id = %s", (user_id,))
+                user_name = public_name(((cur.fetchone() or {}).get("full_name")) or user_name)
             cur.execute(
                 "INSERT INTO coop_forum_posts (forum_id, user_id, user_name, text, images) VALUES (%s, %s, %s, %s, %s) RETURNING *",
                 (forum_id, user_id, user_name, text, images)
@@ -399,6 +407,7 @@ def api_create_forum_post():
             result = _row_to_dict(cur.fetchone())
         return jsonify(result)
     except Exception as e:
+        print(f"[/api/forums/posts] {e}")
         return jsonify({"error": "Ошибка создания поста"}), 500
 
 

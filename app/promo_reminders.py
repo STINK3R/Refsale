@@ -39,11 +39,12 @@ def send_due_reminders():
     with get_db() as cur:
         cur.execute(
             """SELECT a.id, a.user_id, p.id AS promo_id, p.code, p.expires_at, p.scope,
-                      p.scope_category_id, p.scope_product_ids, u.full_name
+                      p.scope_category_id, p.scope_product_ids, u.full_name,
+                      COALESCE(u.marketing_consent, FALSE) AS marketing_consent
                FROM ref_promo_activations a
                JOIN ref_promos p ON p.id = a.promo_id
                JOIN coop_users u ON u.id = a.user_id
-               WHERE p.is_active AND p.expires_at IS NOT NULL
+               WHERE p.is_active AND u.deleted_at IS NULL AND p.expires_at IS NOT NULL
                  AND p.expires_at > NOW()
                  AND p.expires_at <= NOW() + make_interval(days => %s)
                  AND a.seen_at > NOW() - make_interval(days => %s)
@@ -93,6 +94,7 @@ def send_due_reminders():
             body=text, url="/favorites",
             email_subject=f"Промокод {code} закончится {until}",
             email_heading=f"Промокод {code} скоро закончится",
+            email=bool(row.get("marketing_consent")),
         )
 
 

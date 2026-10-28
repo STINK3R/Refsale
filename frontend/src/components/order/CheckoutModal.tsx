@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import Modal from '../ui/Modal';
 import { useAuthStore, useCartStore, useNotificationStore, usePromoStore, priceFor, promoKey, cartKey } from '../../store';
@@ -118,6 +118,9 @@ export default function CheckoutModal() {
       <button onClick={submit} disabled={sending || !items.length} className="btn-primary w-full mt-6">
         {sending ? <Loader2 size={17} className="animate-spin" /> : 'Оформить заказ'}
       </button>
+      <p className="mt-2.5 text-center text-[12px] text-muted">
+        Оформляя заказ, вы принимаете <Link to="/terms" target="_blank" className="underline font-semibold text-ink">условия продажи</Link>
+      </p>
 
       {/* Optional, after the button: the manager asks for these in the chat */}
       <div className="mt-6 border-t-2 border-ink/10 pt-5">
