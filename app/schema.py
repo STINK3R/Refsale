@@ -96,6 +96,11 @@ _TABLES = [
 
 # (table, column, definition) — added after the tables above exist.
 _COLUMNS = [
+    # Reviews of a product (shown under it), and «купил на RefSale»
+    ("coop_reviews", "product_id", "INTEGER DEFAULT NULL"),
+    ("coop_reviews", "verified", "BOOLEAN DEFAULT FALSE"),
+    # A member's picture, shown by their reviews, forum posts and cabinet
+    ("coop_users", "avatar_url", "TEXT DEFAULT ''"),
     # Consents (152-ФЗ, 38-ФЗ) and the deleted account's mark
     ("coop_users", "pd_consent_at", "TIMESTAMPTZ DEFAULT NULL"),
     ("coop_users", "pd_consent_version", "VARCHAR(20) DEFAULT NULL"),

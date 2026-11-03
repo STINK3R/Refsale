@@ -208,7 +208,9 @@ export default function Header() {
                 aria-label={user ? 'Профиль' : 'Войти'}
                 title={user ? user.full_name : 'Войти'}
               >
-                <User size={21} strokeWidth={2} />
+                {user?.avatar_url
+                  ? <img src={user.avatar_url} alt="" className="w-[26px] h-[26px] rounded-full object-cover border-2 border-ink" />
+                  : <User size={21} strokeWidth={2} />}
               </button>
               <button onClick={openSidebar} className="relative flex items-center gap-2 text-text hover:text-primary transition-colors cursor-pointer" aria-label="Корзина">
                 <ShoppingBag size={21} strokeWidth={2} />

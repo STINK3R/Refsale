@@ -5,6 +5,7 @@ import Meerkat from '../mascot/Meerkat';
 import { Package, Loader2, Send, ArrowLeft, MessageCircle, LogIn, ChevronDown, Check, X, BadgePercent } from 'lucide-react';
 import { useAuthStore, useNotificationStore } from '../../store';
 import { fetchUserOrderChats, fetchOrderMessages, sendOrderMessage, cancelStoreOrder } from '../../api/client';
+import SectionHead from '../ui/SectionHead';
 import ImageUploader from '../ui/ImageUploader';
 import NotifyPrompt from '../ui/NotifyPrompt';
 import AttachedImages from '../ui/AttachedImages';
@@ -203,13 +204,14 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="max-w-[1180px] mx-auto px-3 sm:px-5 pt-[calc(var(--header-h,104px)+28px)] pb-16">
-      <div className="mb-5 px-1">
-        <div className="label mb-2">Мои заказы</div>
-        <h1 className="font-display text-[40px] leading-none text-text max-sm:text-[32px]">Статусы и чаты</h1>
+    <div className={`max-w-[1180px] mx-auto px-3 sm:px-5 pt-[calc(var(--header-h,104px)+28px)] pb-16 ${selected ? 'max-sm:pt-[calc(var(--header-h,64px)+10px)] max-sm:pb-3' : ''}`}>
+      {/* On a phone an open chat takes the screen: no heading above it and no
+          page scroll under it, so the browser bar never folds mid-chat */}
+      <div className={`mb-5 px-1 ${selected ? 'max-sm:hidden' : ''}`}>
+        <SectionHead label="Мои заказы" title="Статусы и чаты" level={1} className="!mb-0" />
       </div>
 
-      <div className="bg-card border-2 border-ink rounded-[24px] max-sm:rounded-[20px] shadow-[0_6px_0_#111] overflow-hidden flex h-[calc(100dvh-220px)] min-h-[480px] max-h-[760px]">
+      <div className={`bg-card border-2 border-ink rounded-[24px] max-sm:rounded-[20px] shadow-[0_6px_0_#111] overflow-hidden flex h-[calc(100svh-220px)] min-h-[480px] max-h-[760px] ${selected ? 'max-sm:h-[calc(100svh-var(--header-h,64px)-22px)] max-sm:min-h-[420px] max-sm:max-h-none' : ''}`}>
         <aside className={`w-full sm:w-[360px] sm:min-w-[360px] sm:border-r-2 border-ink/10 bg-surface flex-col ${selected ? 'hidden sm:flex' : 'flex'}`}>
           {chats.length > 0 && (
             <div className="shrink-0 px-3 pt-3 pb-2.5 border-b-2 border-ink/10 space-y-2.5">

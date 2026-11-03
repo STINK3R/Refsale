@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { m } from 'framer-motion';
 import { ArrowRight, BadgeCheck, ChevronDown, MessageCircle, Percent, Wallet } from 'lucide-react';
@@ -10,7 +10,11 @@ import Meerkat from '../mascot/Meerkat';
 import PromoForm from '../promo/PromoForm';
 import About from './About';
 import CategoryCards from './CategoryCards';
+import SectionHead, { Eyebrow } from '../ui/SectionHead';
 import BrandMarquee from './BrandMarquee';
+
+// Lower on the page: fetched on its own, after the first screen
+const Reviews = lazy(() => import('./Reviews'));
 import { loadCatalogPage } from './catalogChunk';
 import usePageMeta from '../../hooks/usePageMeta';
 import type { Product } from '../../types';
@@ -70,8 +74,8 @@ export default function HomePage() {
   }, []);
 
   usePageMeta(
-    'RefSale — оригинальная парфюмерия и косметика дешевле магазинов',
-    'RefSale (РефСейл): оригинальная парфюмерия, косметика, продукты и товары из Китая дешевле сетевых магазинов. С промокодом — ещё до −50%.',
+    'RefSale — реферальные ссылки и промокоды на оригинальные товары',
+    'RefSale (РефСейл) — сайт реферальных ссылок и промокодов: оригинальная парфюмерия, косметика, подписки, продукты и товары из Китая дешевле сетей.',
     '/',
   );
 
@@ -108,11 +112,12 @@ export default function HomePage() {
           {/* No fade on the first screen's text: it is the largest thing painted,
               and a fade would hold it back on slow phones. It only slides. */}
           <m.div initial={{ y: 14 }} animate={{ y: 0 }} transition={{ duration: 0.7, ease: EASE }} className="lg:col-start-1 lg:row-start-1 lg:self-end">
+            <Eyebrow className="mb-5 max-sm:mb-4">Реферальные ссылки и промокоды</Eyebrow>
             <h1 className="font-display text-[clamp(34px,5vw,68px)] leading-[1.02] text-ink">
               Оригинал дешевле, чем в&nbsp;магазинах
             </h1>
             <p className="mt-5 text-[18px] max-sm:text-[16px] leading-relaxed text-muted max-w-[620px]">
-              Парфюмерия, уходовая косметика, продукты и товары из Китая.{' '}
+              Парфюмерия, уходовая косметика, подписки, продукты и товары из Китая.{' '}
               <b className="text-ink">С промокодом вашего лидера мнений (например, блогера) цена ещё ниже</b>, а платить нужно только после того, как менеджер подтвердит наличие.
             </p>
           </m.div>
@@ -283,6 +288,8 @@ export default function HomePage() {
         </div>
       </section>
 
+      <Suspense fallback={null}><Reviews all /></Suspense>
+
       {/* 7. The usual questions */}
       <section className="pb-20 max-md:pb-14">
         <div className="max-w-[920px] mx-auto px-8 max-sm:px-4">
@@ -319,15 +326,6 @@ export default function HomePage() {
         </div>
       </section>
     </main>
-  );
-}
-
-function SectionHead({ label, title, inline = false }: { label: string; title: string; inline?: boolean }) {
-  return (
-    <div className={inline ? 'mb-4' : 'mb-8 max-md:mb-6'}>
-      <div className="label">{label}</div>
-      <h2 className="mt-2 font-display text-[clamp(26px,3.2vw,42px)] leading-[1.08] text-ink">{title}</h2>
-    </div>
   );
 }
 

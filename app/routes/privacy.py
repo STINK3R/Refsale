@@ -86,6 +86,28 @@ def consent():
     })
 
 
+@bp.route("/api/privacy/avatar", methods=["POST"])
+def set_avatar():
+    """{url, consent: true} sets the member's picture — it is shown to other
+    people (reviews, forum), so it goes up only with that consent, logged
+    like the others; {url: ""} takes it down."""
+    uid, err = require_auth()
+    if err:
+        return err
+    d = request.json or {}
+    url = (d.get("url") or "").strip()
+    if url:
+        # Only a picture this member uploaded themself
+        if not url.startswith(f"/uploads/u{uid}_") or ".." in url or not url.lower().endswith((".jpg", ".jpeg", ".png", ".webp", ".gif")):
+            return jsonify({"error": "Загрузите картинку заново"}), 400
+        if d.get("consent") is not True:
+            return jsonify({"error": "Нужно разрешение показывать аватар другим пользователям"}), 400
+    with get_db() as cur:
+        cur.execute("UPDATE coop_users SET avatar_url = %s WHERE id = %s", (url, uid))
+        log_consent(cur, uid, "avatar", bool(url))
+    return jsonify({"avatar_url": url})
+
+
 @bp.route("/api/privacy/delete-account", methods=["POST"])
 def delete_account():
     """Withdrawal of consent with the account's removal. Personal data is
@@ -113,7 +135,7 @@ def delete_account():
                    password = %s, password_changed_at = NOW(),
                    is_blocked = TRUE, is_leader = FALSE, leader_can_write = FALSE, is_supplier = FALSE,
                    notify_email = FALSE, marketing_consent = FALSE, marketing_consent_at = NULL,
-                   pd_consent_at = NULL, deleted_at = NOW()
+                   pd_consent_at = NULL, avatar_url = '', deleted_at = NOW()
                WHERE id = %s""",
             (f"deleted-{uid}@deleted.invalid", hash_password(secrets.token_urlsafe(24)), uid),
         )

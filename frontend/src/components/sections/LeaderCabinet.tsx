@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Meerkat from '../mascot/Meerkat';
+import Avatar from '../ui/Avatar';
 import { AnimatePresence, m } from 'framer-motion';
 import { Copy, Crown, Eye, Loader2, Send, X, Link2, MessageCircle, Wallet, Clock, CheckCircle2, TrendingUp, LogIn } from 'lucide-react';
 import { useAuthStore, useNotificationStore } from '../../store';
@@ -86,7 +87,9 @@ export default function LeaderCabinet() {
     <div className="max-w-[1240px] mx-auto px-5 max-sm:px-3 pt-[calc(var(--header-h,104px)+28px)] pb-16">
       <div className="bg-accent border-2 border-ink rounded-[24px] max-sm:rounded-[20px] shadow-[0_6px_0_#111] px-6 py-5 max-sm:px-4 max-sm:py-4 flex items-end justify-between gap-4 flex-wrap mb-6">
         <div className="flex items-end gap-4 min-w-0">
-          <Meerkat pose="laptop" width={96} decorative className="max-sm:w-[64px] -mb-1" />
+          {user.avatar_url
+            ? <Avatar name={user.full_name} url={user.avatar_url} size={84} className="max-sm:!w-16 max-sm:!h-16" />
+            : <Meerkat pose="laptop" width={96} decorative className="max-sm:w-[64px] -mb-1" />}
           <div className="min-w-0">
             <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink/70 mb-2 flex items-center gap-2"><Crown size={13} /> Кабинет лидера мнений</div>
             <h1 className="font-display text-[40px] leading-none text-ink max-sm:text-[28px] truncate">{overview.leader.name}</h1>

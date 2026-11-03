@@ -11,7 +11,7 @@ import { useNewsStore } from '../../store/news';
 import usePageMeta from '../../hooks/usePageMeta';
 
 interface Forum { id: number; name: string; address_key?: string; description?: string; }
-interface ForumPost { id: number; forum_id: number; user_id?: number; user_name: string; text: string; images?: string | string[]; created_at: string; }
+interface ForumPost { id: number; forum_id: number; user_id?: number; user_name: string; text: string; images?: string | string[]; avatar_url?: string; created_at: string; }
 
 const NICK_KEY = 'forum_guest_nick';
 
@@ -103,7 +103,7 @@ export default function StoreForum() {
   return (
     <section className="pt-[calc(var(--header-h,104px)+20px)] pb-10 max-sm:pt-[calc(var(--header-h,104px)+8px)] max-sm:pb-4">
       <div className="max-w-[920px] mx-auto px-5 max-sm:px-3">
-        <div className="bg-card border-2 border-ink rounded-[24px] max-sm:rounded-[20px] shadow-[0_6px_0_#111] overflow-hidden flex flex-col h-[calc(100dvh-var(--header-h,104px)-64px)] max-sm:h-[calc(100dvh-var(--header-h,104px)-24px)] min-h-[460px]">
+        <div className="bg-card border-2 border-ink rounded-[24px] max-sm:rounded-[20px] shadow-[0_6px_0_#111] overflow-hidden flex flex-col h-[calc(100svh-var(--header-h,104px)-64px)] max-sm:h-[calc(100svh-var(--header-h,104px)-24px)] min-h-[460px]">
           {/* The pinned head: what this room is, always in view */}
           <header className="shrink-0 bg-accent border-b-2 border-ink px-5 py-3.5 max-sm:px-4 max-sm:py-3 flex items-center gap-3.5">
             <span className="w-12 h-12 max-sm:w-11 max-sm:h-11 rounded-full bg-card border-2 border-ink grid place-items-center shrink-0 overflow-hidden">
@@ -145,7 +145,9 @@ export default function StoreForum() {
                   <div className={`flex items-end gap-2 ${mine ? 'justify-end' : 'justify-start'} ${firstOfRun ? 'mt-1.5' : ''}`}>
                     {!mine && (
                       firstOfRun
-                        ? <span className="w-8 h-8 rounded-full grid place-items-center shrink-0 text-[11px] font-bold text-white self-start" style={{ background: color }} aria-hidden="true">{initials(name)}</span>
+                        ? (p.avatar_url
+                          ? <img src={p.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 self-start border border-ink/20" />
+                          : <span className="w-8 h-8 rounded-full grid place-items-center shrink-0 text-[11px] font-bold text-white self-start" style={{ background: color }} aria-hidden="true">{initials(name)}</span>)
                         : <span className="w-8 shrink-0" aria-hidden="true" />
                     )}
                     <div className={`max-w-[76%] max-sm:max-w-[84%] px-3.5 py-2 rounded-[16px] ${mine ? 'bg-[#DCEBFF] border border-[#9DC3F0] rounded-br-[6px]' : 'bg-card border border-ink/15 rounded-bl-[6px]'}`}>

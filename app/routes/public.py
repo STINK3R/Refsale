@@ -4,6 +4,7 @@ Covers: /api/login, /api/user, /api/forgot-password, /api/reset-password,
         /api/upload, /api/reviews, /api/settings, /api/subcategories, /api/forums
 """
 
+import json
 import secrets
 
 from flask import Blueprint, request, jsonify
@@ -262,21 +263,94 @@ def api_reset_password():
 
 
 # ── Reviews ────────────────────────────────────
+_REVIEW_SELECT = """
+    SELECT r.id, r.user_id, r.user_name, r.text, r.rating, r.images, r.category_id, r.product_id,
+           COALESCE(r.verified, FALSE) AS verified, r.created_at,
+           COALESCE(u.avatar_url, '') AS avatar_url, p.name AS product_name, p.image_url AS product_image
+    FROM coop_reviews r
+    LEFT JOIN coop_users u ON u.id = r.user_id
+    LEFT JOIN coop_products p ON p.id = r.product_id
+"""
+
+
+def _review_filters():
+    """WHERE parts for ?category_id, ?product_id, ?rating and ?photos=1."""
+    where, args = [], []
+    cid = request.args.get("category_id", type=int)
+    pid = request.args.get("product_id", type=int)
+    rating = request.args.get("rating", type=int)
+    if pid:
+        where.append("r.product_id = %s"); args.append(pid)
+    elif cid:
+        where.append("r.category_id = %s"); args.append(cid)
+    if rating and 1 <= rating <= 5:
+        where.append("r.rating = %s"); args.append(rating)
+    if request.args.get("photos") == "1":
+        where.append("COALESCE(r.images, '[]') NOT IN ('', '[]')")
+    return (" WHERE " + " AND ".join(where)) if where else "", args
+
+
+def _public_reviews(rows):
+    for r in rows or []:
+        r["user_name"] = public_name(r.get("user_name") or "")
+    return rows or []
+
+
 @bp.route("/api/reviews")
 def api_get_reviews():
+    """The latest reviews (a category's, a product's or all), newest first."""
     try:
+        where, args = _review_filters()
+        limit = min(100, max(1, request.args.get("limit", 50, type=int)))
         with get_db() as cur:
-            # ?category_id=N — the reviews shown on that category's page.
-            cid = request.args.get("category_id", type=int)
-            if cid:
-                cur.execute("SELECT * FROM coop_reviews WHERE category_id = %s ORDER BY created_at DESC LIMIT 50", (cid,))
-            else:
-                cur.execute("SELECT * FROM coop_reviews ORDER BY created_at DESC LIMIT 50")
+            cur.execute(_REVIEW_SELECT + where + " ORDER BY r.created_at DESC LIMIT %s", (*args, limit))
             reviews = _rows_to_list(cur.fetchall())
-        for r in reviews or []:
-            r["user_name"] = public_name(r.get("user_name") or "")
-        return jsonify(reviews or [])
-    except:
+        return jsonify(_public_reviews(reviews))
+    except Exception as e:
+        print(f"[/api/reviews] {e}")
+        return jsonify({"error": "Ошибка получения отзывов"}), 500
+
+
+@bp.route("/api/reviews/list")
+def api_reviews_list():
+    """All reviews page by page, like a marketplace's: the summary (average,
+    count, how many of each star) and the items with sorting and filters."""
+    try:
+        where, args = _review_filters()
+        sort = request.args.get("sort", "new")
+        order = {"high": "r.rating DESC, r.created_at DESC", "low": "r.rating ASC, r.created_at DESC"}.get(sort, "r.created_at DESC")
+        limit = min(50, max(1, request.args.get("limit", 20, type=int)))
+        offset = max(0, request.args.get("offset", 0, type=int))
+        with get_db() as cur:
+            cur.execute(_REVIEW_SELECT + where + f" ORDER BY {order} LIMIT %s OFFSET %s", (*args, limit, offset))
+            items = _rows_to_list(cur.fetchall())
+            cur.execute("SELECT COUNT(*) AS n FROM coop_reviews r" + where, tuple(args))
+            total = cur.fetchone()["n"]
+            # The summary ignores the star and photo filters: it describes the whole set
+            base_where, base_args = [], []
+            pid = request.args.get("product_id", type=int)
+            cid = request.args.get("category_id", type=int)
+            if pid:
+                base_where.append("product_id = %s"); base_args.append(pid)
+            elif cid:
+                base_where.append("category_id = %s"); base_args.append(cid)
+            bw = (" WHERE " + " AND ".join(base_where)) if base_where else ""
+            cur.execute("SELECT rating, COUNT(*) AS n FROM coop_reviews" + bw + " GROUP BY rating", tuple(base_args))
+            by_star = {str(k): 0 for k in range(1, 6)}
+            count, sum_ = 0, 0
+            for row in cur.fetchall():
+                by_star[str(row["rating"])] = row["n"]
+                count += row["n"]; sum_ += row["rating"] * row["n"]
+            cur.execute("SELECT COUNT(*) AS n FROM coop_reviews" + bw + (" AND " if bw else " WHERE ") +
+                        "COALESCE(images, '[]') NOT IN ('', '[]')", tuple(base_args))
+            with_photos = cur.fetchone()["n"]
+        return jsonify({
+            "items": _public_reviews(items), "total": total,
+            "summary": {"avg": round(sum_ / count, 1) if count else None, "count": count,
+                        "by_star": by_star, "with_photos": with_photos},
+        })
+    except Exception as e:
+        print(f"[/api/reviews/list] {e}")
         return jsonify({"error": "Ошибка получения отзывов"}), 500
 
 
@@ -295,6 +369,10 @@ def api_add_review():
         category_id = int(d["category_id"]) if d.get("category_id") else None
     except (TypeError, ValueError):
         category_id = None
+    try:
+        product_id = int(d["product_id"]) if d.get("product_id") else None
+    except (TypeError, ValueError):
+        product_id = None
     if not user_id or not text:
         return jsonify({"error": "Заполните текст отзыва"}), 400
     try:
@@ -302,11 +380,28 @@ def api_add_review():
             cur.execute("SELECT full_name FROM coop_users WHERE id = %s LIMIT 1", (user_id,))
             u = cur.fetchone()
             user_name = u["full_name"] if u else ""
+            verified = False
+            if product_id:
+                cur.execute("SELECT category_id FROM coop_products WHERE id = %s", (product_id,))
+                prow = cur.fetchone()
+                if not prow:
+                    return jsonify({"error": "Товар не найден"}), 404
+                category_id = prow["category_id"]
+                # «Купил на RefSale»: a delivered order of this buyer holds the product
+                cur.execute(
+                    """SELECT 1 FROM coop_orders WHERE user_id = %s AND status = 'done'
+                       AND items::jsonb @> %s::jsonb LIMIT 1""",
+                    (user_id, json.dumps([{"id": product_id}])),
+                )
+                verified = bool(cur.fetchone())
             cur.execute(
-                "INSERT INTO coop_reviews (user_id, user_name, text, rating, images, category_id) VALUES (%s, %s, %s, %s, %s, %s) RETURNING *",
-                (user_id, user_name, text, rating, images, category_id)
+                "INSERT INTO coop_reviews (user_id, user_name, text, rating, images, category_id, product_id, verified) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
+                (user_id, user_name, text, rating, images, category_id, product_id, verified)
             )
-            result = _row_to_dict(cur.fetchone())
+            rid = cur.fetchone()["id"]
+            cur.execute(_REVIEW_SELECT + " WHERE r.id = %s", (rid,))
+            result = _public_reviews([_row_to_dict(cur.fetchone())])[0]
         return jsonify(result)
     except Exception as e:
         print(f"⚠️ Review error: {e}")
@@ -369,7 +464,9 @@ def api_forums():
 def api_forum_posts(fid):
     try:
         with get_db() as cur:
-            cur.execute("SELECT * FROM coop_forum_posts WHERE forum_id = %s ORDER BY created_at DESC LIMIT 100", (fid,))
+            cur.execute("""SELECT p.*, COALESCE(u.avatar_url, '') AS avatar_url
+                           FROM coop_forum_posts p LEFT JOIN coop_users u ON u.id = p.user_id
+                           WHERE p.forum_id = %s ORDER BY p.created_at DESC LIMIT 100""", (fid,))
             posts = _rows_to_list(cur.fetchall())
         for p in posts or []:
             if p.get("user_id"):

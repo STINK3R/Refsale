@@ -283,10 +283,18 @@ def store_catalog():
             for v in _rows_to_list(cur.fetchall()):
                 _hide_promo_price(v)
                 var_map.setdefault(v.pop("product_id"), []).append(v)
+            try:
+                cur.execute("""SELECT product_id, ROUND(AVG(rating)::numeric, 1) AS avg, COUNT(*) AS n
+                               FROM coop_reviews WHERE product_id IS NOT NULL GROUP BY product_id""")
+                rating_map = {r["product_id"]: (float(r["avg"]), r["n"]) for r in cur.fetchall()}
+            except Exception:
+                rating_map = {}
         for p in prods:
             _hide_promo_price(p)
             p["images"] = img_map.get(p["id"], [])
             p["variants"] = var_map.get(p["id"], [])
+            avg, n = rating_map.get(p["id"], (None, 0))
+            p["rating_avg"], p["rating_count"] = avg, n
         return jsonify({"categories": cats, "subcategories": subcats, "products": prods})
     except Exception as e:
         print(f"[/api/store/catalog] {e}")

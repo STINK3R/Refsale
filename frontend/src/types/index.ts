@@ -40,6 +40,9 @@ export interface ProductImage {
 export interface Product {
   id: number;
   name: string;
+  /** From its reviews: average stars and how many */
+  rating_avg?: number | null;
+  rating_count?: number;
   price: number | null;
   description?: string;
   category_id: number | null;
@@ -81,6 +84,8 @@ export interface User {
   address: string;
   telegram_username?: string;
   is_leader?: boolean;
+  /** The member's picture (optional) */
+  avatar_url?: string;
   /** When the consent to personal data processing was given; null — not yet */
   pd_consent_at?: string | null;
   /** Letters about offers and promo codes (38-ФЗ) */
@@ -141,6 +146,13 @@ export interface Review {
   created_at: string;
   /** JSON array of /uploads/... urls as stored by the API. */
   images?: string | string[] | null;
+  /** A review of one product: shown under it */
+  product_id?: number | null;
+  product_name?: string | null;
+  product_image?: string | null;
+  /** A delivered order of this buyer holds the product */
+  verified?: boolean;
+  avatar_url?: string;
 }
 
 export interface SupportTicket {

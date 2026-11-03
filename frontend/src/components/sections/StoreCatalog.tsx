@@ -15,6 +15,9 @@ import Meerkat from '../mascot/Meerkat';
 
 import useScrollLock, { glideToElement } from '../../hooks/useScrollLock';
 import BrandMarquee from './BrandMarquee';
+import { Eyebrow } from '../ui/SectionHead';
+import ProductReviews from '../reviews/ProductReviews';
+import { reviewsWord } from '../../utils/words';
 import type { CartItem, Category, Product, ProductVariant } from '../../types';
 
 const PAGE = 12;
@@ -141,10 +144,10 @@ export default function StoreCatalog() {
       <div className="max-w-[1440px] mx-auto px-8 max-sm:px-5">
         <div className="flex items-end justify-between gap-10 pb-6 max-md:flex-col max-md:items-stretch max-md:gap-5">
           <div>
-            <div className="label mb-5">Каталог</div>
+            <Eyebrow className="mb-4">Каталог</Eyebrow>
             {/* A highlighter stroke in the category's strong colour */}
             <h2 className="font-display text-[clamp(34px,4.4vw,60px)] leading-[1.02] text-ink">
-              <span className="px-1 -mx-1 bg-[linear-gradient(transparent_58%,var(--color-accent-strong)_58%,var(--color-accent-strong)_92%,transparent_92%)]">{category?.name || 'Каталог'}</span>
+              <span className="marker">{category?.name || 'Каталог'}</span>
             </h2>
           </div>
           <label className="relative w-[340px] max-md:w-full block">
@@ -516,6 +519,12 @@ export const ProductCard = memo(function ProductCard({ product, index, onOpen, o
         <button onClick={onOpen} className="block text-left text-[14px] max-sm:text-[13px] font-semibold leading-snug text-ink line-clamp-2 min-h-[2.75em] cursor-pointer hover:text-primary">
           {product.name}
         </button>
+        {!!product.rating_count && (
+          <button onClick={onOpen} className="mt-1 self-start inline-flex items-center gap-1 text-[12.5px] font-bold text-ink cursor-pointer" aria-label={`Рейтинг ${product.rating_avg}, ${product.rating_count} ${reviewsWord(product.rating_count)}`}>
+            <span className="text-[#F5A300] text-[14px] leading-none">★</span>{product.rating_avg?.toFixed(1)}
+            <span className="font-semibold text-muted">· {product.rating_count} {reviewsWord(product.rating_count)}</span>
+          </button>
+        )}
         <div className="mt-2">
           <PriceTag info={info} />
         </div>
@@ -668,6 +677,7 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
               <p className="mt-6 text-[12px] text-light leading-relaxed">
                 Оплачивать сразу не нужно: после оформления менеджер подтвердит наличие в чате заказа и пришлёт реквизиты для предоплаты.
               </p>
+              <ProductReviews product={product} />
             </div>
             {/* A soft fade says there is more below without drawing a scrollbar */}
             <div aria-hidden="true" className="hidden md:block pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-bg to-transparent" />

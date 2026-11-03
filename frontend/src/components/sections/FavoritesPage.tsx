@@ -5,6 +5,7 @@ import { codesForCategory, useAppStore, useFavoritesStore, usePromoStore, type P
 import { formatDate } from '../../utils/format';
 import { glideToElement } from '../../hooks/useScrollLock';
 import PromoForm from '../promo/PromoForm';
+import SectionHead from '../ui/SectionHead';
 import { ProductCard, ProductModals } from './StoreCatalog';
 import type { Product } from '../../types';
 
@@ -30,8 +31,7 @@ export default function FavoritesPage() {
   return (
     <main className="pt-[calc(var(--header-h,104px)+28px)] pb-28 max-md:pb-16 min-h-screen">
       <div className="max-w-[1440px] mx-auto px-8 max-sm:px-5">
-        <div className="label mb-5">Избранное</div>
-        <h1 className="font-display text-[clamp(38px,4.4vw,64px)] leading-[1.02] text-text">Сохранённые товары</h1>
+        <SectionHead label="Избранное" title="Сохранённые товары" level={1} className="!mb-0" />
 
         <PromoStatus />
 

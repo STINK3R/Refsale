@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import NotifySettings from './NotifySettings';
 import PrivacyControls from './PrivacyControls';
+import AvatarPicker from './AvatarPicker';
 import { Link } from 'react-router-dom';
 import { Loader2, Package, Crown } from 'lucide-react';
 import Modal from '../ui/Modal';
 import { useAuthStore, useNotificationStore } from '../../store';
 import { updateUser } from '../../api/client';
-import { getInitials } from '../../utils/format';
 
 export default function ProfileModal() {
   const { user, profileModalOpen, closeProfile, setUser } = useAuthStore();
@@ -45,14 +45,8 @@ export default function ProfileModal() {
 
   return (
     <Modal open={profileModalOpen} onClose={closeProfile}>
-      <div className="flex items-center gap-4 mb-6 pr-8">
-        <div className="w-14 h-14 rounded-full bg-ivory text-ink font-extrabold flex items-center justify-center text-lg">
-          {getInitials(user.full_name)}
-        </div>
-        <div className="min-w-0">
-          <div className="font-display text-[28px] leading-none text-text truncate">{user.full_name}</div>
-          <div className="text-[13px] text-muted truncate mt-1">{user.email}</div>
-        </div>
+      <div className="mb-6 pr-8">
+        <AvatarPicker />
       </div>
 
       <div className="grid grid-cols-2 gap-2 mb-6">

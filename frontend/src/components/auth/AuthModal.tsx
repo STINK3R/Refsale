@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import Modal from '../ui/Modal';
 import { useAuthStore, useNotificationStore } from '../../store';
-import { loginUser, storeRegister } from '../../api/client';
+import { loginUser, setAvatar, storeRegister, uploadFile } from '../../api/client';
+import { squareAvatar } from '../../utils/avatar';
 import { ConsentChecks } from '../profile/ConsentGate';
 
 const emailValid = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
@@ -22,6 +23,10 @@ export default function AuthModal() {
   const [showPw, setShowPw] = useState(false);
   const [consentPd, setConsentPd] = useState(false);
   const [consentMarketing, setConsentMarketing] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarConsent, setAvatarConsent] = useState(false);
+  const avatarPreview = useMemo(() => (avatarFile ? URL.createObjectURL(avatarFile) : ''), [avatarFile]);
+  useEffect(() => () => { if (avatarPreview) URL.revokeObjectURL(avatarPreview); }, [avatarPreview]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -43,9 +48,17 @@ export default function AuthModal() {
     setLoading(false);
     if (res.exists) { switchTab('login'); setError('Этот email уже зарегистрирован — войдите с паролем'); return; }
     if (!res.user) { setError(res.error || 'Не удалось зарегистрироваться'); return; }
-    show(`Добро пожаловать, ${res.user.full_name.split(' ')[0]}`);
+    let user = res.user;
+    // The picture goes up once the account exists (uploads need one)
+    if (avatarFile && avatarConsent) {
+      try {
+        const url = await uploadFile(await squareAvatar(avatarFile), 'avatar', user.id);
+        if (url && !(await setAvatar(url, true))) user = { ...user, avatar_url: url };
+      } catch { /* the account is made; the picture can be set in the profile */ }
+    }
+    show(`Добро пожаловать, ${user.full_name.split(' ')[0]}`);
     closeKeepingCallback();
-    setUser(res.user);
+    setUser(user);
   };
 
   const login = async () => {
@@ -104,6 +117,19 @@ export default function AuthModal() {
           <div className="pt-3 mt-1 border-t-2 border-ink/10">
             <div className="text-[12px] font-bold text-muted mb-3">По желанию</div>
             <Labeled label="Телефон"><input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" autoComplete="tel" placeholder="+7" className="field" /></Labeled>
+            <div className="mt-4">
+              <span className="label !text-[10px] block mb-2">Аватар</span>
+              <div className="flex items-center gap-3">
+                <label className={`relative w-14 h-14 shrink-0 rounded-full border-2 border-dashed grid place-items-center overflow-hidden ${avatarConsent ? 'border-ink cursor-pointer bg-card' : 'border-ink/25 bg-surface cursor-not-allowed'}`}>
+                  {avatarPreview ? <img src={avatarPreview} alt="" className="w-full h-full object-cover" /> : <span className="text-[22px] text-ink/40">+</span>}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" disabled={!avatarConsent} className="hidden" onChange={(e) => setAvatarFile(e.target.files?.[0] || null)} />
+                </label>
+                <label className="flex items-start gap-2 text-[12px] leading-snug text-muted cursor-pointer">
+                  <input type="checkbox" checked={avatarConsent} onChange={(e) => { setAvatarConsent(e.target.checked); if (!e.target.checked) setAvatarFile(null); }} className="mt-0.5 w-4 h-4 shrink-0 accent-[#111]" />
+                  Разрешаю показывать аватар другим — в отзывах и на форуме
+                </label>
+              </div>
+            </div>
           </div>
         )}
         {isReg && <ConsentChecks pd={consentPd} setPd={setConsentPd} marketing={consentMarketing} setMarketing={setConsentMarketing} />}

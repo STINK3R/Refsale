@@ -332,6 +332,18 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
 
 /* Chats, the forum, the cabinet: Telegram-like doodles (meerkats and small
    signs) over a light tint of the page colour, instead of plain white. */
+/* A highlighter stroke under a heading, in the page's strong colour; it
+   follows the text onto a second line */
+.marker {
+  padding: 0 0.12em;
+  margin: 0 -0.12em;
+  background: linear-gradient(transparent 58%, var(--color-accent-strong) 58%, var(--color-accent-strong) 92%, transparent 92%);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+/* On a strip already in the strong colour the stroke turns white */
+.bg-accent-strong .marker { background: linear-gradient(transparent 58%, #fff 58%, #fff 92%, transparent 92%); }
+
 /* The legal pages (LegalPage): readable long text */
 .legal h2 { margin-top: 2rem; font-weight: 800; font-size: 18px; color: var(--color-ink); scroll-margin-top: calc(var(--header-h, 110px) + 16px); }
 .legal p, .legal li { margin-top: 0.75rem; font-size: 15px; line-height: 1.7; color: color-mix(in srgb, var(--color-ink) 82%, transparent); }

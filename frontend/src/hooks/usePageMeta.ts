@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 const SITE = 'https://refsale.ru';
-const DEFAULT_TITLE = 'RefSale — оригинальная парфюмерия и косметика дешевле магазинов';
+const DEFAULT_TITLE = 'RefSale — реферальные ссылки и промокоды на оригинальные товары';
 
 function setMeta(selector: string, attr: 'content' | 'href', value: string) {
   const el = document.head.querySelector(selector);

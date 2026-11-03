@@ -417,14 +417,15 @@
         </div>
         <div class="form-group"><label>Адрес (юридический или регистрации ИП)</label><input type="text" id="legal_address"></div>
         <div class="form-row">
-            <div class="form-group"><label>Почта для обращений по персональным данным</label><input type="email" id="legal_email" placeholder="privacy@refsale.ru"></div>
+            <div class="form-group"><label>Почта для обращений — настоящая, которую вы читаете</label><input type="email" id="legal_email" placeholder="you@example.ru"></div>
+            <div class="form-group"><label>Телефон для обращений</label><input type="tel" id="legal_phone" placeholder="+7 …"></div>
             <div class="form-group"><label>Хостинг (компания, страна) — по желанию</label><input type="text" id="legal_hosting" placeholder="ООО «…», Россия"></div>
         </div>
         <button class="btn btn-primary" onclick="saveLegal()"><i class="fas fa-save"></i> Сохранить реквизиты</button>
     </div>
     <div class="card">
         <div class="card-title"><i class="fas fa-people-group"></i> «О нас» на главной — три описания</div>
-        <div style="font-size:12px;color:#6B7280;margin:-6px 0 14px;line-height:1.5">Покупатели видят своё описание всегда. Лидеры мнений и поставщики видят ещё и своё — после входа, если аккаунт отмечен (лидер — во вкладке «Лидеры», поставщик — кнопкой <i class="fas fa-truck"></i> в «Пользователях»). Пустое поле — текст по умолчанию.</div>
+        <div style="font-size:12px;color:#6B7280;margin:-6px 0 14px;line-height:1.5">Все три вкладки видят все. У лидера и поставщика до входа показывается краткий текст и кнопка «Войти в личный кабинет»; полное описание — тем, чей аккаунт отмечен (лидер — во вкладке «Лидеры», поставщик — кнопкой <i class="fas fa-truck"></i> в «Пользователях»). Пустое поле — текст по умолчанию.</div>
         <div id="aboutRows"></div>
         <button class="btn btn-primary" onclick="saveAbout()"><i class="fas fa-save"></i> Сохранить тексты</button>
     </div>
@@ -436,6 +437,23 @@
             <button class="btn btn-secondary" onclick="addFaqRow()"><i class="fas fa-plus"></i> Добавить вопрос</button>
             <button class="btn btn-primary" onclick="saveFaq()"><i class="fas fa-save"></i> Сохранить вопросы</button>
         </div>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-magnifying-glass"></i> Яндекс и Google: поиск</div>
+        <div style="font-size:12px;color:#6B7280;margin:-6px 0 14px;line-height:1.6">
+            <b>1.</b> Яндекс Вебмастер (webmaster.yandex.ru) → «Добавить сайт» → refsale.ru → способ «HTML-файл». Скопируйте из имени файла код после <code>yandex_</code> (например, из <code>yandex_1a2b3c4d.html</code> — <code>1a2b3c4d</code>), вставьте ниже, сохраните и нажмите «Проверить» в Вебмастере.<br>
+            <b>2.</b> Google Search Console → «Префикс URL» → https://refsale.ru → «HTML-файл». Вставьте имя файла без .html (например, <code>google1234abcd</code>).<br>
+            <b>3.</b> После подтверждения нажмите «Отправить страницы в Яндекс» — Яндекс обойдёт главную, каталог и все категории в ближайшие дни (протокол IndexNow).
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Код Яндекс Вебмастера</label><input type="text" id="yandexVerification" placeholder="1a2b3c4d5e6f7a8b"></div>
+            <div class="form-group"><label>Файл Google Search Console</label><input type="text" id="googleVerification" placeholder="google1234abcd"></div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="saveVerification()"><i class="fas fa-save"></i> Сохранить коды</button>
+            <button class="btn btn-secondary" onclick="pingIndexNow(this)"><i class="fab fa-yandex"></i> Отправить страницы в Яндекс</button>
+        </div>
+        <div id="indexNowResult" style="font-size:13px;margin-top:10px"></div>
     </div>
     <div class="card">
         <div class="card-title"><i class="fas fa-chart-line"></i> Яндекс Метрика</div>
@@ -3000,7 +3018,7 @@ async function toggleSupplier(id,on){
 }
 
 // ── Operator details for the legal pages ─────────
-const LEGAL_FIELDS=['legal_name','legal_inn','legal_ogrn','legal_address','legal_email','legal_hosting'];
+const LEGAL_FIELDS=['legal_name','legal_inn','legal_ogrn','legal_address','legal_email','legal_phone','legal_hosting'];
 async function saveLegal(){
     const body={};LEGAL_FIELDS.forEach(k=>{body[k]=document.getElementById(k).value.trim();});
     try{await _patch('/api/admin/settings',body);showAlert('Реквизиты сохранены — документы на сайте обновятся при следующей загрузке');}
@@ -3008,18 +3026,19 @@ async function saveLegal(){
 }
 
 // ── «О нас»: three branches ──────────────────────
-const ABOUT_BRANCHES=[['buyer','Покупателям'],['leader','Лидерам мнений — видят лидеры'],['supplier','Поставщикам — видят поставщики']];
+const ABOUT_BRANCHES=[['buyer','Покупателям'],['leader','Лидерам мнений'],['supplier','Поставщикам']];
 function renderAboutForm(s){
     const box=document.getElementById('aboutRows');if(!box)return;
     box.innerHTML=ABOUT_BRANCHES.map(([k,l])=>`<div style="background:#FAFAF7;border:1px solid #EEE7D6;border-radius:12px;padding:12px 14px;margin-bottom:12px">
         <div style="font-weight:700;color:#8A6A2F;margin-bottom:8px">${l}</div>
-        <div class="form-group"><label>Заголовок</label><input type="text" id="about_${k}_title" value="${_se(s['about_'+k+'_title']||'')}" placeholder="пусто — текст по умолчанию"></div>
+        ${k!=='buyer'?`<div class="form-group"><label>Кратко — видят все, до входа в кабинет</label><textarea id="about_${k}_short" rows="2" placeholder="пусто — текст по умолчанию">${_se(s['about_'+k+'_short']||'')}</textarea></div>`:''}
+        <div class="form-group"><label>Заголовок${k!=='buyer'?' — в кабинете':''}</label><input type="text" id="about_${k}_title" value="${_se(s['about_'+k+'_title']||'')}" placeholder="пусто — текст по умолчанию"></div>
         <div class="form-group"><label>Текст (абзацы — через пустую строку)</label><textarea id="about_${k}_text" rows="4" placeholder="пусто — текст по умолчанию">${_se(s['about_'+k+'_text']||'')}</textarea></div>
     </div>`).join('');
 }
 async function saveAbout(){
     const body={};
-    ABOUT_BRANCHES.forEach(([k])=>{body['about_'+k+'_title']=document.getElementById('about_'+k+'_title').value.trim();body['about_'+k+'_text']=document.getElementById('about_'+k+'_text').value.trim();});
+    ABOUT_BRANCHES.forEach(([k])=>{body['about_'+k+'_title']=document.getElementById('about_'+k+'_title').value.trim();body['about_'+k+'_text']=document.getElementById('about_'+k+'_text').value.trim();const sh=document.getElementById('about_'+k+'_short');if(sh)body['about_'+k+'_short']=sh.value.trim();});
     try{await _patch('/api/admin/settings',body);showAlert('Тексты «О нас» сохранены');}
     catch(e){showAlert('Ошибка сохранения','error');}
 }
@@ -3050,6 +3069,8 @@ async function renderSiteExtrasForm(){
     box.innerHTML='';
     (Array.isArray(faq)&&faq.length?faq:FAQ_DEFAULT).forEach(addFaqRow);
     document.getElementById('metrikaId').value=s.metrika_id||'';
+    document.getElementById('yandexVerification').value=s.yandex_verification||'';
+    document.getElementById('googleVerification').value=s.google_verification||'';
     renderAboutForm(s);
     LEGAL_FIELDS.forEach(k=>{const el=document.getElementById(k);if(el)el.value=s[k]||'';});
     document.getElementById('metrikaWebvisor').checked=s.metrika_webvisor==='true';
@@ -3058,6 +3079,23 @@ async function saveFaq(){
     const items=[...document.querySelectorAll('#faqRows .faq-row')].map(r=>({q:r.querySelector('.faq-q').value.trim(),a:r.querySelector('.faq-a').value.trim()})).filter(x=>x.q&&x.a);
     try{await _patch('/api/admin/settings',{faq_json:JSON.stringify(items)});showAlert('Вопросы сохранены');}
     catch(e){showAlert('Ошибка сохранения','error');}
+}
+async function saveVerification(){
+    const y=document.getElementById('yandexVerification').value.trim().replace(/^yandex_/,'').replace(/\.html$/,'');
+    const g=document.getElementById('googleVerification').value.trim().replace(/\.html$/,'');
+    if(y&&!/^[a-f0-9]+$/.test(y)){showAlert('Код Яндекса — латинские буквы a–f и цифры','error');return;}
+    if(g&&!/^(google)?[a-z0-9]+$/.test(g)){showAlert('Файл Google выглядит как google1234abcd','error');return;}
+    try{await _patch('/api/admin/settings',{yandex_verification:y,google_verification:g});showAlert('Коды сохранены — можно нажимать «Проверить» в Вебмастере');}
+    catch(e){showAlert('Ошибка сохранения','error');}
+}
+async function pingIndexNow(btn){
+    btnLoading(btn,true);
+    const box=document.getElementById('indexNowResult');
+    try{
+        const r=await _post('/api/admin/seo/indexnow',{});
+        box.innerHTML=r.ok?`<span style="color:#13723A;font-weight:700">Отправлено ${r.count} страниц — Яндекс принял список</span>`:`<span style="color:#B4232A">${_se(r.error||'Не получилось')}</span>`;
+    }catch(e){box.innerHTML=`<span style="color:#B4232A">${_se(e.message||'Не получилось')}</span>`;}
+    btnLoading(btn,false);
 }
 async function saveMetrika(){
     const id=document.getElementById('metrikaId').value.trim();

@@ -89,7 +89,35 @@ export async function fetchReviews(categoryId?: number | null): Promise<Review[]
   }
 }
 
-export async function addReview(review: { user_id: number; text: string; rating: number; images?: string[]; category_id?: number | null }): Promise<Review | null> {
+export interface ReviewSummary {
+  avg: number | null;
+  count: number;
+  by_star: Record<string, number>;
+  with_photos: number;
+}
+
+/** A page of reviews with the set's summary, the way a marketplace lists them. */
+export async function fetchReviewList(q: {
+  category_id?: number; product_id?: number; rating?: number; photos?: boolean;
+  sort?: 'new' | 'high' | 'low'; limit?: number; offset?: number;
+}): Promise<{ items: Review[]; total: number; summary: ReviewSummary } | null> {
+  const p = new URLSearchParams();
+  if (q.category_id) p.set('category_id', String(q.category_id));
+  if (q.product_id) p.set('product_id', String(q.product_id));
+  if (q.rating) p.set('rating', String(q.rating));
+  if (q.photos) p.set('photos', '1');
+  if (q.sort) p.set('sort', q.sort);
+  p.set('limit', String(q.limit ?? 20));
+  p.set('offset', String(q.offset ?? 0));
+  try { return await _api(`/api/reviews/list?${p}`); } catch { return null; }
+}
+
+/** The member's picture: shown to others, so only with that consent. */
+export async function setAvatar(url: string, consent: boolean): Promise<string | null> {
+  try { await _post('/api/privacy/avatar', { url, consent }); return null; } catch (e) { return (e as Error).message || 'Не удалось сохранить'; }
+}
+
+export async function addReview(review: { user_id: number; text: string; rating: number; images?: string[]; category_id?: number | null; product_id?: number | null }): Promise<Review | null> {
   try {
     return await _post('/api/reviews', review);
   } catch {
