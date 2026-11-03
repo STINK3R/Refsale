@@ -265,7 +265,8 @@ def store_catalog():
             cur.execute("""
                 SELECT id, name, description, price, promo_price, compare_price_1, compare_price_2,
                        category_id, subcategory_id, badge, image_url, is_available, requires_variant, created_at
-                FROM coop_products ORDER BY created_at DESC
+                FROM coop_products WHERE COALESCE(moderation, 'approved') = 'approved'
+                ORDER BY created_at DESC
             """)
             prods = _rows_to_list(cur.fetchall())
             try:
@@ -392,7 +393,7 @@ def store_news():
             forum = cur.fetchone()
             cur.execute("SELECT COALESCE(MAX(id), 0) AS m, COUNT(*) FILTER (WHERE id > %s) AS n FROM coop_reviews", (_seen("reviews"),))
             reviews = cur.fetchone()
-            cur.execute("SELECT COALESCE(MAX(id), 0) AS m FROM coop_products")
+            cur.execute("SELECT COALESCE(MAX(id), 0) AS m FROM coop_products WHERE COALESCE(moderation, 'approved') = 'approved'")
             products = cur.fetchone()
         return jsonify({
             "forum_max": forum["m"], "forum_new": forum["n"],
@@ -550,7 +551,8 @@ def store_create_order():
 
             pids = list({pid for pid, _ in wanted})
             cur.execute(
-                "SELECT id, name, category_id, price, promo_price, is_available, image_url FROM coop_products WHERE id = ANY(%s)",
+                "SELECT id, name, category_id, price, promo_price, is_available, image_url, "
+                "COALESCE(moderation, 'approved') AS moderation FROM coop_products WHERE id = ANY(%s)",
                 (pids,)
             )
             products = {row["id"]: row for row in cur.fetchall()}
@@ -566,7 +568,7 @@ def store_create_order():
             covered: dict = {}  # promo id → value of the items it covers
             for (pid, vid), qty in wanted.items():
                 p = products.get(pid)
-                if not p or p.get("is_available") is False:
+                if not p or p.get("is_available") is False or p.get("moderation") != "approved":
                     name = p["name"] if p else f"#{pid}"
                     return jsonify({"error": f"Товар «{name}» сейчас недоступен — уберите его из корзины"}), 409
                 name, priced = p["name"], p
@@ -639,6 +641,16 @@ def store_create_order():
                 )
             cur.execute("SELECT email, full_name FROM coop_users WHERE id = %s", (uid,))
             buyer = cur.fetchone() or {}
+            from .supplier import suppliers_of_order
+            suppliers = suppliers_of_order(cur, items)
+
+        for sid in suppliers:
+            notify_user(
+                sid, key=f"supplier-order:{order['id']}",
+                title=f"Новый заказ №{order['id']} с вашим товаром",
+                body="Откройте его в кабинете поставщика — там же чат с покупателем.",
+                url=f"/supplier?order={order['id']}", email_subject=f"Новый заказ №{order['id']}",
+            )
 
         try:
             from ..email_service import email_store_order_received, email_admin_new_order

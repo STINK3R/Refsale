@@ -109,6 +109,15 @@ _COLUMNS = [
     ("coop_users", "deleted_at", "TIMESTAMPTZ DEFAULT NULL"),
     # A supplier's account: «О нас» shows them the supplier's branch
     ("coop_users", "is_supplier", "BOOLEAN DEFAULT FALSE"),
+    # A supplier's own products (the /supplier cabinet): the admin reviews each
+    # one before it shows in the catalog — pending, approved or rejected (with
+    # a note). The platform's own products have no seller and are approved.
+    # seller_id is the supplier's account; supplier_id is an older, unused
+    # link to the cooperative's coop_suppliers table.
+    ("coop_products", "seller_id", "INTEGER DEFAULT NULL REFERENCES coop_users(id) ON DELETE SET NULL"),
+    ("coop_products", "moderation", "VARCHAR(20) DEFAULT 'approved'"),
+    ("coop_products", "moderation_note", "TEXT DEFAULT ''"),
+    ("coop_products", "submitted_at", "TIMESTAMPTZ DEFAULT NULL"),
     # Every code an order was placed with (several, one per category); the
     # leader of promo_code is the one credited for it
     ("coop_orders", "promo_codes", "TEXT DEFAULT NULL"),
@@ -183,6 +192,7 @@ _INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_tickets_leader ON coop_support_tickets(leader_id)",
     "CREATE INDEX IF NOT EXISTS idx_status_log_order ON ref_order_status_log(order_id)",
     "CREATE INDEX IF NOT EXISTS idx_push_user ON ref_push_subscriptions(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_products_seller ON coop_products(seller_id)",
 ]
 
 # Data fixes, idempotent. Photos added to a product's gallery used to arrive

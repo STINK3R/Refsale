@@ -3,7 +3,7 @@ import NotifySettings from './NotifySettings';
 import PrivacyControls from './PrivacyControls';
 import AvatarPicker from './AvatarPicker';
 import { Link } from 'react-router-dom';
-import { Loader2, Package, Crown } from 'lucide-react';
+import { Loader2, Package, Crown, Truck } from 'lucide-react';
 import Modal from '../ui/Modal';
 import { useAuthStore, useNotificationStore } from '../../store';
 import { updateUser } from '../../api/client';
@@ -51,9 +51,13 @@ export default function ProfileModal() {
 
       <div className="grid grid-cols-2 gap-2 mb-6">
         <Link to="/orders" onClick={closeProfile} className="btn-outline h-11 text-[13px]"><Package size={15} /> Мои заказы</Link>
-        {user.is_leader ? (
-          <Link to="/cabinet" onClick={closeProfile} className="btn-primary h-11 text-[13px]"><Crown size={15} /> Кабинет</Link>
-        ) : <span />}
+        {user.is_leader && (
+          <Link to="/cabinet" onClick={closeProfile} className="btn-primary h-11 text-[13px]"><Crown size={15} /> {user.is_supplier ? 'Кабинет лидера' : 'Кабинет'}</Link>
+        )}
+        {user.is_supplier && (
+          <Link to="/supplier" onClick={closeProfile} className="btn-primary h-11 text-[13px]"><Truck size={15} /> {user.is_leader ? 'Кабинет поставщика' : 'Кабинет'}</Link>
+        )}
+        {!user.is_leader && !user.is_supplier && <span />}
       </div>
 
       <NotifySettings />

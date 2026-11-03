@@ -428,16 +428,17 @@ export function ItemsList({ items }: { items: OrderItem[] }) {
   );
 }
 
-export function Bubble({ msg, mineType = 'user' }: { msg: OrderChatMessage; mineType?: 'user' | 'leader' }) {
+export function Bubble({ msg, mineType = 'user' }: { msg: OrderChatMessage; mineType?: 'user' | 'leader' | 'supplier' }) {
   const mine = msg.sender_type === mineType;
   const who = msg.sender_type === 'admin' ? (msg.sender_name === 'RefSale' ? 'RefSale' : 'Менеджер')
     : msg.sender_type === 'leader' ? `${msg.sender_name || 'Лидер мнений'} · лидер мнений`
+    : msg.sender_type === 'supplier' ? `${msg.sender_name || 'Поставщик'} · поставщик`
     : msg.sender_name || 'Покупатель';
   // RefSale's own notes (order received, status changed) are instructions:
   // they stand out, in bold, so the buyer knows what happens next.
   const system = msg.sender_type === 'admin' && msg.sender_name === 'RefSale';
-  // The platform's side (manager, leader) in blue, the buyer's own in white
-  const org = msg.sender_type === 'admin' || msg.sender_type === 'leader';
+  // The platform's side (manager, leader, supplier) in blue, the buyer's own in white
+  const org = msg.sender_type === 'admin' || msg.sender_type === 'leader' || msg.sender_type === 'supplier';
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[80%] px-3.5 py-2.5 rounded-[16px] text-[13.5px] leading-relaxed shadow-[0_1px_0_rgba(17,17,17,0.08)] ${

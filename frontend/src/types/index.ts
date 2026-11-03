@@ -178,7 +178,7 @@ export interface SupportMessage {
 export interface OrderChatMessage {
   id: number;
   order_id: number;
-  sender_type: 'user' | 'admin' | 'leader';
+  sender_type: 'user' | 'admin' | 'leader' | 'supplier';
   sender_name: string;
   text: string;
   created_at: string;
@@ -192,7 +192,7 @@ export interface OrderChatSummary {
   items: string;
   created_at: string;
   last_text: string | null;
-  last_sender: 'user' | 'admin' | 'leader' | null;
+  last_sender: 'user' | 'admin' | 'leader' | 'supplier' | null;
   last_at: string | null;
   unread: boolean;
 }

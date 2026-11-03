@@ -84,6 +84,15 @@ def post_order_message(order_id):
                 (order_id, sender_name, text, images)
             )
             msg = _row_to_dict(cur.fetchone())
+            from .supplier import suppliers_of_order
+            cur.execute("SELECT items FROM coop_orders WHERE id = %s", (order_id,))
+            suppliers = suppliers_of_order(cur, (cur.fetchone() or {}).get("items"))
+        for sid in suppliers:
+            notify_user(
+                sid, key=f"supplier-order:{order_id}",
+                title=f"Покупатель написал по заказу №{order_id}", body=snippet(text, images),
+                url=f"/supplier?order={order_id}", email_subject=f"Новое сообщение по заказу №{order_id}",
+            )
         return jsonify(msg), 201
     except Exception as e:
         print(f"[app/routes/order_chat.py] {request.method} {request.path}: {e}")
@@ -117,7 +126,7 @@ def list_user_order_chats(user_id):
             rows = _rows_to_list(cur.fetchall())
             for r in rows:
                 r["unread"] = (
-                    r.get("last_sender") in ("admin", "leader")
+                    r.get("last_sender") in ("admin", "leader", "supplier")
                     and (not r.get("seen_at") or (r.get("last_at") or "") > (r.get("seen_at") or ""))
                 )
         return jsonify(rows or [])
@@ -139,7 +148,7 @@ def order_chats_unread_count(user_id):
                 WHERE o.user_id = %s
                 AND EXISTS (
                     SELECT 1 FROM coop_order_messages m
-                    WHERE m.order_id = o.id AND m.sender_type IN ('admin', 'leader')
+                    WHERE m.order_id = o.id AND m.sender_type IN ('admin', 'leader', 'supplier')
                     AND m.id = (SELECT MAX(m2.id) FROM coop_order_messages m2 WHERE m2.order_id = o.id)
                     AND m.created_at > COALESCE(
                         (SELECT seen_at FROM coop_order_chat_seen s WHERE s.order_id = o.id),

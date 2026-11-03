@@ -186,7 +186,7 @@ export default function LeaderCabinet() {
   );
 }
 
-function Stat({ icon, label, value, hint, accent }: { icon: React.ReactNode; label: string; value: string; hint: string; accent?: boolean }) {
+export function Stat({ icon, label, value, hint, accent }: { icon: React.ReactNode; label: string; value: string; hint: string; accent?: boolean }) {
   return (
     <div className={`border-2 border-ink rounded-[22px] max-sm:rounded-[18px] shadow-[0_4px_0_#111] p-5 max-sm:p-4 ${accent ? 'bg-sun' : 'bg-card'}`}>
       <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-ink/70"><span className="text-ink">{icon}</span>{label}</div>
@@ -205,7 +205,7 @@ function Mini({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Drawer({ title, subtitle, onClose, children, footer }: { title: string; subtitle?: React.ReactNode; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
+export function Drawer({ title, subtitle, onClose, children, footer }: { title: string; subtitle?: React.ReactNode; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
   useScrollLock(true);
   return (
     <>
@@ -318,7 +318,7 @@ function OrderDrawer({ order, onClose, onChanged }: { order: LeaderOrder; onClos
 }
 
 /** The leader's message box: text plus photos or a short video. */
-function LeaderComposer({ text, setText, images, setImages, onSend, sending, placeholder, prefix }: {
+export function LeaderComposer({ text, setText, images, setImages, onSend, sending, placeholder, prefix }: {
   text: string; setText: (v: string) => void; images: string[]; setImages: (v: string[]) => void;
   onSend: () => void; sending: boolean; placeholder: string; prefix: string;
 }) {

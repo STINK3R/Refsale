@@ -281,6 +281,7 @@ export default function Header() {
                   <MenuItem n="07" onClick={goToAbout}>О нас</MenuItem>
                   <MenuItem n="08" onClick={openChats}>Вопрос площадке</MenuItem>
                   {user?.is_leader && <MenuItem n="09" to="/cabinet">Кабинет лидера мнений</MenuItem>}
+                  {user?.is_supplier && <MenuItem n={user.is_leader ? '10' : '09'} to="/supplier">Кабинет поставщика</MenuItem>}
                 </nav>
 
                 <div className="mt-10 flex flex-col gap-3">

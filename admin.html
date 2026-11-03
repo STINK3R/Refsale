@@ -222,10 +222,11 @@
                 <div class="section-title">Магазин RefSale</div>
                 <div class="section-desc">Заказы и чаты, «Подтверждено», промокоды лидеров, лидеры мнений, цены, контакты</div>
             </button>
-            <button onclick="enterSection('basic')" class="section-card">
+            <button onclick="enterSection('basic')" class="section-card" style="position:relative">
+                <span class="section-badge" id="catalogSectionBadge" title="Товары поставщиков на проверке" style="display:none;position:absolute;top:10px;right:10px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#e74c3c;color:white;font-size:11px;font-weight:700;line-height:20px;text-align:center">0</span>
                 <div class="section-icon" style="background:rgba(46,125,50,.1);color:#2E7D32"><i class="fas fa-store"></i></div>
                 <div class="section-title">Каталог</div>
-                <div class="section-desc">Товары и фото, категории, покупатели, отзывы, администраторы</div>
+                <div class="section-desc">Товары и фото, товары поставщиков на проверке, категории, покупатели, отзывы, администраторы</div>
             </button>
             <button onclick="enterSection('support')" class="section-card" style="position:relative">
                 <span class="section-badge" id="supportSectionBadge" style="display:none;position:absolute;top:10px;right:10px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#e74c3c;color:white;font-size:11px;font-weight:700;line-height:20px;text-align:center">0</span>
@@ -302,6 +303,7 @@
 <!-- BASIC section tabs -->
 <div class="tabs section-tabs" data-section="basic">
     <button class="tab-btn active" data-tab="products"><i class="fas fa-box"></i> Товары</button>
+    <button class="tab-btn" data-tab="supplier-products"><i class="fas fa-truck"></i> От поставщиков <span class="badge-count" id="supplierModBadge" style="display:none">0</span></button>
     <button class="tab-btn" data-tab="categories"><i class="fas fa-layer-group"></i> Категории</button>
             <button class="tab-btn" data-tab="users"><i class="fas fa-users"></i> Покупатели</button>
     <button class="tab-btn" data-tab="reviews"><i class="fas fa-star"></i> Отзывы</button>
@@ -510,6 +512,7 @@
 .so-msg.user{align-self:flex-start;background:white;border:1px solid #E5E7EB}
 .so-msg.admin{align-self:flex-end;background:#F6EEDB;border:1px solid #E6D3A3}
 .so-msg.leader{align-self:flex-start;background:#EEF2FF;border:1px solid #C7D2FE}
+.so-msg.supplier{align-self:flex-start;background:#E6F1FF;border:1px solid #9DC3F0}
 .so-msg .who{font-size:10.5px;font-weight:700;color:#8A6A2F;margin-bottom:2px}
 .so-msg .when{font-size:10px;color:#9CA3AF;margin-top:3px;text-align:right}
 .so-status{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
@@ -584,6 +587,20 @@
     </div>
 </div>
 <!-- CATEGORIES TAB -->
+<div id="tab-supplier-products" class="tab-content">
+    <div class="card">
+        <div class="card-title" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><i class="fas fa-truck"></i> Товары поставщиков
+            <select id="supplierModFilter" onchange="loadSupplierProducts()" class="filter-select" style="margin-left:auto">
+                <option value="pending">На проверке</option>
+                <option value="rejected">Возвращены на доработку</option>
+                <option value="approved">На витрине</option>
+                <option value="all">Все</option>
+            </select>
+        </div>
+        <p style="font-size:13px;color:#6B7280;margin:-4px 0 14px;line-height:1.5">Поставщик добавляет товар в своём кабинете (/supplier) — в каталоге он появится после «Одобрить». Изменения поставщика снова отправляют товар сюда. Цену по промокоду, значок и варианты задайте через «Изменить», как у своих товаров.</p>
+        <div id="supplierModList"><div style="text-align:center;color:#9CA3AF;padding:30px">Загрузка…</div></div>
+    </div>
+</div>
 <div id="tab-categories" class="tab-content">
     <div class="card">
         <div class="card-title"><i class="fas fa-plus"></i> Добавить категорию</div>
@@ -1101,6 +1118,9 @@ function renderCreateProductPreviews(){
 // ── The cooperative section (refsale.ru/kokonkoop) ──
 async function loadKokonkoopFlag(){
     try{const st=await _api('/api/settings');const el=document.getElementById('kokonkoopEnabled');if(el)el.checked=st.kokonkoop_enabled==='true';}catch(e){}
+    // The chooser's other counter: suppliers' products waiting for review
+    // (defined further down the page; by now, after the request, it exists)
+    if(typeof updateSupplierModBadge==='function')updateSupplierModBadge(null);
 }
 async function toggleKokonkoop(el){
     try{await _patch('/api/admin/settings',{kokonkoop_enabled:el.checked?'true':'false'});showAlert(el.checked?'Раздел кооператива открыт':'Раздел кооператива закрыт');}
@@ -1251,6 +1271,7 @@ async function initAdmin(){
     renderAdminsTable();
     try{await loadSupportTickets();}catch(e){}
     try{await loadOrderChats();}catch(e){}
+    try{await loadSupplierProducts();}catch(e){}
     // Periodic polling for support badge updates (every 20s)
     setInterval(()=>{
         _api('/api/admin/support/tickets').then(tickets=>{
@@ -1401,7 +1422,7 @@ function renderProductsTable(filtered){
         return `<tr>
             <td style="color:#9CA3AF;font-size:12px">#${p.id}</td>
             <td>${p.image_url?`<img src="${p.image_url}" style="width:52px;height:40px;object-fit:cover;border-radius:6px;">`:'<span style="color:#9CA3AF;font-size:12px">Нет фото</span>'}</td>
-            <td><strong>${p.name}</strong>${p.description?`<br><span style="font-size:12px;color:#9CA3AF;">${p.description.length>40?p.description.slice(0,40)+'…':p.description}</span>`:''}</td>
+            <td><strong>${p.name}</strong>${supplierMark(p)}${p.description?`<br><span style="font-size:12px;color:#9CA3AF;">${p.description.length>40?p.description.slice(0,40)+'…':p.description}</span>`:''}</td>
             <td style="white-space:nowrap"><strong>${formatPrice(p.price)}</strong></td>
             <td>${getCatName(p.category_id)}</td>
             <td>${p.badge?`<span class="badge badge-${p.badge}">${BADGE_LABELS[p.badge]||p.badge}</span>`:'—'}</td>
@@ -1413,6 +1434,74 @@ function renderProductsTable(filtered){
         </tr>`;
     }).join('');
 }
+// ---- SUPPLIERS' PRODUCTS (review before the catalog) ----
+const MOD_LABELS={pending:['На проверке','#8A5A00','#FFF1C7'],approved:['На витрине','#13723A','#DDF5E5'],rejected:['На доработке','#B3261E','#FDE3E1']};
+function supplierMark(p){
+    if(!p.seller_id)return'';
+    const u=(adminUsers||[]).find(x=>x.id===p.seller_id);
+    const [label,fg,bg]=MOD_LABELS[p.moderation||'approved']||MOD_LABELS.approved;
+    return `<br><span style="display:inline-flex;gap:6px;align-items:center;margin-top:3px;font-size:11px"><span style="color:#1B5BB0;font-weight:700"><i class="fas fa-truck"></i> ${_se(u?u.full_name:'Поставщик #'+p.seller_id)}</span><span style="padding:1px 8px;border-radius:99px;font-weight:700;color:${fg};background:${bg}">${label}</span></span>`;
+}
+let supplierProducts=[];
+async function loadSupplierProducts(){
+    const status=document.getElementById('supplierModFilter')?.value||'pending';
+    try{supplierProducts=await _api('/api/admin/store/supplier-products?status='+status)||[];}catch(e){supplierProducts=[];}
+    renderSupplierProducts();
+    updateSupplierModBadge(status==='pending'?supplierProducts.length:null);
+}
+async function updateSupplierModBadge(count){
+    if(count===null){try{count=(await _api('/api/admin/store/supplier-products?status=pending')||[]).length;}catch(e){return;}}
+    [['supplierModBadge','inline-grid'],['catalogSectionBadge','block']].forEach(([id,disp])=>{
+        const el=document.getElementById(id);if(!el)return;
+        if(count>0){el.textContent=count;el.style.display=disp;}else el.style.display='none';
+    });
+}
+function renderSupplierProducts(){
+    const box=document.getElementById('supplierModList');if(!box)return;
+    if(!supplierProducts.length){box.innerHTML='<div style="text-align:center;color:#9CA3AF;padding:30px">Здесь пусто</div>';return;}
+    box.innerHTML=supplierProducts.map(p=>{
+        const [label,fg,bg]=MOD_LABELS[p.moderation]||MOD_LABELS.pending;
+        const imgs=(p.images||[]).map(u=>`<a href="${_se(u)}" target="_blank"><img src="${_se(u)}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid #E5E7EB"></a>`).join('');
+        const cmp=[p.compare_price_1,p.compare_price_2].filter(Boolean).map(formatPrice).join(' / ');
+        return `<div style="border:1.5px solid #E5E7EB;border-radius:14px;padding:16px;margin-bottom:12px;background:#fff">
+            <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+                <div style="flex:1;min-width:220px">
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="color:#9CA3AF;font-size:12px">#${p.id}</span><strong style="font-size:15px">${_se(p.name)}</strong><span style="padding:2px 10px;border-radius:99px;font-size:11px;font-weight:700;color:${fg};background:${bg}">${label}</span>${p.is_available?'':'<span style="font-size:11px;color:#9CA3AF">скрыт поставщиком</span>'}</div>
+                    <div style="font-size:12.5px;color:#6B7280;margin-top:4px"><i class="fas fa-truck" style="color:#1B5BB0"></i> ${_se(p.supplier_name||'—')}${p.supplier_email?' · '+_se(p.supplier_email):''} · ${_se(p.category_name||'без категории')} · отправлен ${_dt(p.submitted_at||p.created_at)}</div>
+                    <div style="margin-top:8px;font-size:14px"><b>${formatPrice(p.price)}</b>${p.promo_price?` · по промокоду ${formatPrice(p.promo_price)}`:' · <span style="color:#8A6A2F">цена по промокоду не задана</span>'}${cmp?` · <span style="color:#6B7280">в других магазинах ${cmp}</span>`:''}</div>
+                    ${p.description?`<div style="margin-top:8px;font-size:13px;color:#374151;white-space:pre-line;max-height:120px;overflow:auto">${_se(p.description)}</div>`:''}
+                    ${p.moderation==='rejected'&&p.moderation_note?`<div style="margin-top:8px;font-size:12.5px;color:#B3261E">Комментарий: ${_se(p.moderation_note)}</div>`:''}
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;max-width:320px">${imgs||'<span style="font-size:12px;color:#9CA3AF">Без фото</span>'}</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px">
+                <input id="modNote${p.id}" placeholder="Что поправить (при возврате)" style="flex:1;min-width:200px;padding:9px 12px;border:1.5px solid var(--bd);border-radius:8px;font-family:inherit;font-size:13px">
+                <button class="btn btn-secondary btn-sm" onclick="openSupplierProductEdit(${p.id})"><i class="fas fa-edit"></i> Изменить</button>
+                ${p.moderation!=='rejected'?`<button class="btn btn-danger btn-sm" onclick="moderateSupplierProduct(${p.id},'reject')"><i class="fas fa-rotate-left"></i> Вернуть</button>`:''}
+                ${p.moderation!=='approved'?`<button class="btn btn-primary btn-sm" onclick="moderateSupplierProduct(${p.id},'approve')"><i class="fas fa-check"></i> Одобрить</button>`:''}
+            </div>
+        </div>`;
+    }).join('');
+}
+async function openSupplierProductEdit(id){
+    // The full product editor (promo price, badge, variants) works on the catalog's list
+    if(!adminProducts.find(x=>x.id===id)){
+        try{const d=await _api('/api/admin/data');adminProducts=d.products||adminProducts;}catch(e){}
+    }
+    openEditProduct(id);
+}
+async function moderateSupplierProduct(id,decision){
+    const note=(document.getElementById('modNote'+id)?.value||'').trim();
+    if(decision==='reject'&&!note){showAlert('Напишите поставщику, что поправить','error');document.getElementById('modNote'+id)?.focus();return;}
+    try{
+        await _post('/api/admin/store/supplier-products/'+id+'/moderate',{decision,note});
+        const p=adminProducts.find(x=>x.id===id);if(p){p.moderation=decision==='approve'?'approved':'rejected';p.moderation_note=note;}
+        showAlert(decision==='approve'?'Товар на витрине — поставщик получит уведомление':'Товар возвращён поставщику');
+        renderProductsTable();
+        await loadSupplierProducts();
+    }catch(e){showAlert(e.message||'Ошибка','error');}
+}
+
 async function toggleAvailability(id,val){
     const result=await updateProduct(id,{is_available:val});
     if(result){
@@ -1941,7 +2030,7 @@ function renderUsersTable(filtered){
         let actions='<div class="actions">';
         if(!blocked) actions+=`<button class="btn btn-sm" style="background:#f59e0b;color:white;" onclick="blockUserHandler(${u.id})" title="Заблокировать"><i class="fas fa-ban"></i></button>`;
         else actions+=`<button class="btn btn-sm" style="background:#10b981;color:white;" onclick="unblockUserHandler(${u.id})" title="Разблокировать"><i class="fas fa-unlock"></i></button>`;
-        actions+=`<button class="btn btn-sm" style="background:${u.is_supplier?'#1B5BB0':'#E5E7EB'};color:${u.is_supplier?'white':'#374151'}" onclick="toggleSupplier(${u.id},${!u.is_supplier})" title="${u.is_supplier?'Убрать статус поставщика':'Сделать поставщиком — на главной откроется описание для поставщиков'}"><i class="fas fa-truck"></i></button>`;
+        actions+=`<button class="btn btn-sm" style="background:${u.is_supplier?'#1B5BB0':'#E5E7EB'};color:${u.is_supplier?'white':'#374151'}" onclick="toggleSupplier(${u.id},${!u.is_supplier})" title="${u.is_supplier?'Убрать статус поставщика':'Сделать поставщиком — откроется кабинет поставщика (/supplier): свои товары на проверку, заказы и чат с покупателями'}"><i class="fas fa-truck"></i></button>`;
         actions+=`<button class="btn btn-danger btn-sm" onclick="deleteUserHandler(${u.id})" title="Удалить"><i class="fas fa-trash"></i></button>`;
         actions+='</div>';
         return `<tr${blocked?' style="opacity:.6"':''}>
@@ -2502,7 +2591,8 @@ async function openOrderChat(orderId){
             msgDiv.innerHTML=msgs.map(m=>{
                 const isAdmin=m.sender_type==='admin';
                 const safeText=(m.text||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-                const senderLabel=!isAdmin?'<div style="font-size:10px;font-weight:700;opacity:0.7;margin-bottom:2px">'+(m.sender_name||'').replace(/</g,'&lt;')+'</div>':'';
+                const role=m.sender_type==='supplier'?' · поставщик':m.sender_type==='leader'?' · лидер мнений':'';
+                const senderLabel=!isAdmin?'<div style="font-size:10px;font-weight:700;opacity:0.7;margin-bottom:2px">'+(m.sender_name||'').replace(/</g,'&lt;')+role+'</div>':'';
                 return `<div class="sm-row" style="display:flex;align-items:center;gap:6px;${isAdmin?'justify-content:flex-end':'justify-content:flex-start'};margin-bottom:8px">
                     ${isAdmin?`<button onclick="deleteOrderMessage(${m.id})" title="Удалить сообщение" style="order:1;background:none;border:none;color:#e74c3c;cursor:pointer;opacity:.35;padding:4px;border-radius:6px" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.35'"><i class="fas fa-trash" style="font-size:11px"></i></button>`:''}
                     <div style="order:${isAdmin?2:1};max-width:72%;padding:8px 12px;border-radius:14px;font-size:13px;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,.05);${isAdmin?'background:linear-gradient(135deg,var(--p),#8A6A2F);color:white;border-bottom-right-radius:4px':'background:#fff;border:1px solid #E5E7EB;color:#374151;border-bottom-left-radius:4px'}">
@@ -2785,7 +2875,7 @@ async function loadStoreChat(silent){
         const msgs=d.messages||[];
         const atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40;
         box.innerHTML=msgs.length?msgs.map(m=>{
-            const who=m.sender_type==='admin'?(m.sender_name||'Администратор'):m.sender_type==='leader'?(_se(m.sender_name)+' · лидер мнений'):(_se(m.sender_name)||'Покупатель');
+            const who=m.sender_type==='admin'?(m.sender_name||'Администратор'):m.sender_type==='leader'?(_se(m.sender_name)+' · лидер мнений'):m.sender_type==='supplier'?(_se(m.sender_name)+' · поставщик'):(_se(m.sender_name)||'Покупатель');
             const imgs=(()=>{try{const a=typeof m.images==='string'?JSON.parse(m.images||'[]'):(m.images||[]);return a.map(u=>`<a href="${_se(u)}" target="_blank"><img src="${_se(u)}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;margin:4px 4px 0 0"></a>`).join('');}catch(e){return'';}})();
             return `<div class="so-msg ${m.sender_type}"><div class="who">${who}</div>${_se(m.text)}${imgs?'<div>'+imgs+'</div>':''}<div class="when">${_dt(m.created_at)}</div></div>`;
         }).join(''):'<div style="text-align:center;color:#9CA3AF;padding:30px">Сообщений пока нет</div>';

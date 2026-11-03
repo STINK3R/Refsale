@@ -349,3 +349,89 @@ export async function setLeaderOrderStatus(orderId: number, status: string): Pro
   catch (e: unknown) { return { error: (e as Error).message }; }
 }
 
+// ==================== SUPPLIER CABINET ====================
+export type Moderation = 'pending' | 'approved' | 'rejected';
+
+export interface SupplierOverview {
+  supplier: { name: string };
+  products: { total: number; on_sale: number; pending: number; rejected: number };
+  orders: { total: number; active: number; done: number; revenue_done: number };
+}
+
+export interface SupplierProduct {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  promo_price: number | null;
+  compare_price_1: number | null;
+  compare_price_2: number | null;
+  category_id: number | null;
+  subcategory_id: number | null;
+  category_name: string | null;
+  image_url: string | null;
+  images: string[];
+  is_available: boolean;
+  moderation: Moderation;
+  moderation_note: string;
+  created_at: string;
+}
+
+export interface SupplierProductForm {
+  name: string;
+  description: string;
+  price: number | null;
+  compare_price_1: number | null;
+  compare_price_2: number | null;
+  category_id: number | null;
+  subcategory_id: number | null;
+  is_available: boolean;
+  images: string[];
+}
+
+export interface SupplierOrder {
+  id: number;
+  status: import('../types').OrderStatus;
+  created_at: string;
+  buyer: string;
+  /** Only this supplier's lines of the order */
+  items: import('../types').OrderItem[];
+  total: number;
+  last_text: string | null;
+  last_at: string | null;
+}
+
+export async function fetchSupplierOverview(): Promise<{ data?: SupplierOverview; error?: string }> {
+  try { return { data: await _api<SupplierOverview>('/api/supplier/overview') }; }
+  catch (e: unknown) { return { error: (e as Error).message }; }
+}
+
+export async function fetchSupplierProducts(): Promise<SupplierProduct[]> {
+  try { return await _api('/api/supplier/products'); } catch { return []; }
+}
+
+export async function saveSupplierProduct(id: number | null, data: Partial<SupplierProductForm>): Promise<{ moderation?: Moderation; error?: string }> {
+  try {
+    return id
+      ? await _patch(`/api/supplier/products/${id}`, data)
+      : await _post('/api/supplier/products', data);
+  } catch (e: unknown) { return { error: (e as Error).message }; }
+}
+
+export async function deleteSupplierProduct(id: number): Promise<{ error?: string }> {
+  try { await _api(`/api/supplier/products/${id}`, { method: 'DELETE' }); return {}; }
+  catch (e: unknown) { return { error: (e as Error).message }; }
+}
+
+export async function fetchSupplierOrders(): Promise<SupplierOrder[]> {
+  try { return await _api('/api/supplier/orders'); } catch { return []; }
+}
+
+export async function fetchSupplierOrderMessages(orderId: number): Promise<{ messages: import('../types').OrderChatMessage[]; status: string | null; history?: Record<string, string> }> {
+  try { return await _api(`/api/supplier/orders/${orderId}/messages`); }
+  catch { return { messages: [], status: null }; }
+}
+
+export async function sendSupplierOrderMessage(orderId: number, text: string, images: string[] = []): Promise<import('../types').OrderChatMessage> {
+  return _post(`/api/supplier/orders/${orderId}/messages`, { text, images });
+}

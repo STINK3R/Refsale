@@ -22,6 +22,7 @@ const ProfileModal = lazy(() => import('./components/profile/ProfileModal'));
 const StoreForum = lazy(() => import('./components/sections/StoreForum'));
 const OrdersPage = lazy(() => import('./components/sections/OrdersPage'));
 const LeaderCabinet = lazy(() => import('./components/sections/LeaderCabinet'));
+const SupplierCabinet = lazy(() => import('./components/sections/SupplierCabinet'));
 const FavoritesPage = lazy(() => import('./components/sections/FavoritesPage'));
 const NotFound = lazy(() => import('./components/sections/NotFound'));
 const LegalPage = lazy(() => import('./components/sections/LegalPage'));
@@ -160,6 +161,7 @@ function App() {
         <Route path="/forums" element={<Suspense fallback={<PageFallback />}><StoreForum /></Suspense>} />
         <Route path="/orders" element={<Suspense fallback={<PageFallback />}><OrdersPage /></Suspense>} />
         <Route path="/cabinet" element={<Suspense fallback={<PageFallback />}><LeaderCabinet /></Suspense>} />
+        <Route path="/supplier" element={<Suspense fallback={<PageFallback />}><SupplierCabinet /></Suspense>} />
         <Route path="/favorites" element={<Suspense fallback={<PageFallback />}><FavoritesPage /></Suspense>} />
         <Route path="/privacy" element={<Suspense fallback={<PageFallback />}><LegalPage /></Suspense>} />
         <Route path="/consent" element={<Suspense fallback={<PageFallback />}><LegalPage /></Suspense>} />
