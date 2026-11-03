@@ -162,9 +162,36 @@ RefSale живёт на одном сервере с кооперативом. �
 
 Обновление: `cd /opt/refsale && git pull && docker compose up -d --build --remove-orphans` (`--remove-orphans` убирает контейнеры сервисов, которых больше нет в `docker-compose.yml`, например старого бота).
 
+## Кооператив на `refsale.ru/kokonkoop`
+
+Кооператив (`/opt/1Kooperativniy`) работает на своей базе, но открывается по адресу `refsale.ru/kokonkoop`. Покер — `refsale.ru/kokonkoop/poker`.
+`kokonkoop.ru`, `1koop.ru` и `onecooperative.ru` перенаправляют туда.
+
+- **Вход только через аккаунт RefSale.** Сайты на одном адресе, поэтому токен в браузере общий. Бэкенд кооператива спрашивает у бэкенда RefSale
+  (`/api/sso/me`), чей это токен, и заводит участника, привязанного к аккаунту (`coop_users.refsale_user_id`). Дальше всё как раньше:
+  участник подаёт заявку с адресом, администратор кооператива её одобряет. Старые аккаунты кооператива не переносятся, их вход и регистрация закрыты.
+- **Покер** получает токен кооператива (`/api/poker/token`) и проверяет его подписью кооператива, как раньше. Токены RefSale игра не принимает.
+- **Галочка.** Админка RefSale → первый экран → «Кооператив Кокон» → «Раздел открыт». Пока галочка снята, `/kokonkoop` и покер ведут на главную.
+  В меню RefSale раздела нет, только прямая ссылка. API, файлы и админка кооператива (`/kokonkoop/admin`, свой логин) работают всегда.
+- **Сети.** `edge` — nginx кооператива ↔ nginx RefSale (`refsale-web`). `refsale-sso` — только два бэкенда (`refsale-api`).
+  Отдельная сеть нужна потому, что в `edge` оба сервиса `backend` отзывались бы на одно имя.
+
+Выкладка (один раз в таком порядке):
+
+1. Сеть для бэкендов: `docker network create refsale-sso`.
+2. Проверить, что ключи у сайтов разные (команда печатает только SAME или DIFFERENT):
+   `[ "$(grep ^SERVER_SECRET= /opt/refsale/.env)" = "$(grep ^SERVER_SECRET= /opt/1Kooperativniy/.env)" ] && echo SAME || echo DIFFERENT`.
+   При SAME — выпустить новый ключ кооперативу (`openssl rand -hex 32` → `SERVER_SECRET` в `/opt/1Kooperativniy/.env`).
+3. RefSale: `cd /opt/refsale && git pull && docker compose up -d --build`.
+4. Кооператив: `cd /opt/1Kooperativniy && git pull && docker compose up -d --build backend frontend poker`.
+5. В админке RefSale поставить галочку «Раздел открыт».
+
+Локально: `docker network create refsale-sso` (один раз), сначала стек кооператива (он создаёт `edge`), потом RefSale.
+http://localhost — это RefSale, `/kokonkoop` — кооператив, как на сервере. http://localhost:8090 — RefSale напрямую.
+
 ## Ещё не сделано (следующий этап по ТЗ)
 
-- Кооператив и VIP как скрытые подвкладки `refsale.ru/kokonkoop` и `refsale.ru/vip` с доступом по галочке администратора.
+- VIP как скрытая подвкладка `refsale.ru/vip` (пока VIP — часть кооператива: `refsale.ru/kokonkoop/vip`).
 - Вход через VK и другие соцсети: сейчас вход только по email.
 - Реальные контакты (телефоны, почты, мессенджеры) — вносятся в админке, вкладка «Контакты сайта».
 - Логотип — сурикат (исходник `img/mascot/logo.png`): в шапке `frontend/public/img/logo-meerkat.webp`, иконки вкладки и админки — `favicon.ico`, `favicon-32.png`, `icon-192.png`, `apple-touch-icon.png` в `frontend/public`.

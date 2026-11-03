@@ -61,6 +61,15 @@ services:
       # expose the API and /admin.html over plain HTTP, bypassing TLS, the nginx
       # rate limits and the /admin block.
       - "127.0.0.1:${BACKEND_PORT:-5001}:5000"
+    networks:
+      default:
+      # The cooperative (refsale.ru/kokonkoop) asks here whose RefSale token a
+      # member holds — /api/sso/me, straight to the backend, past nginx limits.
+      # A network of the two backends only: on "edge" both stacks' services
+      # named "backend" would answer for each other.
+      refsale-sso:
+        aliases:
+          - refsale-api
 
   frontend:
     build:
@@ -99,3 +108,6 @@ networks:
   edge:
     external: true
     name: edge
+  refsale-sso:
+    external: true
+    name: refsale-sso

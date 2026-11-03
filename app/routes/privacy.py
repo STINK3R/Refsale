@@ -86,6 +86,25 @@ def consent():
     })
 
 
+@bp.route("/api/sso/me")
+def sso_me():
+    """Whose token this is — asked by the cooperative (refsale.ru/kokonkoop)
+    from inside the Docker network, so it is not rate-limited per address;
+    a token that is forged, revoked or of a blocked account gets 401."""
+    uid, err = require_auth()
+    if err:
+        return err
+    with get_db() as cur:
+        cur.execute(
+            "SELECT id, full_name, email, phone, avatar_url, is_blocked, deleted_at FROM coop_users WHERE id = %s",
+            (uid,),
+        )
+        row = cur.fetchone()
+    if not row or row.get("is_blocked") or row.get("deleted_at"):
+        return jsonify({"error": "Аккаунт недоступен"}), 401
+    return jsonify({"user": {k: row[k] for k in ("id", "full_name", "email", "phone", "avatar_url")}})
+
+
 @bp.route("/api/privacy/avatar", methods=["POST"])
 def set_avatar():
     """{url, consent: true} sets the member's picture — it is shown to other

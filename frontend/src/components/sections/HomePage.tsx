@@ -272,8 +272,9 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* 6. Why to trust it */}
-      <section className="pb-20 max-md:pb-14">
+      {/* 6. Why to trust it. Without a saving to show (no example, no hits)
+          it comes right after the yellow strip and needs its own top space. */}
+      <section className={best ? 'pb-20 max-md:pb-14' : 'py-20 max-md:py-14'}>
         <div className="max-w-[1440px] mx-auto px-8 max-sm:px-4">
           <SectionHead label="Почему RefSale" title="Покупать у нас спокойно" />
           <div className="grid grid-cols-4 max-lg:grid-cols-2 max-sm:grid-cols-1 gap-4">

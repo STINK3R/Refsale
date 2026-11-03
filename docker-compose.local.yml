@@ -53,6 +53,13 @@ services:
       - uploads:/app/uploads
     ports:
       - "127.0.0.1:5001:5000"
+    # The cooperative (http://localhost/kokonkoop) asks here whose token it is;
+    # a network of the two backends only (not "edge", where both are "backend")
+    networks:
+      default:
+      refsale-sso:
+        aliases:
+          - refsale-api
 
   frontend:
     build:
@@ -65,6 +72,12 @@ services:
       - "8090:80"
     volumes:
       - ./nginx.local.conf:/etc/nginx/conf.d/default.conf:ro
+    # The cooperative's nginx (http://localhost) proxies to it, as on the server
+    networks:
+      default:
+      edge:
+        aliases:
+          - refsale-web
 
   adminer:
     image: adminer:latest
@@ -80,3 +93,12 @@ services:
 volumes:
   pgdata:
   uploads:
+
+networks:
+  # Created by the cooperative's local stack (start it first)
+  edge:
+    external: true
+    name: edge
+  refsale-sso:
+    external: true
+    name: refsale-sso

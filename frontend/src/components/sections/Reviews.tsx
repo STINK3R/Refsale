@@ -105,7 +105,7 @@ export default function Reviews({ all = false }: { all?: boolean }) {
                 ))}
               </div>
               {items.length > 2 && (
-                <div className="mt-4 flex items-center gap-2 max-sm:hidden">
+                <div className="mt-5 flex items-center justify-center gap-2 max-sm:hidden">
                   <button onClick={() => scrollRow(-1)} className="w-11 h-11 rounded-ctl-sm border-2 border-ink bg-card grid place-items-center hover:bg-sun cursor-pointer" aria-label="Предыдущие отзывы"><ArrowLeft size={17} strokeWidth={2.2} /></button>
                   <button onClick={() => scrollRow(1)} className="w-11 h-11 rounded-ctl-sm border-2 border-ink bg-card grid place-items-center hover:bg-sun cursor-pointer" aria-label="Следующие отзывы"><ArrowRight size={17} strokeWidth={2.2} /></button>
                 </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { Routes, Route, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAppStore, useAuthStore, useNotificationStore, usePromoStore } from './store';
+import { runAfterAuth, useAppStore, useAuthStore, useNotificationStore, usePromoStore } from './store';
 import Header from './components/layout/Header';
 import PageLoader from './components/ui/PageLoader';
 import Footer from './components/layout/Footer';
@@ -112,6 +112,24 @@ function App() {
 
   useEffect(() => { scrollPageToTop(); }, [pathname]);
   useGlidingLinks();
+
+  // The cooperative (refsale.ru/kokonkoop) signs in with the RefSale account:
+  // it sends here /?auth=login&next=/kokonkoop/…, and back once signed in
+  const [authParams, setAuthParams] = useSearchParams();
+  useEffect(() => {
+    const tab = authParams.get('auth');
+    if (tab !== 'login' && tab !== 'register') return;
+    const raw = authParams.get('next') || '/';
+    const next = /^\/kokonkoop(\/|$)/.test(raw) ? raw : '/';
+    authParams.delete('auth');
+    authParams.delete('next');
+    setAuthParams(authParams, { replace: true });
+    const go = () => window.location.assign(next);
+    if (useAuthStore.getState().user) { go(); return; }
+    runAfterAuth(go);
+    useAuthStore.getState().openAuth(tab, 'Войдите аккаунтом RefSale — и откроется кооператив. Аккаунт один на оба сайта.');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // A device with notifications on follows whoever is signed in on it
   const userId = useAuthStore((s) => s.user?.id);
