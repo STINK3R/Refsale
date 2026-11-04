@@ -335,17 +335,22 @@ export function PriceTag({ info, size = 'md' }: { info: PriceInfo; size?: 'md' |
     );
   }
   // The card: the old price or a hint on the left, the price to pay big on
-  // the right — the promo price is what the eye should land on.
+  // the right — the promo price is what the eye should land on. A narrow card
+  // (a phone's two columns, a tablet's three) has no room for both on a line:
+  // there the hint goes on top and the price under it, both from the left,
+  // instead of the price wrapping off to the right on a line of its own.
   return (
-    <div className="flex items-end justify-between gap-x-2 gap-y-1 flex-wrap min-h-[30px]">
-      <span className="text-[12px] leading-tight min-w-0">
-        {discounted
-          ? <span className="text-light line-through tabular-nums text-[13px]">{formatPrice(base)}</span>
-          : hasPromo && <span className="font-semibold text-primary-dark">дешевле с промокодом</span>}
-      </span>
-      <span className={`ml-auto text-[22px] max-sm:text-[18px] leading-none font-extrabold tabular-nums whitespace-nowrap ${discounted ? 'text-primary' : 'text-ink'}`}>
-        {pre && <span className="text-[13px] max-sm:text-[12px] font-bold">{pre}</span>}{formatPrice(now)}
-      </span>
+    <div className="@container">
+      <div className="flex items-end justify-between gap-x-2 gap-y-1 flex-wrap min-h-[30px] @max-[17rem]:flex-col @max-[17rem]:items-start @max-[17rem]:justify-end @max-[17rem]:gap-y-1 @max-[17rem]:min-h-[34px] @max-[13rem]:min-h-[48px]">
+        <span className="text-[12px] leading-tight min-w-0 @max-[13rem]:text-[11.5px]">
+          {discounted
+            ? <span className="text-light line-through tabular-nums text-[13px]">{formatPrice(base)}</span>
+            : hasPromo && <span className="font-semibold text-primary-dark">дешевле с промокодом</span>}
+        </span>
+        <span className={`ml-auto @max-[17rem]:ml-0 text-[22px] max-sm:text-[18px] leading-none font-extrabold tabular-nums whitespace-nowrap ${discounted ? 'text-primary' : 'text-ink'}`}>
+          {pre && <span className="text-[13px] max-sm:text-[12px] font-bold">{pre}</span>}{formatPrice(now)}
+        </span>
+      </div>
     </div>
   );
 }
@@ -373,8 +378,8 @@ export function ComparePrices({ info, category, size = 'md' }: { info: PriceInfo
   return (
     <div className="mt-1.5 grid gap-0.5 text-[11px] leading-snug text-muted">
       {rows.map((r) => (
-        <div key={r.label} className="flex justify-between gap-2">
-          <span className="truncate">{r.label}</span>
+        <div key={r.label} className="flex justify-between gap-2 min-w-0">
+          <span className="truncate min-w-0">{r.label}</span>
           <span className="line-through tabular-nums shrink-0">{formatPrice(Number(r.price))}</span>
         </div>
       ))}

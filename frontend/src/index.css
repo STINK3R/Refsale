@@ -304,8 +304,6 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
   .loader-pulse, .boot img { animation-duration: 1.4s !important; animation-iteration-count: infinite !important; }
   .page-loader, .boot { animation-duration: 0.3s !important; }
   .radio-bar { animation-duration: 0.9s !important; animation-iteration-count: infinite !important; }
-  /* The brand strip is slow and stops under the cursor; still, it is the point of it */
-  .marquee-track { animation-duration: var(--marquee-duration, 40s) !important; animation-iteration-count: infinite !important; }
 }
 
 /* Hero pictures on wide screens cover about the same area of the card
@@ -351,20 +349,33 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
 .legal li { margin-top: 0.4rem; }
 .legal a { text-decoration: underline; font-weight: 600; color: var(--color-ink); }
 
-/* The running strip of brand logos (BrandMarquee) */
+/* The cart with something in it (Header): a ring pulses out of the pill now
+   and then, so the eye finds it; a still pill under reduced motion */
+.cart-full::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: cart-pulse 2.8s ease-out infinite;
+}
+@keyframes cart-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(232 24 109 / 0.55); }
+  70%, 100% { box-shadow: 0 0 0 12px rgb(232 24 109 / 0); }
+}
+
+/* The running strip of brand logos (BrandMarquee): it scrolls by itself, and
+   a finger or the mouse scrolls it too */
 .marquee {
-  overflow: hidden;
   -webkit-mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
   mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
+  overscroll-behavior-x: contain;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.marquee-track {
-  display: flex;
-  width: max-content;
-  animation: marquee var(--marquee-duration, 40s) linear infinite;
-}
-.marquee:hover .marquee-track,
-.marquee:focus-within .marquee-track { animation-play-state: paused; }
-@keyframes marquee { to { transform: translateX(-50%); } }
+.marquee.is-dragging { cursor: grabbing; }
+.marquee.is-dragging button { pointer-events: none; }
 
 .chat-bg {
   background-color: color-mix(in srgb, var(--color-accent) 18%, #FFFCF2);

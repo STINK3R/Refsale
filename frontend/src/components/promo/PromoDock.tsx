@@ -27,7 +27,7 @@ export default function PromoDock() {
         <m.div
           initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
           transition={{ duration: 0.4, ease: EASE }}
-          className="fixed z-[1400] bottom-5 left-4 max-sm:bottom-3 max-sm:left-3 max-sm:right-[68px]"
+          className="fixed z-[1400] bottom-5 left-4 max-sm:bottom-3 max-sm:left-3 max-sm:right-3"
         >
           <AnimatePresence mode="wait" initial={false}>
             {open ? (
@@ -35,7 +35,7 @@ export default function PromoDock() {
                 key="open"
                 initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
                 transition={{ duration: 0.25, ease: EASE }}
-                className="w-[min(520px,calc(100vw-96px))] max-sm:w-auto flex items-start gap-2"
+                className="w-[min(520px,calc(100vw-32px))] max-sm:w-auto flex items-start gap-2"
               >
                 <div className="flex-1 min-w-0">
                   <PromoForm variant="pill" onApplied={() => setOpen(false)} />

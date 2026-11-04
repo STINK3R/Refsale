@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { ChevronDown, Eye, EyeOff, Loader2 } from 'lucide-react';
 import Modal from '../ui/Modal';
 import { useAuthStore, useNotificationStore } from '../../store';
 import { loginUser, setAvatar, storeRegister, uploadFile } from '../../api/client';
@@ -25,6 +25,8 @@ export default function AuthModal() {
   const [consentMarketing, setConsentMarketing] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarConsent, setAvatarConsent] = useState(false);
+  // Phone and avatar are optional: folded away, so the form opens short
+  const [extrasOpen, setExtrasOpen] = useState(false);
   const avatarPreview = useMemo(() => (avatarFile ? URL.createObjectURL(avatarFile) : ''), [avatarFile]);
   useEffect(() => () => { if (avatarPreview) URL.revokeObjectURL(avatarPreview); }, [avatarPreview]);
   const [error, setError] = useState('');
@@ -115,21 +117,33 @@ export default function AuthModal() {
         </Labeled>
         {isReg && (
           <div className="pt-3 mt-1 border-t-2 border-ink/10">
-            <div className="text-[12px] font-bold text-muted mb-3">По желанию</div>
-            <Labeled label="Телефон"><input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" autoComplete="tel" placeholder="+7" className="field" /></Labeled>
-            <div className="mt-4">
-              <span className="label !text-[10px] block mb-2">Аватар</span>
-              <div className="flex items-center gap-3">
-                <label className={`relative w-14 h-14 shrink-0 rounded-full border-2 border-dashed grid place-items-center overflow-hidden ${avatarConsent ? 'border-ink cursor-pointer bg-card' : 'border-ink/25 bg-surface cursor-not-allowed'}`}>
-                  {avatarPreview ? <img src={avatarPreview} alt="" className="w-full h-full object-cover" /> : <span className="text-[22px] text-ink/40">+</span>}
-                  <input type="file" accept="image/jpeg,image/png,image/webp" disabled={!avatarConsent} className="hidden" onChange={(e) => setAvatarFile(e.target.files?.[0] || null)} />
-                </label>
-                <label className="flex items-start gap-2 text-[12px] leading-snug text-muted cursor-pointer">
-                  <input type="checkbox" checked={avatarConsent} onChange={(e) => { setAvatarConsent(e.target.checked); if (!e.target.checked) setAvatarFile(null); }} className="mt-0.5 w-4 h-4 shrink-0 accent-[#111]" />
-                  Разрешаю показывать аватар другим — в отзывах и на форуме
-                </label>
+            <button
+              type="button"
+              onClick={() => setExtrasOpen((v) => !v)}
+              aria-expanded={extrasOpen}
+              className="w-full flex items-center justify-between gap-3 text-[12px] font-bold text-muted hover:text-ink cursor-pointer"
+            >
+              <span>По желанию: телефон{phone.trim() || avatarFile ? ' · заполнено' : ' и аватар'}</span>
+              <ChevronDown size={16} strokeWidth={2.4} className={`shrink-0 transition-transform ${extrasOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {extrasOpen && (
+              <div className="mt-3">
+                <Labeled label="Телефон"><input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" autoComplete="tel" placeholder="+7" className="field" /></Labeled>
+                <div className="mt-4">
+                  <span className="label !text-[10px] block mb-2">Аватар</span>
+                  <div className="flex items-center gap-3">
+                    <label className={`relative w-14 h-14 shrink-0 rounded-full border-2 border-dashed grid place-items-center overflow-hidden ${avatarConsent ? 'border-ink cursor-pointer bg-card' : 'border-ink/25 bg-surface cursor-not-allowed'}`}>
+                      {avatarPreview ? <img src={avatarPreview} alt="" className="w-full h-full object-cover" /> : <span className="text-[22px] text-ink/40">+</span>}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" disabled={!avatarConsent} className="hidden" onChange={(e) => setAvatarFile(e.target.files?.[0] || null)} />
+                    </label>
+                    <label className="flex items-start gap-2 text-[12px] leading-snug text-muted cursor-pointer">
+                      <input type="checkbox" checked={avatarConsent} onChange={(e) => { setAvatarConsent(e.target.checked); if (!e.target.checked) setAvatarFile(null); }} className="mt-0.5 w-4 h-4 shrink-0 accent-[#111]" />
+                      Разрешаю показывать аватар другим — в отзывах и на форуме
+                    </label>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
         {isReg && <ConsentChecks pd={consentPd} setPd={setConsentPd} marketing={consentMarketing} setMarketing={setConsentMarketing} />}

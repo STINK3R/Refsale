@@ -20,8 +20,9 @@ export default function CookieBanner() {
         </p>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <button onClick={() => choose('necessary')} className={`btn-outline btn-sm ${choice === 'necessary' ? '!bg-surface' : ''}`}>Только необходимые</button>
-        <button onClick={() => choose('all')} className="btn-primary btn-sm">Принять все</button>
+        {/* On a phone the longer label needs the room the caps' tracking takes */}
+        <button onClick={() => choose('necessary')} className={`btn-outline btn-sm max-sm:!px-2 max-sm:!tracking-[0.04em] ${choice === 'necessary' ? '!bg-surface' : ''}`}>Только необходимые</button>
+        <button onClick={() => choose('all')} className="btn-primary btn-sm max-sm:!px-2 max-sm:!tracking-[0.04em]">Принять все</button>
       </div>
     </div>
   );

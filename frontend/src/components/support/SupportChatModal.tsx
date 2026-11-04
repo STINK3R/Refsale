@@ -18,9 +18,9 @@ import type { SupportTicket, SupportMessage, Product } from '../../types';
 import useScrollLock from '../../hooks/useScrollLock';
 
 /**
- * Unified support chat modal — single source of truth for both the main-page
- * "Написать запрос" CTA (SupportSection) and the floating bubble
- * (SupportWidget). Centered, auto-height (with a max-height cap) so the
+ * Unified support chat modal — single source of truth for every way in: the
+ * menu's «Вопрос площадке», «Написать площадке», a product's question to the
+ * seller. Centered, auto-height (with a max-height cap) so the
  * new-ticket form doesn't leave a big empty strip below the Send button.
  */
 export default function SupportChatModal() {

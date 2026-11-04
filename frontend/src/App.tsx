@@ -5,7 +5,6 @@ import Header from './components/layout/Header';
 import PageLoader from './components/ui/PageLoader';
 import Footer from './components/layout/Footer';
 import Notification from './components/ui/Notification';
-import SupportWidget from './components/support/SupportWidget';
 import MascotLayer from './components/mascot/MascotLayer';
 import CookieBanner from './components/ui/CookieBanner';
 import useCategoryAccent from './hooks/useCategoryAccent';
@@ -179,7 +178,6 @@ function App() {
       </Suspense>
       <CookieBanner />
       <Notification />
-      <SupportWidget />
       {supportOpened && <Suspense fallback={null}><SupportChatModal /></Suspense>}
       <MascotLayer />
     </>

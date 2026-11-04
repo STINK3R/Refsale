@@ -5,7 +5,7 @@ import { X, ShoppingBag, User, Package, Heart } from 'lucide-react';
 import { useAppStore, useAuthStore, useCartStore, useFavoritesStore, useNotificationStore, usePromoStore } from '../../store';
 import { useNewsStore } from '../../store/news';
 import { useSupportStore } from '../../store/support';
-import { fetchOrderChatsUnread } from '../../api/client';
+import { fetchOrderChatsUnread, fetchSupportUnreadCount } from '../../api/client';
 import { useContacts, ContactBlock, ContactLinks, telHref } from '../ui/Contacts';
 import useScrollLock, { glidePageToTop, glideToElement } from '../../hooks/useScrollLock';
 import Meerkat from '../mascot/Meerkat';
@@ -18,7 +18,7 @@ import { useRadioStore } from '../../store/radio';
 function CartCount({ count }: { count: number }) {
   // A new number mounts and pops in; the first one (page load) does not
   return (
-    <span className="inline-block text-[12px] font-semibold tabular-nums min-w-[1ch]">
+    <span className="inline-block text-[14px] max-sm:text-[13px] font-extrabold tabular-nums min-w-[1ch]">
       <AnimatePresence initial={false}>
         {count > 0 && (
           <m.span
@@ -44,6 +44,7 @@ export default function Header() {
   const promoCode = usePromoStore((s) => s.code);
   const promoMore = usePromoStore((s) => s.codes.length - 1);
   const openSupport = useSupportStore((s) => s.open);
+  const supportOpen = useSupportStore((s) => s.isOpen);
   const show = useNotificationStore((s) => s.show);
   const contacts = useContacts();
   const favCount = useFavoritesStore((s) => s.ids.length);
@@ -51,6 +52,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [orderUnread, setOrderUnread] = useState(0);
+  const [supportUnread, setSupportUnread] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
   // The shop lives at /catalog with its category tabs; on the main page (/,
@@ -88,6 +90,16 @@ export default function Header() {
     return () => clearInterval(t);
   }, [user]);
 
+  // The platform's replies: there is no floating chat button any more (as on
+  // marketplaces, the chat lives in the menu), so the menu carries the count
+  useEffect(() => {
+    if (!user?.id || supportOpen) { setSupportUnread(0); return; }
+    const check = () => { fetchSupportUnreadCount(user.id).then(setSupportUnread).catch(() => {}); };
+    check();
+    const t = setInterval(check, 15000);
+    return () => clearInterval(t);
+  }, [user, supportOpen]);
+
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
   // What is new on the forum, in reviews and in the catalog: counters in the menu
@@ -97,7 +109,7 @@ export default function Header() {
     const t = setInterval(refreshNews, 60000);
     return () => clearInterval(t);
   }, [refreshNews]);
-  const anyNews = orderUnread > 0 || forumNew > 0 || reviewsNew > 0 || catalogNew;
+  const anyNews = orderUnread > 0 || supportUnread > 0 || forumNew > 0 || reviewsNew > 0 || catalogNew;
 
   const goToSection = useCallback((hash: string) => {
     setMenuOpen(false);
@@ -212,8 +224,14 @@ export default function Header() {
                   ? <img src={user.avatar_url} alt="" className="w-[26px] h-[26px] rounded-full object-cover border-2 border-ink" />
                   : <User size={21} strokeWidth={2} />}
               </button>
-              <button onClick={openSidebar} className="relative flex items-center gap-2 text-text hover:text-primary transition-colors cursor-pointer" aria-label="Корзина">
-                <ShoppingBag size={21} strokeWidth={2} />
+              <button
+                onClick={openSidebar}
+                className={`relative flex items-center cursor-pointer transition-colors ${cartCount > 0
+                  ? 'cart-full h-10 max-sm:h-9 pl-2.5 pr-3 max-sm:pl-2 max-sm:pr-2.5 gap-1.5 max-sm:gap-1 rounded-full bg-sun border-2 border-ink text-ink shadow-[0_2px_0_#111] hover:bg-accent-strong'
+                  : 'gap-2 text-text hover:text-primary'}`}
+                aria-label={cartCount > 0 ? `Корзина: ${cartCount}` : 'Корзина'}
+              >
+                <ShoppingBag size={cartCount > 0 ? 22 : 21} strokeWidth={cartCount > 0 ? 2.3 : 2} className="max-sm:w-5 max-sm:h-5" />
                 <CartCount count={cartCount} />
               </button>
             </div>
@@ -223,12 +241,15 @@ export default function Header() {
           {/* While the catalog loads, the row is held open with placeholders so
               the page below does not jump when the tabs arrive. */}
           {isCatalog && catalogLoading && categories.length === 0 && (
-            <div aria-hidden="true" className="max-w-[1440px] mx-auto px-8 max-sm:px-4 pb-3 flex sm:justify-center gap-2 overflow-hidden">
-              {[112, 176, 64, 160].map((w) => <span key={w} className="shrink-0 h-9 rounded-ctl-sm bg-ink/[0.06]" style={{ width: w }} />)}
+            <div aria-hidden="true" className="max-w-[1440px] mx-auto px-8 max-sm:px-4 pb-3 flex overflow-hidden">
+              <div className="sm:mx-auto shrink-0 flex gap-2">
+                {[112, 176, 64, 160].map((w) => <span key={w} className="shrink-0 h-9 rounded-ctl-sm bg-ink/[0.06]" style={{ width: w }} />)}
+              </div>
             </div>
           )}
           {isCatalog && categories.length > 1 && (
-            <div className="max-w-[1440px] mx-auto px-8 max-sm:px-4 pb-3 flex sm:justify-center gap-2 overflow-x-auto scrollbar-hide">
+            <div className="max-w-[1440px] mx-auto px-8 max-sm:px-4 pb-3 flex overflow-x-auto scrollbar-hide">
+              <div className="sm:mx-auto shrink-0 flex gap-2">
               {categories.map((c) => {
                 const active = isCatalog && (c.id === (pendingCategory ?? activeCategoryId));
                 return (
@@ -244,6 +265,7 @@ export default function Header() {
                   </a>
                 );
               })}
+              </div>
             </div>
           )}
         </div>
@@ -279,7 +301,7 @@ export default function Header() {
                   <MenuItem n="05" to="/forums" badge={forumNew}>Форум</MenuItem>
                   <MenuItem n="06" onClick={() => goToSection('#reviews')} badge={reviewsNew}>Отзывы</MenuItem>
                   <MenuItem n="07" onClick={goToAbout}>О нас</MenuItem>
-                  <MenuItem n="08" onClick={openChats}>Вопрос площадке</MenuItem>
+                  <MenuItem n="08" onClick={openChats} badge={supportUnread || undefined}>Вопрос площадке</MenuItem>
                   {user?.is_leader && <MenuItem n="09" to="/cabinet">Кабинет лидера мнений</MenuItem>}
                   {user?.is_supplier && <MenuItem n={user.is_leader ? '10' : '09'} to="/supplier">Кабинет поставщика</MenuItem>}
                 </nav>
