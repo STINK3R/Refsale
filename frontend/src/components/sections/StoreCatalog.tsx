@@ -11,7 +11,8 @@ import { priceInfo, availableVariants, type PriceInfo } from '../../utils/prices
 import { askSeller, askToFind } from '../../utils/askSeller';
 import { useNewsStore } from '../../store/news';
 import Lightbox from '../ui/Lightbox';
-import Meerkat from '../mascot/Meerkat';
+import Meerkat, { type MeerkatPose } from '../mascot/Meerkat';
+import ThinkingMeerkat from '../mascot/ThinkingMeerkat';
 
 import useScrollLock, { glideToElement } from '../../hooks/useScrollLock';
 import BrandMarquee from './BrandMarquee';
@@ -162,17 +163,7 @@ export default function StoreCatalog() {
           </label>
         </div>
 
-        {category && (
-          <div className="mt-2 mb-2 flex items-center gap-5 max-md:gap-4 bg-card border-2 border-ink rounded-[22px] max-sm:rounded-[18px] shadow-[0_4px_0_#111] pl-4 pr-5 py-3 max-sm:p-4 max-sm:flex-col max-sm:items-stretch">
-            <div className="flex items-center gap-4 min-w-0 flex-1">
-              <Meerkat pose="thinking" width={64} decorative className="shrink-0 max-sm:w-[52px]" />
-              <p className="text-[16px] max-sm:text-[14.5px] font-bold leading-snug text-ink">{requestText}</p>
-            </div>
-            <button onClick={() => askToFind(category.name)} className="btn-primary shrink-0">
-              <MessageCircle size={16} strokeWidth={2.2} /> Отправить название
-            </button>
-          </div>
-        )}
+        {category && <FindPlate text={requestText} onAsk={() => askToFind(category.name)} className="mt-2 mb-2" />}
 
         <div id="catalog-filters" className="flex items-center justify-between gap-6 pt-6 max-md:flex-col max-md:items-start max-md:gap-4">
           {!debounced && subs.length > 0 ? (
@@ -235,11 +226,23 @@ export default function StoreCatalog() {
               <p className="text-[14px] text-muted mt-3 max-w-[460px] mx-auto">Напишите, что нужно, — в наличии 90% ассортимента сетевых магазинов, привезём.</p>
               <button onClick={() => askToFind(activeSub.name)} className="btn-primary mt-6"><MessageCircle size={16} strokeWidth={2.2} /> Отправить название</button>
             </div>
+          ) : visible.length === 0 && debounced ? (
+            // Nothing found is the moment «Не нашли?» is for: the request is
+            // one tap away, with what was typed already in it
+            <div className="py-14 max-sm:py-10 text-center">
+              <Meerkat pose="phone" width={130} decorative className="mx-auto mb-6 max-sm:w-[110px]" />
+              <div className="font-display text-[28px] max-sm:text-[23px] leading-tight text-text break-words">Ничего не нашлось по «{query.trim()}»</div>
+              <p className="text-[14.5px] text-muted mt-3 max-w-[480px] mx-auto leading-relaxed">Отправьте название — найдём и привезём: в наличии 90% ассортимента сетевых магазинов.</p>
+              <button onClick={() => askSearched(query.trim())} className="btn-primary mt-6 max-sm:w-full">
+                <MessageCircle size={16} strokeWidth={2.2} /> Отправить название
+              </button>
+              <p className="text-[12.5px] text-light mt-4">или попробуйте другое название или бренд</p>
+            </div>
           ) : visible.length === 0 ? (
             <div className="py-16 text-center">
               <Meerkat pose="thinking" width={130} decorative className="mx-auto mb-6" />
-              <div className="font-display text-[28px] text-text">{debounced ? 'Ничего не нашлось' : 'Каталог скоро пополнится'}</div>
-              <p className="text-[14px] text-muted mt-3">{debounced ? 'Попробуйте другое название или бренд' : 'Загляните чуть позже'}</p>
+              <div className="font-display text-[28px] text-text">Каталог скоро пополнится</div>
+              <p className="text-[14px] text-muted mt-3">Загляните чуть позже</p>
             </div>
           ) : (
             <>
@@ -258,6 +261,16 @@ export default function StoreCatalog() {
                     Показать ещё · {Math.min(PAGE, filtered.length - shown)}
                   </button>
                 </div>
+              )}
+              {/* Found something, but maybe not that: the request right under
+                  the results, where the eye is after looking through them */}
+              {debounced && (
+                <FindPlate
+                  text={`Не то, что искали? Отправьте «${query.trim()}» — найдём и привезём.`}
+                  onAsk={() => askSearched(query.trim())}
+                  pose="phone"
+                  className="mt-10 max-sm:mt-8"
+                />
               )}
             </>
           )}
@@ -290,6 +303,29 @@ export function ProductModals({ selected, setSelected, variantFor, setVariantFor
       </AnimatePresence>
     </>
   );
+}
+
+/** "Не нашли?" — the meerkat, the line and the way to send a name. */
+function FindPlate({ text, onAsk, pose = 'thinking', className = '' }: { text: string; onAsk: () => void; pose?: MeerkatPose; className?: string }) {
+  return (
+    <div className={`flex items-center gap-5 max-md:gap-4 bg-card border-2 border-ink rounded-[22px] max-sm:rounded-[18px] shadow-[0_4px_0_#111] pl-4 pr-5 py-3 max-sm:p-4 max-sm:flex-col max-sm:items-stretch ${className}`}>
+      <div className="flex items-center gap-4 min-w-0 flex-1">
+        {/* The thinking one is animated (a sheet of frames); the others are still */}
+        {pose === 'thinking'
+          ? <ThinkingMeerkat className="shrink-0 w-16 max-sm:w-[52px]" />
+          : <Meerkat pose={pose} width={64} decorative className="shrink-0 max-sm:w-[52px]" />}
+        <p className="text-[16px] max-sm:text-[14.5px] font-bold leading-snug text-ink break-words min-w-0">{text}</p>
+      </div>
+      <button onClick={onAsk} className="btn-primary shrink-0">
+        <MessageCircle size={16} strokeWidth={2.2} /> Отправить название
+      </button>
+    </div>
+  );
+}
+
+/** A search's request: titled with what was typed, the message written. */
+function askSearched(q: string) {
+  askToFind(q, `Ищу: ${q}. Сможете найти и привезти?`);
 }
 
 function plural(n: number, one: string, few: string, many: string) {

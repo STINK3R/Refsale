@@ -304,6 +304,8 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
   .loader-pulse, .boot img { animation-duration: 1.4s !important; animation-iteration-count: infinite !important; }
   .page-loader, .boot { animation-duration: 0.3s !important; }
   .radio-bar { animation-duration: 0.9s !important; animation-iteration-count: infinite !important; }
+  /* The cart's ring says "something is in here": a small, slow signal, kept */
+  .cart-full::after { animation-duration: 2.8s !important; animation-iteration-count: infinite !important; }
 }
 
 /* Hero pictures on wide screens cover about the same area of the card
@@ -350,7 +352,7 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
 .legal a { text-decoration: underline; font-weight: 600; color: var(--color-ink); }
 
 /* The cart with something in it (Header): a ring pulses out of the pill now
-   and then, so the eye finds it; a still pill under reduced motion */
+   and then, so the eye finds it (under reduced motion too, see above) */
 .cart-full::after {
   content: '';
   position: absolute;
