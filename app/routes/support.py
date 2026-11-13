@@ -92,7 +92,15 @@ def api_user_tickets(user_id):
         return err
     try:
         with get_db() as cur:
-            cur.execute("SELECT * FROM coop_support_tickets WHERE user_id = %s ORDER BY updated_at DESC", (user_id,))
+            cur.execute("""
+                SELECT t.*,
+                       EXISTS (
+                           SELECT 1 FROM coop_support_messages m
+                           WHERE m.ticket_id = t.id AND m.sender_type = 'admin'
+                             AND m.id > COALESCE(t.buyer_seen_message_id, 0)
+                       ) AS unread
+                FROM coop_support_tickets t WHERE t.user_id = %s ORDER BY t.updated_at DESC
+            """, (user_id,))
             tickets = _rows_to_list(cur.fetchall())
         return jsonify(tickets or [])
     except:
@@ -108,6 +116,16 @@ def api_ticket_messages(tid):
                 return err
             cur.execute("SELECT * FROM coop_support_messages WHERE ticket_id = %s ORDER BY created_at ASC", (tid,))
             msgs = _rows_to_list(cur.fetchall())
+            if is_admin_request():
+                cur.execute("UPDATE coop_support_tickets SET admin_seen_at = NOW() WHERE id = %s", (tid,))
+            elif msgs:
+                # Mark only the messages returned by this read. If another
+                # reply arrives concurrently, it remains unread.
+                last_seen_id = max(int(m.get("id") or 0) for m in msgs)
+                cur.execute(
+                    "UPDATE coop_support_tickets SET buyer_seen_message_id = GREATEST(COALESCE(buyer_seen_message_id, 0), %s) WHERE id = %s",
+                    (last_seen_id, tid),
+                )
         return jsonify(msgs or [])
     except:
         return jsonify([])
@@ -135,7 +153,11 @@ def api_add_ticket_message(tid):
                 (tid, sender_type, sender_name, text, images)
             )
             msg = _row_to_dict(cur.fetchone())
-            cur.execute("UPDATE coop_support_tickets SET updated_at = NOW() WHERE id = %s RETURNING user_id, subject", (tid,))
+            # A buyer who writes has read everything before their message.
+            seen_sql = (", buyer_seen_message_id = GREATEST(COALESCE(buyer_seen_message_id, 0), %s)"
+                        if sender_type == 'user' else "")
+            params = ((msg["id"], tid) if sender_type == 'user' else (tid,))
+            cur.execute(f"UPDATE coop_support_tickets SET updated_at = NOW(){seen_sql} WHERE id = %s RETURNING user_id, subject", params)
             t = cur.fetchone() or {}
         if sender_type == 'admin':
             notify_user(
@@ -157,14 +179,15 @@ def api_support_unread_count(user_id):
         return err
     try:
         with get_db() as cur:
-            # Count tickets where the latest message is from admin (i.e. user hasn't seen it)
+            # Read receipts, not a buyer's follow-up reply, clear the badge.
+            # Keep unread replies visible even when a ticket has been closed.
             cur.execute("""
                 SELECT COUNT(*) as cnt FROM coop_support_tickets t
-                WHERE t.user_id = %s AND t.status != 'closed'
+                WHERE t.user_id = %s
                 AND EXISTS (
                     SELECT 1 FROM coop_support_messages m
                     WHERE m.ticket_id = t.id AND m.sender_type = 'admin'
-                    AND m.id = (SELECT MAX(m2.id) FROM coop_support_messages m2 WHERE m2.ticket_id = t.id)
+                    AND m.id > COALESCE(t.buyer_seen_message_id, 0)
                 )
             """, (user_id,))
             row = cur.fetchone()
@@ -178,7 +201,16 @@ def api_support_unread_count(user_id):
 def api_admin_support_tickets():
     try:
         with get_db() as cur:
-            cur.execute("SELECT * FROM coop_support_tickets ORDER BY updated_at DESC")
+            cur.execute("""
+                SELECT t.*,
+                       EXISTS (
+                           SELECT 1 FROM coop_support_messages m
+                           WHERE m.ticket_id = t.id AND m.sender_type = 'user'
+                             AND m.id = (SELECT MAX(m2.id) FROM coop_support_messages m2 WHERE m2.ticket_id = t.id)
+                       ) AS admin_unread
+                FROM coop_support_tickets t
+                ORDER BY t.updated_at DESC
+            """)
             tickets = _rows_to_list(cur.fetchall())
         return jsonify(tickets or [])
     except:
@@ -189,6 +221,8 @@ def api_admin_support_tickets():
 def api_admin_update_ticket_status(tid):
     d = request.json or {}
     status = d.get("status", "open")
+    if status not in ("open", "in_progress", "closed"):
+        return jsonify({"error": "Недопустимый статус обращения"}), 400
     try:
         with get_db() as cur:
             cur.execute("UPDATE coop_support_tickets SET status = %s, updated_at = NOW() WHERE id = %s RETURNING *",

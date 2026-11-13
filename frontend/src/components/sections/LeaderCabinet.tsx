@@ -13,6 +13,7 @@ import { formatPrice, formatDate } from '../../utils/format';
 import { Bubble, ItemsList, parseItems, STATUS_LABEL, StatusTrack, statusStripe, statusTone } from './OrdersPage';
 import useScrollLock from '../../hooks/useScrollLock';
 import ImageUploader from '../ui/ImageUploader';
+import PartnerChatPanel from './PartnerChatPanel';
 
 /**
  * Opinion leader's cabinet. Everything here is read-only unless the admin
@@ -177,6 +178,14 @@ export default function LeaderCabinet() {
           </div>
         )}
       </div>
+
+      <section className="mt-10" aria-labelledby="partner-chat-title">
+        <div className="mb-4">
+          <h2 id="partner-chat-title" className="inline-block font-display text-[24px] text-ink bg-card border-2 border-ink rounded-[14px] px-4 py-2">Поставщики и лидеры мнений</h2>
+          <p className="text-[12px] text-muted mt-2">Обсудите сотрудничество и логистику напрямую. Телефон и почта собеседника не раскрываются.</p>
+        </div>
+        <PartnerChatPanel embedded />
+      </section>
 
       <AnimatePresence>
         {openOrder && <OrderDrawer order={openOrder} onClose={() => setOpenOrder(null)} onChanged={load} />}

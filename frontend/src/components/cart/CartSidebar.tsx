@@ -13,11 +13,15 @@ export default function CartSidebar() {
   const { items, sidebarOpen, closeSidebar, changeQty, removeItem, openCheckout } = useCartStore();
   const { user, openAuth } = useAuthStore();
   const prices = usePromoStore((s) => s.prices);
+  const issuedCoupon = usePromoStore((s) => s.firstPurchaseCoupon);
+  const welcomeCoupon = issuedCoupon?.userId === user?.id ? issuedCoupon : null;
   useScrollLock(sidebarOpen);
 
   const baseTotal = items.reduce((s, i) => s + (Number(i.price) || 0) * i.qty, 0);
-  const total = items.reduce((s, i) => s + priceFor(promoKey(i.id, i.variant_id), i.price, prices) * i.qty, 0);
-  const saved = baseTotal - total;
+  const promoTotal = items.reduce((s, i) => s + priceFor(promoKey(i.id, i.variant_id), i.price, prices) * i.qty, 0);
+  const welcomeDiscount = welcomeCoupon ? Math.min(welcomeCoupon.discountAmount, promoTotal) : 0;
+  const total = promoTotal - welcomeDiscount;
+  const saved = baseTotal - promoTotal;
   const count = items.reduce((s, i) => s + i.qty, 0);
 
   const checkout = () => {
@@ -96,13 +100,25 @@ export default function CartSidebar() {
             {items.length > 0 && (
               <div className="px-8 max-sm:px-5 py-6 border-t border-line space-y-5 shrink-0">
                 <PromoForm variant="box" />
+                {welcomeCoupon && (
+                  <div className="rounded-[16px] border-2 border-ink bg-accent-strong px-4 py-3 shadow-[0_3px_0_#111]">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-extrabold text-ink">Подарок к первой покупке</div>
+                        <div className="mt-1 text-[11.5px] font-semibold text-ink/75">Код {welcomeCoupon.code} применится автоматически</div>
+                      </div>
+                      <span className="shrink-0 rounded-full border border-ink bg-card px-3 py-1 text-[12px] font-extrabold text-primary">−{formatPrice(welcomeDiscount)}</span>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2 text-[13px]">
                   {saved > 0 && (
                     <>
                       <div className="flex justify-between text-muted"><span>Без промокода</span><span className="tabular-nums line-through">{formatPrice(baseTotal)}</span></div>
-                      <div className="flex justify-between text-primary"><span>Скидка по промокоду</span><span className="tabular-nums">−{formatPrice(saved)}</span></div>
+                      <div className="flex justify-between text-primary"><span>Скидка по промокодам</span><span className="tabular-nums">−{formatPrice(saved)}</span></div>
                     </>
                   )}
+                  {welcomeDiscount > 0 && <div className="flex justify-between text-primary"><span>Подарок на первую покупку</span><span className="tabular-nums">−{formatPrice(welcomeDiscount)}</span></div>}
                   <div className="flex items-baseline justify-between pt-2">
                     <span className="label !text-text">Итого</span>
                     <span className="font-display text-[30px] leading-none text-text tabular-nums">{formatPrice(total)}</span>

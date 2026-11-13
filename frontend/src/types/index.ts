@@ -11,6 +11,7 @@ export interface Category {
   /** The two shops this category's prices are compared with. */
   compare_label_1?: string;
   compare_label_2?: string;
+  sort_order?: number;
   /** The page's accent colour, e.g. #DDF2B2 for food. */
   accent_color?: string;
   /** Optional bold version for bars and highlights; derived when empty. */
@@ -23,6 +24,7 @@ export interface ProductVariant {
   id: number;
   label: string;
   price: number;
+  promo_price?: number | null;
   has_promo_price?: boolean;
   compare_price_1?: number | null;
   compare_price_2?: number | null;
@@ -44,6 +46,7 @@ export interface Product {
   rating_avg?: number | null;
   rating_count?: number;
   price: number | null;
+  promo_price?: number | null;
   description?: string;
   category_id: number | null;
   subcategory_id?: number | null;
@@ -93,6 +96,7 @@ export interface User {
   /** A supplier's account (set in the admin panel) */
   is_supplier?: boolean;
   leader_can_write?: boolean;
+  is_blocked?: boolean;
   created_at?: string;
 }
 
@@ -163,6 +167,7 @@ export interface SupportTicket {
   status: 'open' | 'in_progress' | 'closed';
   created_at: string;
   updated_at: string;
+  unread?: boolean;
 }
 
 export interface SupportMessage {
@@ -183,6 +188,39 @@ export interface OrderChatMessage {
   text: string;
   created_at: string;
   images?: string | string[] | null;
+  sender_user_id?: number | null;
+  avatar_url?: string | null;
+}
+
+export interface PartnerChatParticipant {
+  id: number;
+  name: string;
+  avatar_url: string;
+  role: string;
+}
+
+export interface PartnerChatMessage {
+  id: number;
+  conversation_id: number;
+  sender_id: number;
+  sender_name: string;
+  sender_role: string;
+  avatar_url: string;
+  text: string;
+  images: string | string[] | null;
+  created_at: string;
+}
+
+export interface PartnerConversation {
+  id: number;
+  updated_at: string;
+  other_id: number;
+  other_name: string;
+  other_avatar: string;
+  other_role: string;
+  last_text: string;
+  last_at: string | null;
+  unread: boolean;
 }
 
 export interface OrderChatSummary {

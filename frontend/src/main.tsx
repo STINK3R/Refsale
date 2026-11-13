@@ -18,10 +18,13 @@ import { loadCatalogPage } from './components/sections/catalogChunk'
 
 const loadMotionFeatures = () => import('./motionFeatures').then((m) => m.default)
 
-// Must run before the first API call so authenticated requests carry the token.
-installAuthFetch()
-// The service worker (install, notifications) and the browser's install offer
-setupPwa()
+const isAdminPage = window.location.pathname === '/admin' || window.location.pathname === '/admin.html'
+// The admin has its own RefSale administrator session. Do not attach a buyer's
+// token to its requests or register the storefront PWA from the admin shell.
+if (!isAdminPage) {
+  installAuthFetch()
+  setupPwa()
+}
 // Opened straight on the shop: ask for its code now, alongside React starting,
 // instead of after the first render asks for it
 if (window.location.pathname === '/catalog') void loadCatalogPage()

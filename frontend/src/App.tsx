@@ -9,6 +9,7 @@ import MascotLayer from './components/mascot/MascotLayer';
 import CookieBanner from './components/ui/CookieBanner';
 import useCategoryAccent from './hooks/useCategoryAccent';
 import useMetrika from './hooks/useMetrika';
+import { useFirstPurchaseCoupon } from './hooks/useFirstPurchaseCoupon';
 import { scrollPageToTop, glidePageToTop, glideToElement, isScrollLocked } from './hooks/useScrollLock';
 import { resyncPushDevice } from './store/pwa';
 import { useSupportStore } from './store/support';
@@ -27,6 +28,7 @@ const NotFound = lazy(() => import('./components/sections/NotFound'));
 const LegalPage = lazy(() => import('./components/sections/LegalPage'));
 const ConsentGate = lazy(() => import('./components/profile/ConsentGate'));
 const SupportChatModal = lazy(() => import('./components/support/SupportChatModal'));
+const AdminApp = lazy(() => import('./components/admin/AdminApp'));
 // The main page comes with the first load: it is where most visits start.
 // The shop is its own chunk, fetched in the background from the main page.
 import HomePage from './components/sections/HomePage';
@@ -61,9 +63,10 @@ function useReferralLink() {
  * ("/#catalog") glides to it. Runs in the capture phase, before the router's
  * own handler, which leaves alone a click whose default is already prevented.
  */
-function useGlidingLinks() {
+function useGlidingLinks(enabled = true) {
   const navigate = useNavigate();
   useEffect(() => {
+    if (!enabled) return;
     const onClick = (e: MouseEvent) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
@@ -92,7 +95,7 @@ function useGlidingLinks() {
     };
     document.addEventListener('click', onClick, true);
     return () => document.removeEventListener('click', onClick, true);
-  }, [navigate]);
+  }, [navigate, enabled]);
 }
 
 function App() {
@@ -100,18 +103,21 @@ function App() {
   const refreshUser = useAuthStore((s) => s.refreshUser);
   const revalidatePromo = usePromoStore((s) => s.revalidate);
   const { pathname } = useLocation();
+  const isAdminPath = pathname === '/admin' || pathname === '/admin.html';
   useReferralLink();
   useCategoryAccent();
   useMetrika();
+  useFirstPurchaseCoupon(!isAdminPath);
 
   useEffect(() => {
+    if (isAdminPath) return;
     void loadData();
     void refreshUser();
     void revalidatePromo();
-  }, [loadData, refreshUser, revalidatePromo]);
+  }, [loadData, refreshUser, revalidatePromo, isAdminPath]);
 
   useEffect(() => { scrollPageToTop(); }, [pathname]);
-  useGlidingLinks();
+  useGlidingLinks(!isAdminPath);
 
   // The cooperative (refsale.ru/kokonkoop) signs in with the RefSale account:
   // it sends here /?auth=login&next=/kokonkoop/…, and back once signed in
@@ -149,6 +155,10 @@ function App() {
     params.delete('support');
     setParams(params, { replace: true });
   }, [params, setParams, openSupport, userId]);
+
+  if (isAdminPath) {
+    return <Suspense fallback={<PageFallback />}><AdminApp /></Suspense>;
+  }
 
   return (
     <>

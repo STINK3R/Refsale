@@ -30,7 +30,8 @@ const NEXT_STEPS = [
 export default function CheckoutModal() {
   const { checkoutOpen, closeCheckout, items, clearCart } = useCartStore();
   const user = useAuthStore((s) => s.user);
-  const { codes, prices, remove: removePromo } = usePromoStore();
+  const { codes, prices, firstPurchaseCoupon, setFirstPurchaseCoupon, remove: removePromo } = usePromoStore();
+  const welcomeCoupon = firstPurchaseCoupon?.userId === user?.id ? firstPurchaseCoupon : null;
   const show = useNotificationStore((s) => s.show);
   const showMascot = useUiStore((s) => s.showMascot);
   const navigate = useNavigate();
@@ -48,7 +49,9 @@ export default function CheckoutModal() {
     setPhone((v) => v || user.phone || '');
   }, [checkoutOpen, user]);
 
-  const total = items.reduce((s, i) => s + priceFor(promoKey(i.id, i.variant_id), i.price, prices) * i.qty, 0);
+  const promoTotal = items.reduce((s, i) => s + priceFor(promoKey(i.id, i.variant_id), i.price, prices) * i.qty, 0);
+  const welcomeDiscount = welcomeCoupon ? Math.min(welcomeCoupon.discountAmount, promoTotal) : 0;
+  const total = promoTotal - welcomeDiscount;
   const baseTotal = items.reduce((s, i) => s + (Number(i.price) || 0) * i.qty, 0);
 
   const submit = async () => {
@@ -61,11 +64,14 @@ export default function CheckoutModal() {
       comment: comment.trim(),
       contact_method: method,
       promo_codes: codes.map((c) => c.code),
+      ...(welcomeCoupon ? { first_purchase_coupon_code: welcomeCoupon.code } : {}),
       items: items.map((i) => ({ id: i.id, qty: i.qty, variant_id: i.variant_id ?? null, variant_comment: i.variant_comment })),
     });
     setSending(false);
     if (res.promo_invalid && res.promo_code) removePromo(res.promo_code);
+    if (res.first_purchase_coupon_invalid) setFirstPurchaseCoupon(null);
     if (!res.order) { setError(res.error || 'Не удалось оформить заказ'); return; }
+    setFirstPurchaseCoupon(null);
     clearCart();
     closeCheckout();
     show(`Заказ №${res.order.id} оформлен — менеджер ответит в чате`);
@@ -91,8 +97,9 @@ export default function CheckoutModal() {
       </div>
       <div className="hairline my-5" />
       {baseTotal > total && (
-        <div className="flex justify-between text-[13px] font-semibold text-primary-dark mb-2">
-          <span>{codes.length > 1 ? 'Промокоды' : 'Промокод'} {codes.map((c) => c.code).join(', ')}</span><span className="tabular-nums">−{formatPrice(baseTotal - total)}</span>
+        <div className="mb-2 space-y-1 text-[13px] font-semibold text-primary-dark">
+          {baseTotal > promoTotal && <div className="flex justify-between gap-3"><span>{codes.length > 1 ? 'Промокоды' : 'Промокод'} {codes.map((c) => c.code).join(', ')}</span><span className="tabular-nums">−{formatPrice(baseTotal - promoTotal)}</span></div>}
+          {welcomeDiscount > 0 && <div className="flex justify-between gap-3"><span>Подарок первой покупки · {welcomeCoupon?.code}</span><span className="tabular-nums">−{formatPrice(welcomeDiscount)}</span></div>}
         </div>
       )}
       <div className="flex items-baseline justify-between">

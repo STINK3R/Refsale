@@ -9,6 +9,7 @@ import SectionHead from '../ui/SectionHead';
 import ImageUploader from '../ui/ImageUploader';
 import NotifyPrompt from '../ui/NotifyPrompt';
 import AttachedImages from '../ui/AttachedImages';
+import Avatar from '../ui/Avatar';
 import { formatPrice, unescapeHtml } from '../../utils/format';
 import type { OrderChatSummary, OrderChatMessage, OrderItem } from '../../types';
 
@@ -391,7 +392,12 @@ function OrderThread({ chat, userId, userName, onBack }: { chat: OrderChatSummar
         <div className="shrink-0 px-3.5 py-3 border-t border-ink/[0.07]">
           {images.length > 0 && <div className="mb-2"><ImageUploader value={images} onChange={setImages} userId={userId} prefix="orderchat" max={4} compact video /></div>}
           <div className="flex items-center gap-2">
-            {images.length === 0 && <ImageUploader value={images} onChange={setImages} userId={userId} prefix="orderchat" max={4} compact video />}
+            {images.length === 0 && (
+              <div className="shrink-0 flex flex-col items-center gap-0.5">
+                <ImageUploader value={images} onChange={setImages} userId={userId} prefix="orderchat" max={4} compact video />
+                <span className="text-[9px] leading-none text-muted">Фото/видео</span>
+              </div>
+            )}
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -428,7 +434,7 @@ export function ItemsList({ items }: { items: OrderItem[] }) {
   );
 }
 
-export function Bubble({ msg, mineType = 'user' }: { msg: OrderChatMessage; mineType?: 'user' | 'leader' | 'supplier' }) {
+export function Bubble({ msg, mineType = 'user' }: { msg: OrderChatMessage; mineType?: 'user' | 'leader' | 'supplier' | 'admin' }) {
   const mine = msg.sender_type === mineType;
   const who = msg.sender_type === 'admin' ? (msg.sender_name === 'RefSale' ? 'RefSale' : 'Менеджер')
     : msg.sender_type === 'leader' ? `${msg.sender_name || 'Лидер мнений'} · лидер мнений`
@@ -439,14 +445,16 @@ export function Bubble({ msg, mineType = 'user' }: { msg: OrderChatMessage; mine
   const system = msg.sender_type === 'admin' && msg.sender_name === 'RefSale';
   // The platform's side (manager, leader, supplier) in blue, the buyer's own in white
   const org = msg.sender_type === 'admin' || msg.sender_type === 'leader' || msg.sender_type === 'supplier';
+  const avatar = msg.sender_type === 'admin' ? '/img/logo-meerkat.webp' : msg.avatar_url;
   return (
-    <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex items-end gap-2 ${mine ? 'flex-row-reverse justify-start' : 'justify-start'}`}>
+      <Avatar name={who} url={avatar} size={32} />
       <div className={`max-w-[80%] px-3.5 py-2.5 rounded-[16px] text-[13.5px] leading-relaxed shadow-[0_1px_0_rgba(17,17,17,0.08)] ${
         system ? 'bg-accent-strong border-2 border-ink text-ink font-semibold'
           : org ? 'bg-[#DCEBFF] border border-[#9DC3F0] text-ink'
           : 'bg-card border border-ink/15 text-ink'
       } ${mine ? 'rounded-br-[6px]' : 'rounded-bl-[6px]'}`}>
-        {!mine && <div className={`text-[10.5px] font-bold mb-0.5 ${system ? 'text-ink' : org ? 'text-[#1B5BB0]' : 'text-primary-dark'}`}>{who}</div>}
+        <div className={`text-[10.5px] font-bold mb-0.5 ${system ? 'text-ink' : org ? 'text-[#1B5BB0]' : 'text-primary-dark'}`}>{who}</div>
         <div className="whitespace-pre-line break-words">{unescapeHtml(msg.text)}</div>
         <AttachedImages images={msg.images} size="sm" className="mt-1.5" />
         <div className={`text-[9.5px] mt-1 text-right ${system ? 'text-ink/60' : 'text-light'}`}>

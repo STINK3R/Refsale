@@ -19,7 +19,35 @@ _TABLES = [
     )""",
     """CREATE TABLE IF NOT EXISTS coop_order_chat_seen (
         order_id INTEGER PRIMARY KEY REFERENCES coop_orders(id) ON DELETE CASCADE,
-        seen_at TIMESTAMPTZ DEFAULT NOW()
+        seen_at TIMESTAMPTZ DEFAULT NOW(),
+        seen_message_id BIGINT DEFAULT 0
+    )""",
+    # Private peer conversations between verified suppliers and opinion leaders.
+    # The canonical pair keeps one thread per two accounts without exposing
+    # personal contact details to other participants.
+    """CREATE TABLE IF NOT EXISTS ref_partner_conversations (
+        id SERIAL PRIMARY KEY,
+        participant_low_id INTEGER NOT NULL REFERENCES coop_users(id) ON DELETE CASCADE,
+        participant_high_id INTEGER NOT NULL REFERENCES coop_users(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CHECK (participant_low_id < participant_high_id),
+        UNIQUE (participant_low_id, participant_high_id)
+    )""",
+    """CREATE TABLE IF NOT EXISTS ref_partner_messages (
+        id BIGSERIAL PRIMARY KEY,
+        conversation_id INTEGER NOT NULL REFERENCES ref_partner_conversations(id) ON DELETE CASCADE,
+        sender_id INTEGER NOT NULL REFERENCES coop_users(id) ON DELETE CASCADE,
+        text TEXT NOT NULL DEFAULT '',
+        images TEXT NOT NULL DEFAULT '[]',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """CREATE TABLE IF NOT EXISTS ref_partner_chat_seen (
+        conversation_id INTEGER NOT NULL REFERENCES ref_partner_conversations(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES coop_users(id) ON DELETE CASCADE,
+        seen_message_id BIGINT NOT NULL DEFAULT 0,
+        seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (conversation_id, user_id)
     )""",
     # Opinion leaders' referral codes
     """CREATE TABLE IF NOT EXISTS ref_promos (
@@ -70,6 +98,18 @@ _TABLES = [
         status VARCHAR(20) NOT NULL,
         changed_at TIMESTAMPTZ DEFAULT NOW()
     )""",
+    # Each supplier confirms only their own part of a mixed order. The shared
+    # order status remains unchanged until every supplier has approved and the
+    # platform confirms the order.
+    """CREATE TABLE IF NOT EXISTS ref_order_supplier_steps (
+        order_id INTEGER NOT NULL REFERENCES coop_orders(id) ON DELETE CASCADE,
+        supplier_id INTEGER NOT NULL REFERENCES coop_users(id) ON DELETE CASCADE,
+        state VARCHAR(20) NOT NULL DEFAULT 'pending',
+        delivery_eta TIMESTAMPTZ DEFAULT NULL,
+        delivery_note TEXT DEFAULT '',
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        PRIMARY KEY (order_id, supplier_id)
+    )""",
     # Which codes a signed-in buyer holds (they live in the browser), so the
     # site can remind them a week before one runs out (promo_reminders.py)
     # Every consent given or withdrawn (152-ФЗ): when, which version, from where
@@ -91,6 +131,15 @@ _TABLES = [
         seen_at TIMESTAMPTZ DEFAULT NOW(),
         reminded_for TIMESTAMPTZ DEFAULT NULL,
         UNIQUE (user_id, promo_id)
+    )""",
+    """CREATE TABLE IF NOT EXISTS ref_first_purchase_coupons (
+        user_id INTEGER PRIMARY KEY REFERENCES coop_users(id) ON DELETE CASCADE,
+        code VARCHAR(50) NOT NULL UNIQUE,
+        discount_amount NUMERIC(12,2) NOT NULL,
+        issued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        expires_at TIMESTAMPTZ NOT NULL,
+        used_at TIMESTAMPTZ DEFAULT NULL,
+        used_order_id INTEGER DEFAULT NULL
     )""",
 ]
 
@@ -167,6 +216,7 @@ _COLUMNS = [
     # Orders
     ("coop_orders", "promo_code", "VARCHAR(50) DEFAULT NULL"),
     ("coop_orders", "discount_amount", "NUMERIC(12,2) DEFAULT 0"),
+    ("coop_orders", "first_purchase_coupon_code", "VARCHAR(50) DEFAULT NULL"),
     ("coop_orders", "ref_promo_id", "INTEGER DEFAULT NULL"),
     ("coop_orders", "leader_id", "INTEGER DEFAULT NULL"),
     ("coop_orders", "leader_reward", "NUMERIC(12,2) DEFAULT 0"),
@@ -181,6 +231,14 @@ _COLUMNS = [
     # Pre-order questions ("Связь с продавцом") attributed to a leader
     ("coop_support_tickets", "promo_code", "VARCHAR(50) DEFAULT NULL"),
     ("coop_support_tickets", "leader_id", "INTEGER DEFAULT NULL"),
+    # Last time the administrator opened this conversation; newer buyer
+    # messages are highlighted in the admin support inbox.
+    ("coop_support_tickets", "admin_seen_at", "TIMESTAMPTZ DEFAULT NULL"),
+    # Buyer read receipts do not depend on a reply. The admin queue stays
+    # pending until the platform sends a later message.
+    ("coop_support_tickets", "buyer_seen_message_id", "BIGINT DEFAULT 0"),
+    ("coop_order_chat_seen", "seen_message_id", "BIGINT DEFAULT 0"),
+    ("coop_order_messages", "sender_user_id", "INTEGER DEFAULT NULL REFERENCES coop_users(id) ON DELETE SET NULL"),
 ]
 
 _INDEXES = [
@@ -191,8 +249,15 @@ _INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_orders_user ON coop_orders(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_tickets_leader ON coop_support_tickets(leader_id)",
     "CREATE INDEX IF NOT EXISTS idx_status_log_order ON ref_order_status_log(order_id)",
+    "CREATE INDEX IF NOT EXISTS idx_order_supplier_steps_supplier ON ref_order_supplier_steps(supplier_id, updated_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_partner_messages_conversation ON ref_partner_messages(conversation_id, id DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_partner_conversation_high ON ref_partner_conversations(participant_high_id, updated_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_partner_conversation_low ON ref_partner_conversations(participant_low_id, updated_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_push_user ON ref_push_subscriptions(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_products_seller ON coop_products(seller_id)",
+    # "Latest message of a thread" lookups (unread badges, admin queues)
+    "CREATE INDEX IF NOT EXISTS idx_order_messages_order_id ON coop_order_messages(order_id, id DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_support_messages_ticket_id ON coop_support_messages(ticket_id, id DESC)",
 ]
 
 # Data fixes, idempotent. Photos added to a product's gallery used to arrive
@@ -234,6 +299,47 @@ _REPAIRS = [
         END IF;
       END IF;
     END $$""",
+    # Backfill supplier participants for orders that were created before the
+    # per-supplier confirmation flow. Existing progressed orders are treated
+    # as already confirmed; new orders still wait for every supplier.
+    """INSERT INTO ref_order_supplier_steps (order_id, supplier_id, state)
+       SELECT DISTINCT o.id, p.seller_id,
+              CASE WHEN o.status = 'new' THEN 'pending' ELSE 'approved' END
+       FROM coop_orders o
+       CROSS JOIN LATERAL jsonb_array_elements(
+           CASE WHEN jsonb_typeof(o.items::jsonb) = 'array' THEN o.items::jsonb ELSE '[]'::jsonb END) it
+       JOIN coop_products p ON p.id = CASE WHEN (it->>'id') ~ '^[0-9]{1,9}$' THEN (it->>'id')::int ELSE NULL END
+       WHERE p.seller_id IS NOT NULL
+       ON CONFLICT (order_id, supplier_id) DO NOTHING""",
+    # Read receipts moved from timestamps to message ids. Carry the old
+    # "seen at" over, so existing chats do not light up as unread after the
+    # update. A buyer who wrote in a thread has seen everything before it.
+    """UPDATE coop_order_chat_seen s SET seen_message_id = x.mid
+       FROM (SELECT s2.order_id, MAX(m.id) AS mid
+             FROM coop_order_chat_seen s2
+             JOIN coop_order_messages m ON m.order_id = s2.order_id AND m.created_at <= s2.seen_at
+             GROUP BY s2.order_id) x
+       WHERE x.order_id = s.order_id AND x.mid > COALESCE(s.seen_message_id, 0)""",
+    """INSERT INTO coop_order_chat_seen (order_id, seen_at, seen_message_id)
+       SELECT m.order_id, MAX(m.created_at), MAX(m.id) FROM coop_order_messages m
+       WHERE m.sender_type = 'user' GROUP BY m.order_id
+       ON CONFLICT (order_id) DO UPDATE SET seen_message_id =
+           GREATEST(COALESCE(coop_order_chat_seen.seen_message_id, 0), EXCLUDED.seen_message_id)""",
+    """UPDATE coop_support_tickets t SET buyer_seen_message_id = x.mid
+       FROM (SELECT ticket_id, MAX(id) AS mid FROM coop_support_messages
+             WHERE sender_type = 'user' GROUP BY ticket_id) x
+       WHERE x.ticket_id = t.id AND x.mid > COALESCE(t.buyer_seen_message_id, 0)""",
+]
+
+# One-time data moves: (settings key, sql). Run once, then remembered.
+_ONCE = [
+    # Closed tickets were never counted as unread before. Their old replies
+    # must not start showing up as new after the read-receipt change.
+    ("support_seen_backfill_v1",
+     """UPDATE coop_support_tickets t SET buyer_seen_message_id = x.mid
+        FROM (SELECT ticket_id, MAX(id) AS mid FROM coop_support_messages GROUP BY ticket_id) x
+        WHERE x.ticket_id = t.id AND t.status = 'closed'
+          AND x.mid > COALESCE(t.buyer_seen_message_id, 0)"""),
 ]
 
 # The storefront has one forum: /forums opens the one with this key.
@@ -331,14 +437,30 @@ def _seed_request_texts(cur):
 def ensure_schema():
     try:
         with get_db() as cur:
+            # Gunicorn imports the app in every worker. Serialize schema DDL so
+            # concurrent CREATE TABLE/INDEX statements cannot race at startup.
+            cur.execute("SELECT pg_advisory_xact_lock(724916230461)")
             for sql in _TABLES:
                 cur.execute(sql)
             for table, column, definition in _COLUMNS:
                 cur.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {definition}")
             for sql in _INDEXES:
                 cur.execute(sql)
+            # A failed data fix must not roll back the tables created above.
             for sql in _REPAIRS:
+                cur.execute("SAVEPOINT repair")
+                try:
+                    cur.execute(sql)
+                    cur.execute("RELEASE SAVEPOINT repair")
+                except Exception as e:
+                    cur.execute("ROLLBACK TO SAVEPOINT repair")
+                    print(f"⚠️  Schema repair skipped: {e}")
+            for key, sql in _ONCE:
+                cur.execute("SELECT 1 FROM coop_settings WHERE key = %s", (key,))
+                if cur.fetchone():
+                    continue
                 cur.execute(sql)
+                cur.execute("INSERT INTO coop_settings (key, value) VALUES (%s, '1') ON CONFLICT (key) DO NOTHING", (key,))
             _fix_texts(cur)
             _seed_request_texts(cur)
             _seed_perfume_brands(cur)

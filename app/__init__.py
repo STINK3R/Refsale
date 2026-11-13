@@ -9,18 +9,17 @@ from io import BytesIO
 from flask import Flask, request, send_from_directory
 from flask_cors import CORS
 
-from .config import UPLOAD_DIR, FRONTEND_DIST, BASE_DIR
+from .config import UPLOAD_DIR, FRONTEND_DIST
 from .auth import admin_token_refresh, _verify_admin_token
 
 
 def _bootstrap_admin_password():
-    """Make sure a fresh install has an admin password nobody else knows.
+    """Initialize the first admin password without ever logging its value.
 
-    Historically db/init.sql seeded a plaintext default that is public in this
-    repository. Now the row is created on first boot: from ADMIN_PASSWORD when
-    provided, otherwise a random one printed once to the container log.
+    Existing installations keep their stored password. A clean database needs
+    an operator-provided ADMIN_PASSWORD; startup never generates a credential
+    that could be exposed through container logs.
     """
-    import secrets
     from .db import get_db
     from .utils import hash_password
     try:
@@ -29,18 +28,15 @@ def _bootstrap_admin_password():
             row = cur.fetchone()
             if row and (row.get("value") or "").strip():
                 return
-            plain = os.environ.get("ADMIN_PASSWORD", "").strip() or secrets.token_urlsafe(12)
+            plain = os.environ.get("ADMIN_PASSWORD", "").strip()
+            if len(plain) < 16:
+                print("⚠️  Admin password is not initialized: set ADMIN_PASSWORD (at least 16 characters) in .env.")
+                return
             cur.execute(
                 "INSERT INTO coop_settings (key, value) VALUES ('admin_password', %s) "
                 "ON CONFLICT (key) DO NOTHING",
                 (hash_password(plain),)
             )
-            created = cur.rowcount == 1
-        if created and not os.environ.get("ADMIN_PASSWORD"):
-            print("=" * 62)
-            print(f"🔑 Admin password generated: {plain}")
-            print("   Log in at /admin as 'admin' and change it. Shown once.")
-            print("=" * 62)
     except Exception as e:
         print(f"⚠️  Admin password bootstrap skipped: {e}")
 
@@ -111,7 +107,7 @@ def create_app():
 
     @app.route("/<path:spa_path>")
     def serve_spa(spa_path):
-        if spa_path.split("/", 1)[0] not in _SPA_ROOTS:
+        if spa_path.split("/", 1)[0] not in _SPA_ROOTS | {"admin.html"}:
             from flask import abort
             abort(404)
         return send_from_directory(FRONTEND_DIST, "index.html")
@@ -125,7 +121,7 @@ def create_app():
     @app.route("/admin")
     @app.route("/admin.html")
     def serve_admin():
-        return send_from_directory(BASE_DIR, "admin.html")
+        return send_from_directory(FRONTEND_DIST, "index.html")
 
     @app.route("/uploads/<path:filename>")
     def serve_upload(filename):
@@ -151,6 +147,7 @@ def create_app():
     from .routes.seo import bp as seo_bp
     from .routes.kokonkoop import bp as kokonkoop_bp
     from .routes.supplier import bp as supplier_bp
+    from .routes.partner_chat import bp as partner_chat_bp
     from .schema import ensure_schema
 
     app.register_blueprint(public_bp)
@@ -163,6 +160,7 @@ def create_app():
     app.register_blueprint(seo_bp)
     app.register_blueprint(kokonkoop_bp)
     app.register_blueprint(supplier_bp)
+    app.register_blueprint(partner_chat_bp)
 
     ensure_schema()
     _bootstrap_admin_password()

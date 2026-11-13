@@ -14,7 +14,6 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': api,
         '/uploads': api,
-        '/admin': api,
       },
     },
     build: {

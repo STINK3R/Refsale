@@ -11,7 +11,6 @@ RUN pip install --no-cache-dir -r requirements-backend.txt
 # Copy application code
 COPY server.py .
 COPY app/ ./app/
-COPY admin.html .
 
 RUN mkdir -p uploads
 

@@ -22,6 +22,22 @@ bp = Blueprint('order_chat', __name__)
 CLOSED_STATUSES = ('done', 'cancelled')
 
 
+def enriched_order_messages(cur, order_id: int):
+    """Messages with the sender's current, consented profile image."""
+    cur.execute(
+        """SELECT m.*, CASE WHEN m.sender_type = 'user' THEN COALESCE(buyer.avatar_url, '')
+                            WHEN m.sender_user_id IS NOT NULL THEN COALESCE(sender.avatar_url, '')
+                            ELSE '' END AS avatar_url
+           FROM coop_order_messages m
+           JOIN coop_orders o ON o.id = m.order_id
+           LEFT JOIN coop_users buyer ON buyer.id = o.user_id
+           LEFT JOIN coop_users sender ON sender.id = m.sender_user_id
+           WHERE m.order_id = %s ORDER BY m.created_at ASC, m.id ASC""",
+        (order_id,),
+    )
+    return _rows_to_list(cur.fetchall())
+
+
 # ── Buyer (public) ─────────────────────────────────────
 @bp.route("/api/orders/<int:order_id>/messages", methods=["GET"])
 def get_order_messages(order_id):
@@ -37,16 +53,14 @@ def get_order_messages(order_id):
                 return jsonify({"error": "Заказ не найден"}), 404
             if str(order["user_id"]) != str(user_id):
                 return jsonify({"error": "Нет доступа"}), 403
-            cur.execute(
-                "SELECT * FROM coop_order_messages WHERE order_id = %s ORDER BY created_at ASC",
-                (order_id,)
-            )
-            msgs = _rows_to_list(cur.fetchall())
+            msgs = enriched_order_messages(cur, order_id)
             # Mark the thread as seen by the buyer (drives the unread badge).
+            last_seen_id = max((int(m.get("id") or 0) for m in msgs), default=0)
             cur.execute(
-                "INSERT INTO coop_order_chat_seen (order_id, seen_at) VALUES (%s, NOW()) "
-                "ON CONFLICT (order_id) DO UPDATE SET seen_at = NOW()",
-                (order_id,)
+                "INSERT INTO coop_order_chat_seen (order_id, seen_at, seen_message_id) VALUES (%s, NOW(), %s) "
+                "ON CONFLICT (order_id) DO UPDATE SET seen_at = NOW(), "
+                "seen_message_id = GREATEST(COALESCE(coop_order_chat_seen.seen_message_id, 0), EXCLUDED.seen_message_id)",
+                (order_id, last_seen_id)
             )
             from .store import order_status_history
             history = order_status_history(cur, order_id)
@@ -78,12 +92,22 @@ def post_order_message(order_id):
                 return jsonify({"error": "Нет доступа"}), 403
             if order["status"] in CLOSED_STATUSES:
                 return jsonify({"error": "Заказ завершён — чат закрыт"}), 409
+            cur.execute("SELECT full_name FROM coop_users WHERE id = %s", (user_id,))
+            account = cur.fetchone() or {}
+            sender_name = sanitize_string(account.get("full_name") or "Покупатель", 255)
             cur.execute(
-                "INSERT INTO coop_order_messages (order_id, sender_type, sender_name, text, images) "
-                "VALUES (%s, 'user', %s, %s, %s) RETURNING *",
-                (order_id, sender_name, text, images)
+                "INSERT INTO coop_order_messages (order_id, sender_type, sender_name, text, images, sender_user_id) "
+                "VALUES (%s, 'user', %s, %s, %s, %s) RETURNING *",
+                (order_id, sender_name, text, images, user_id)
             )
             msg = _row_to_dict(cur.fetchone())
+            # A buyer who writes has read everything before their message.
+            cur.execute(
+                "INSERT INTO coop_order_chat_seen (order_id, seen_at, seen_message_id) VALUES (%s, NOW(), %s) "
+                "ON CONFLICT (order_id) DO UPDATE SET seen_at = NOW(), "
+                "seen_message_id = GREATEST(COALESCE(coop_order_chat_seen.seen_message_id, 0), EXCLUDED.seen_message_id)",
+                (order_id, msg["id"])
+            )
             from .supplier import suppliers_of_order
             cur.execute("SELECT items FROM coop_orders WHERE id = %s", (order_id,))
             suppliers = suppliers_of_order(cur, (cur.fetchone() or {}).get("items"))
@@ -110,25 +134,31 @@ def list_user_order_chats(user_id):
             cur.execute(
                 """
                 SELECT o.id AS order_id, o.status, o.total, o.items, o.created_at,
-                       (SELECT text FROM coop_order_messages m WHERE m.order_id = o.id
-                        ORDER BY m.id DESC LIMIT 1) AS last_text,
-                       (SELECT sender_type FROM coop_order_messages m WHERE m.order_id = o.id
-                        ORDER BY m.id DESC LIMIT 1) AS last_sender,
-                       (SELECT created_at FROM coop_order_messages m WHERE m.order_id = o.id
-                        ORDER BY m.id DESC LIMIT 1) AS last_at,
-                       (SELECT seen_at FROM coop_order_chat_seen s WHERE s.order_id = o.id) AS seen_at
+                       latest.text AS last_text, latest.sender_type AS last_sender,
+                       latest.created_at AS last_at, seen.seen_at,
+                       EXISTS (
+                           SELECT 1 FROM coop_order_messages unread_message
+                           WHERE unread_message.order_id = o.id
+                             AND unread_message.sender_type IN ('admin', 'leader', 'supplier')
+                             AND unread_message.id > COALESCE(seen.seen_message_id, 0)
+                       ) AS unread
                 FROM coop_orders o
+                LEFT JOIN LATERAL (
+                    SELECT m.id, m.text, m.sender_type, m.created_at
+                    FROM coop_order_messages m
+                    WHERE m.order_id = o.id
+                    ORDER BY m.id DESC
+                    LIMIT 1
+                ) latest ON TRUE
+                LEFT JOIN coop_order_chat_seen seen ON seen.order_id = o.id
                 WHERE o.user_id = %s
-                ORDER BY COALESCE((SELECT MAX(m.created_at) FROM coop_order_messages m WHERE m.order_id = o.id), o.created_at) DESC
+                ORDER BY COALESCE(latest.created_at, o.created_at) DESC
                 """,
                 (user_id,)
             )
             rows = _rows_to_list(cur.fetchall())
             for r in rows:
-                r["unread"] = (
-                    r.get("last_sender") in ("admin", "leader", "supplier")
-                    and (not r.get("seen_at") or (r.get("last_at") or "") > (r.get("seen_at") or ""))
-                )
+                r["unread"] = bool(r.get("unread"))
         return jsonify(rows or [])
     except Exception:
         return jsonify([])
@@ -149,10 +179,8 @@ def order_chats_unread_count(user_id):
                 AND EXISTS (
                     SELECT 1 FROM coop_order_messages m
                     WHERE m.order_id = o.id AND m.sender_type IN ('admin', 'leader', 'supplier')
-                    AND m.id = (SELECT MAX(m2.id) FROM coop_order_messages m2 WHERE m2.order_id = o.id)
-                    AND m.created_at > COALESCE(
-                        (SELECT seen_at FROM coop_order_chat_seen s WHERE s.order_id = o.id),
-                        'epoch'::timestamptz
+                    AND m.id > COALESCE(
+                        (SELECT seen_message_id FROM coop_order_chat_seen s WHERE s.order_id = o.id), 0
                     )
                 )
                 """,
@@ -187,7 +215,10 @@ def admin_list_order_chats():
             )
             rows = _rows_to_list(cur.fetchall())
             for r in rows:
-                r["needs_reply"] = (r.get("last_sender") == "user")
+                # The platform owes the next message after any buyer or
+                # supplier message. Opening the thread must not clear this
+                # queue; only a later platform reply does.
+                r["needs_reply"] = r.get("last_sender") in ("user", "supplier", "leader")
         return jsonify(rows or [])
     except Exception:
         return jsonify([])
@@ -199,11 +230,7 @@ def admin_get_order_messages(order_id):
         with get_db() as cur:
             cur.execute("SELECT status, full_name FROM coop_orders WHERE id = %s", (order_id,))
             order = cur.fetchone()
-            cur.execute(
-                "SELECT * FROM coop_order_messages WHERE order_id = %s ORDER BY created_at ASC",
-                (order_id,)
-            )
-            msgs = _rows_to_list(cur.fetchall())
+            msgs = enriched_order_messages(cur, order_id)
             from .store import order_status_history
             history = order_status_history(cur, order_id) if order else {}
         return jsonify({

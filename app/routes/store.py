@@ -18,6 +18,7 @@ in their buyers' chats and move their orders along (leader_can_write).
 """
 
 import json
+import secrets
 
 from flask import Blueprint, request, jsonify
 
@@ -54,20 +55,53 @@ def _promos_enabled(cur) -> bool:
     return not (row and (row.get("value") or "").strip() == "false")
 
 
-def load_promo(cur, code: str):
+def _first_purchase_config(cur) -> dict:
+    cur.execute(
+        "SELECT key, value FROM coop_settings WHERE key = ANY(%s)",
+        (["first_purchase_promo_enabled", "first_purchase_promo_amount", "first_purchase_promo_days"],),
+    )
+    settings = {r["key"]: r.get("value") for r in cur.fetchall()}
+    try:
+        amount = round(float(settings.get("first_purchase_promo_amount") or 0), 2)
+    except (TypeError, ValueError):
+        amount = 0
+    try:
+        days = int(settings.get("first_purchase_promo_days") or 30)
+    except (TypeError, ValueError):
+        days = 30
+    return {
+        "enabled": str(settings.get("first_purchase_promo_enabled") or "false").lower() == "true",
+        "discount_amount": max(0, min(amount, MAX_PRICE)),
+        "validity_days": max(1, min(days, 90)),
+    }
+
+
+def _coupon_public(coupon: dict) -> dict:
+    expires = coupon.get("expires_at")
+    return {
+        "eligible": True,
+        "code": coupon["code"],
+        "discount_amount": float(coupon.get("discount_amount") or 0),
+        "expires_at": expires.isoformat() if expires else None,
+    }
+
+
+def load_promo(cur, code: str, *, lock: bool = False):
     """(promo_row, None) for a usable referral code, else (None, reason)."""
     code = (code or "").strip().upper()
     if not code:
         return None, "Введите промокод"
     if not _promos_enabled(cur):
         return None, "Промокоды временно отключены"
-    cur.execute(
-        """SELECT p.*, (p.expires_at IS NOT NULL AND p.expires_at < NOW()) AS expired,
-                  u.full_name AS leader_name
-           FROM ref_promos p LEFT JOIN coop_users u ON u.id = p.leader_id
-           WHERE UPPER(p.code) = %s LIMIT 1""",
-        (code,)
-    )
+    sql = """SELECT p.*, (p.expires_at IS NOT NULL AND p.expires_at < NOW()) AS expired,
+                    u.full_name AS leader_name
+             FROM ref_promos p LEFT JOIN coop_users u ON u.id = p.leader_id
+             WHERE UPPER(p.code) = %s LIMIT 1"""
+    # During checkout, serialize redemptions against current_uses/max_uses.
+    # The lock is held until the order and usage counter commit together.
+    if lock:
+        sql += " FOR UPDATE OF p"
+    cur.execute(sql, (code,))
     row = cur.fetchone()
     if not row or not row.get("is_active"):
         return None, "Промокод не найден или отключён"
@@ -358,6 +392,120 @@ def store_validate_promo():
         return jsonify({"error": "Ошибка проверки промокода"}), 500
 
 
+@bp.route("/api/store/first-purchase-offer")
+def store_first_purchase_offer():
+    """Public: is a welcome gift on and how big, to invite guests to sign up."""
+    try:
+        with get_db() as cur:
+            config = _first_purchase_config(cur)
+        on = config["enabled"] and config["discount_amount"] > 0
+        return jsonify({"enabled": on, "discount_amount": config["discount_amount"] if on else 0})
+    except Exception as e:
+        print(f"[/api/store/first-purchase-offer] {e}")
+        return jsonify({"enabled": False, "discount_amount": 0})
+
+
+@bp.route("/api/store/first-purchase-coupon")
+def store_first_purchase_coupon():
+    """Issue one private, single-use coupon to a signed-in first-time buyer."""
+    if rate_limited(20, "first-purchase-coupon"):
+        return jsonify({"eligible": False}), 429
+    uid, err = require_auth()
+    if err:
+        return err
+    try:
+        with get_db() as cur:
+            config = _first_purchase_config(cur)
+            cur.execute("SELECT id FROM coop_users WHERE id = %s FOR UPDATE", (uid,))
+            if not cur.fetchone():
+                return jsonify({"eligible": False})
+            cur.execute("SELECT 1 FROM coop_orders WHERE user_id = %s LIMIT 1", (uid,))
+            if cur.fetchone():
+                return jsonify({"eligible": False})
+            cur.execute(
+                "SELECT *, expires_at <= NOW() AS expired FROM ref_first_purchase_coupons WHERE user_id = %s FOR UPDATE",
+                (uid,),
+            )
+            coupon = cur.fetchone()
+            if coupon:
+                if coupon.get("used_at") or coupon.get("expired"):
+                    return jsonify({"eligible": False})
+                return jsonify(_coupon_public(coupon))
+
+            # Turning off the offer stops new codes. A code already issued to
+            # this buyer remains valid until its own expiry (as the admin UI
+            # promises), even if the global setting changes meanwhile.
+            if not config["enabled"] or config["discount_amount"] <= 0:
+                return jsonify({"eligible": False})
+
+            for _ in range(4):
+                code = f"REFSALE-{secrets.token_hex(8).upper()}"
+                cur.execute(
+                    """INSERT INTO ref_first_purchase_coupons
+                           (user_id, code, discount_amount, expires_at)
+                       VALUES (%s, %s, %s, NOW() + (%s * INTERVAL '1 day'))
+                       ON CONFLICT DO NOTHING RETURNING *""",
+                    (uid, code, config["discount_amount"], config["validity_days"]),
+                )
+                coupon = cur.fetchone()
+                if coupon:
+                    return jsonify(_coupon_public(coupon))
+                cur.execute(
+                    "SELECT *, expires_at <= NOW() AS expired FROM ref_first_purchase_coupons WHERE user_id = %s FOR UPDATE",
+                    (uid,),
+                )
+                coupon = cur.fetchone()
+                if coupon:
+                    if coupon.get("used_at") or coupon.get("expired"):
+                        return jsonify({"eligible": False})
+                    return jsonify(_coupon_public(coupon))
+            return jsonify({"eligible": False})
+    except Exception as e:
+        print(f"[/api/store/first-purchase-coupon] {e}")
+        return jsonify({"error": "Не удалось проверить подарок"}), 500
+
+
+@bp.route("/api/admin/store/first-purchase-promo", methods=["GET", "PATCH"])
+def admin_first_purchase_promo():
+    if request.method == "GET":
+        try:
+            with get_db() as cur:
+                return jsonify(_first_purchase_config(cur))
+        except Exception as e:
+            print(f"[/api/admin/store/first-purchase-promo GET] {e}")
+            return jsonify({"error": "Ошибка загрузки настройки"}), 500
+
+    data = request.json or {}
+    enabled = data.get("enabled")
+    if not (isinstance(enabled, bool) or enabled in ("true", "false")):
+        return jsonify({"error": "Проверьте переключатель промокода"}), 400
+    try:
+        amount = round(float(data.get("discount_amount")), 2)
+        days = int(data.get("validity_days"))
+        if not 1 <= amount <= MAX_PRICE or not 1 <= days <= 90:
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({"error": "Скидка должна быть больше нуля, срок — от 1 до 90 дней"}), 400
+    values = {
+        "first_purchase_promo_enabled": "true" if enabled is True or enabled == "true" else "false",
+        "first_purchase_promo_amount": str(amount),
+        "first_purchase_promo_days": str(days),
+    }
+    try:
+        with get_db() as cur:
+            for key, value in values.items():
+                cur.execute(
+                    """INSERT INTO coop_settings (key, value) VALUES (%s, %s)
+                       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value""",
+                    (key, value),
+                )
+        return jsonify({"enabled": values["first_purchase_promo_enabled"] == "true",
+                        "discount_amount": amount, "validity_days": days})
+    except Exception as e:
+        print(f"[/api/admin/store/first-purchase-promo PATCH] {e}")
+        return jsonify({"error": "Не удалось сохранить настройку"}), 500
+
+
 @bp.route("/api/sitemap.xml")
 def sitemap_xml():
     """Served as /sitemap.xml (nginx): the main page, the catalog and each
@@ -535,11 +683,33 @@ def store_create_order():
         c = sanitize_string(c or "", 50).upper()
         if c and c not in codes:
             codes.append(c)
+    first_coupon_code = sanitize_string(d.get("first_purchase_coupon_code") or "", 50).upper()
     try:
         with get_db() as cur:
+            # Serialize order creation per account so a coupon cannot be used
+            # twice by two simultaneous checkout requests.
+            cur.execute("SELECT id FROM coop_users WHERE id = %s FOR UPDATE", (uid,))
+            if not cur.fetchone():
+                return jsonify({"error": "Аккаунт не найден"}), 401
+
+            first_coupon = None
+            if first_coupon_code:
+                cur.execute(
+                    """SELECT *, expires_at <= NOW() AS expired FROM ref_first_purchase_coupons
+                       WHERE user_id = %s AND code = %s FOR UPDATE""",
+                    (uid, first_coupon_code),
+                )
+                first_coupon = cur.fetchone()
+                cur.execute("SELECT 1 FROM coop_orders WHERE user_id = %s LIMIT 1", (uid,))
+                has_prior_order = bool(cur.fetchone())
+                if not first_coupon or first_coupon.get("used_at") or first_coupon.get("expired") or has_prior_order:
+                    return jsonify({"error": "Подарок первой покупки больше недоступен. Обновите корзину.", "first_purchase_coupon_invalid": True}), 400
+
             promos = []
-            for c in codes:
-                p, perr = load_promo(cur, c)
+            # Stable lock order avoids deadlocks when a cart redeems several
+            # category codes concurrently with another cart using the same set.
+            for c in sorted(codes):
+                p, perr = load_promo(cur, c, lock=True)
                 if perr:
                     return jsonify({"error": f"Промокод {c}: {perr[0].lower() + perr[1:]}. Уберите его или введите другой.",
                                    "promo_invalid": True, "promo_code": c}), 400
@@ -602,12 +772,22 @@ def store_create_order():
             # The order is credited to the code covering the most of it.
             used_promos = [pr for pr in promos if pr["id"] in covered]
             promo = max(used_promos, key=lambda pr: covered[pr["id"]]) if used_promos else None
+            first_coupon_discount = min(float(first_coupon.get("discount_amount") or 0), total) if first_coupon else 0.0
+            if first_coupon:
+                cur.execute(
+                    "UPDATE ref_first_purchase_coupons SET used_at = NOW() WHERE user_id = %s AND code = %s AND used_at IS NULL",
+                    (uid, first_coupon_code),
+                )
+                if cur.rowcount != 1:
+                    return jsonify({"error": "Подарок уже использован. Обновите корзину.", "first_purchase_coupon_invalid": True}), 409
+                total -= first_coupon_discount
+                discount += first_coupon_discount
             cur.execute(
                 """INSERT INTO coop_orders
                    (full_name, phone, address, comment, items, total, status, user_id,
                     promo_code, promo_codes, discount_amount, ref_promo_id, leader_id, leader_reward,
-                    contact_method, status_changed_at)
-                   VALUES (%s, %s, %s, %s, %s, %s, 'new', %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    contact_method, first_purchase_coupon_code, status_changed_at)
+                   VALUES (%s, %s, %s, %s, %s, %s, 'new', %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                    RETURNING *""",
                 (full_name, phone, address, comment, json.dumps(items, ensure_ascii=False),
                  round(total, 2), uid,
@@ -617,9 +797,14 @@ def store_create_order():
                  promo["id"] if promo else None,
                  promo.get("leader_id") if promo else None,
                  float(promo.get("reward_amount") or 0) if promo else 0,
-                 contact_method)
+                 contact_method, first_coupon_code or None)
             )
             order = _row_to_dict(cur.fetchone())
+            if first_coupon:
+                cur.execute(
+                    "UPDATE ref_first_purchase_coupons SET used_order_id = %s WHERE user_id = %s AND code = %s",
+                    (order["id"], uid, first_coupon_code),
+                )
             log_order_status(cur, order["id"], "new")
             for pr in used_promos:
                 cur.execute("UPDATE ref_promos SET current_uses = current_uses + 1 WHERE id = %s", (pr["id"],))
@@ -629,6 +814,7 @@ def store_create_order():
                 f"Здравствуйте! Заказ №{order['id']} получен. Менеджер ответит здесь: "
                 f"подтвердит наличие и сроки{ask}, затем пришлёт реквизиты для предоплаты. "
                 "После оплаты заказ будет подтверждён и вы увидите его статусы."
+                + (f" Промокод первой покупки {first_coupon_code} учтён: скидка {first_coupon_discount:.0f} ₽." if first_coupon else "")
             )
             # Remember the phone on the account only if no other account has it:
             # phones are unique, and a clash must not fail the whole order.
@@ -643,6 +829,26 @@ def store_create_order():
             buyer = cur.fetchone() or {}
             from .supplier import suppliers_of_order
             suppliers = suppliers_of_order(cur, items)
+            item_ids = list({int(item.get("id")) for item in items if str(item.get("id", "")).isdigit()})
+            cur.execute(
+                "SELECT EXISTS (SELECT 1 FROM coop_products WHERE id = ANY(%s) AND seller_id IS NULL) AS has_platform_items",
+                (item_ids,),
+            )
+            has_platform_items = bool((cur.fetchone() or {}).get("has_platform_items"))
+            supplier_count = len(suppliers)
+            mixed_order = supplier_count > 1 or (supplier_count == 1 and has_platform_items)
+            if mixed_order:
+                supplier_word = "поставщик" if supplier_count % 10 == 1 and supplier_count % 100 != 11 else "поставщика" if supplier_count % 10 in (2, 3, 4) and supplier_count % 100 not in (12, 13, 14) else "поставщиков"
+                _post_system_message(
+                    cur, order["id"],
+                    f"Добрый день! Заказ сборный: в чате участвуют {supplier_count} {supplier_word} "
+                    "и администратор площадки. Наличие, сроки и доставку по каждой части согласуем здесь."
+                )
+            for sid in suppliers:
+                cur.execute(
+                    "INSERT INTO ref_order_supplier_steps (order_id, supplier_id, state) VALUES (%s, %s, 'pending') ON CONFLICT DO NOTHING",
+                    (order["id"], sid),
+                )
 
         for sid in suppliers:
             notify_user(
@@ -798,8 +1004,8 @@ def leader_order_messages(oid):
             order = _leader_order(cur, leader["id"], oid)
             if not order:
                 return jsonify({"error": "Заказ не найден"}), 404
-            cur.execute("SELECT * FROM coop_order_messages WHERE order_id = %s ORDER BY created_at ASC", (oid,))
-            msgs = _mask_buyers(_rows_to_list(cur.fetchall()))
+            from .order_chat import enriched_order_messages
+            msgs = _mask_buyers(enriched_order_messages(cur, oid))
             history = order_status_history(cur, oid)
         return jsonify({"messages": msgs, "status": order["status"], "history": history,
                         "can_write": bool(leader.get("leader_can_write"))})
@@ -830,9 +1036,9 @@ def leader_post_order_message(oid):
             if order["status"] in ("done", "cancelled"):
                 return jsonify({"error": "Заказ завершён — чат закрыт"}), 409
             cur.execute(
-                "INSERT INTO coop_order_messages (order_id, sender_type, sender_name, text, images) "
-                "VALUES (%s, 'leader', %s, %s, %s) RETURNING *",
-                (oid, leader["full_name"], text, images)
+                "INSERT INTO coop_order_messages (order_id, sender_type, sender_name, text, images, sender_user_id) "
+                "VALUES (%s, 'leader', %s, %s, %s, %s) RETURNING *",
+                (oid, leader["full_name"], text, images, leader["id"])
             )
             msg = _row_to_dict(cur.fetchone())
             cur.execute("SELECT user_id FROM coop_orders WHERE id = %s", (oid,))
@@ -882,7 +1088,8 @@ def admin_store_orders():
                 SELECT o.*, u.email AS user_email, l.full_name AS leader_name,
                        (SELECT text FROM coop_order_messages m WHERE m.order_id = o.id ORDER BY m.id DESC LIMIT 1) AS last_text,
                        (SELECT sender_type FROM coop_order_messages m WHERE m.order_id = o.id ORDER BY m.id DESC LIMIT 1) AS last_sender,
-                       (SELECT created_at FROM coop_order_messages m WHERE m.order_id = o.id ORDER BY m.id DESC LIMIT 1) AS last_at
+                       (SELECT created_at FROM coop_order_messages m WHERE m.order_id = o.id ORDER BY m.id DESC LIMIT 1) AS last_at,
+                       (SELECT COUNT(*) FROM ref_order_supplier_steps ss WHERE ss.order_id = o.id AND ss.state <> 'approved') AS supplier_steps_pending
                 FROM coop_orders o
                 LEFT JOIN coop_users u ON u.id = o.user_id
                 LEFT JOIN coop_users l ON l.id = o.leader_id
@@ -895,11 +1102,62 @@ def admin_store_orders():
             cur.execute(sql, params)
             rows = _rows_to_list(cur.fetchall())
         for r in rows:
-            r["needs_reply"] = r.get("last_sender") == "user"
+            r["needs_reply"] = r.get("last_sender") in ("user", "supplier", "leader")
         return jsonify(rows)
     except Exception as e:
         print(f"[/api/admin/store/orders] {e}")
         return jsonify([])
+
+
+@bp.route("/api/admin/store/orders/unread-count")
+def admin_store_order_attention_count():
+    """Return the unread-reply count and the broader order queue count.
+
+    Buyer read receipts do not clear the platform's reply queue; only a newer
+    platform message does. New orders remain separately counted inside Orders.
+    """
+    try:
+        with get_db() as cur:
+            cur.execute("""
+                SELECT COUNT(*) FILTER (
+                           WHERE latest.sender_type IN ('user', 'supplier', 'leader')
+                       ) AS unread_count,
+                       COUNT(*) FILTER (
+                           WHERE o.status = 'new'
+                              OR latest.sender_type IN ('user', 'supplier', 'leader')
+                       ) AS pending_count
+                FROM coop_orders o
+                LEFT JOIN LATERAL (
+                    SELECT m.sender_type
+                    FROM coop_order_messages m
+                    WHERE m.order_id = o.id
+                    ORDER BY m.id DESC
+                    LIMIT 1
+                ) latest ON TRUE
+            """)
+            row = cur.fetchone() or {}
+        return jsonify({
+            "unread_count": int(row.get("unread_count") or 0),
+            "pending_count": int(row.get("pending_count") or 0),
+        })
+    except Exception as e:
+        print(f"[/api/admin/store/orders/unread-count] {e}")
+        return jsonify({"unread_count": 0, "pending_count": 0})
+
+
+@bp.route("/api/admin/store/orders/<int:oid>/supplier-steps")
+def admin_store_supplier_steps(oid):
+    """Every supplier's part and delivery estimate for one combined order."""
+    with get_db() as cur:
+        cur.execute("""
+            SELECT s.supplier_id, u.full_name AS supplier_name, u.avatar_url,
+                   s.state, s.delivery_eta, s.delivery_note, s.updated_at
+            FROM ref_order_supplier_steps s
+            JOIN coop_users u ON u.id = s.supplier_id
+            WHERE s.order_id = %s ORDER BY u.full_name, s.supplier_id
+        """, (oid,))
+        rows = _rows_to_list(cur.fetchall())
+    return jsonify(rows)
 
 
 @bp.route("/api/admin/store/orders/<int:oid>/confirm", methods=["POST"])
@@ -913,6 +1171,13 @@ def admin_store_confirm(oid):
                 return jsonify({"error": "Заказ не найден"}), 404
             if o["status"] != "new":
                 return jsonify({"error": "Заказ уже подтверждён или закрыт"}), 409
+            cur.execute(
+                "SELECT COUNT(*) AS waiting FROM ref_order_supplier_steps WHERE order_id = %s AND state <> 'approved'",
+                (oid,),
+            )
+            waiting = int((cur.fetchone() or {}).get("waiting") or 0)
+            if waiting:
+                return jsonify({"error": f"Пока не подтвердили наличие и сроки ещё {waiting} поставщиков"}), 409
             updated, err = apply_order_status(cur, oid, "accepted")
             if err:
                 return jsonify({"error": err}), 400
@@ -927,6 +1192,19 @@ def admin_store_set_status(oid):
     status = (request.json or {}).get("status") or ""
     try:
         with get_db() as cur:
+            if status not in ("new", "cancelled"):
+                cur.execute("SELECT status FROM coop_orders WHERE id = %s", (oid,))
+                current = cur.fetchone()
+                if not current:
+                    return jsonify({"error": "Заказ не найден"}), 404
+                if current["status"] == "new":
+                    cur.execute(
+                        "SELECT COUNT(*) AS waiting FROM ref_order_supplier_steps WHERE order_id = %s AND state <> 'approved'",
+                        (oid,),
+                    )
+                    waiting = int((cur.fetchone() or {}).get("waiting") or 0)
+                    if waiting:
+                        return jsonify({"error": f"Нельзя сменить статус: ждём подтверждения ещё от {waiting} поставщиков"}), 409
             updated, err = apply_order_status(cur, oid, status)
             if err:
                 return jsonify({"error": err}), 400

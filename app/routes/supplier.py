@@ -9,6 +9,7 @@ lines and the buyer's first name with the initial of the surname — like a
 leader — and writes in the order chat as «Поставщик».
 """
 import json
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, jsonify, request
 
@@ -126,8 +127,9 @@ def _with_images(cur, rows: list) -> list:
 _ORDERS_OF = """
     SELECT o.* FROM coop_orders o
     WHERE EXISTS (
-        SELECT 1 FROM jsonb_array_elements(COALESCE(o.items::jsonb, '[]'::jsonb)) it
-        JOIN coop_products p ON p.id = (it->>'id')::int
+        SELECT 1 FROM jsonb_array_elements(
+            CASE WHEN jsonb_typeof(o.items::jsonb) = 'array' THEN o.items::jsonb ELSE '[]'::jsonb END) it
+        JOIN coop_products p ON p.id = CASE WHEN (it->>'id') ~ '^[0-9]{1,9}$' THEN (it->>'id')::int END
         WHERE p.seller_id = %s
     )
 """
@@ -298,20 +300,35 @@ def supplier_orders():
     sup, err = _require_supplier()
     if err:
         return err
+    # Three queries in all, whatever the number of orders (it is polled):
+    # the orders with their latest message and this supplier's confirmation,
+    # and the ids of this supplier's products to pick their own lines.
     with get_db() as cur:
-        cur.execute(_ORDERS_OF + " ORDER BY o.created_at DESC", (sup["id"],))
+        cur.execute(
+            "SELECT o.*, latest.text AS last_text, latest.created_at AS last_at, "
+            "       st.state AS st_state, st.delivery_eta AS st_eta, st.delivery_note AS st_note "
+            "FROM (" + _ORDERS_OF + ") o "
+            "LEFT JOIN LATERAL (SELECT text, created_at FROM coop_order_messages m "
+            "                   WHERE m.order_id = o.id ORDER BY m.id DESC LIMIT 1) latest ON TRUE "
+            "LEFT JOIN ref_order_supplier_steps st ON st.order_id = o.id AND st.supplier_id = %s "
+            "ORDER BY o.created_at DESC",
+            (sup["id"], sup["id"]),
+        )
         orders = _rows_to_list(cur.fetchall())
-        out = []
-        for o in orders:
-            lines = _own_lines(cur, sup["id"], o["items"])
-            cur.execute("SELECT text, created_at FROM coop_order_messages WHERE order_id = %s ORDER BY id DESC LIMIT 1", (o["id"],))
-            last = _row_to_dict(cur.fetchone()) or {}
-            out.append({
-                "id": o["id"], "status": o["status"], "created_at": o["created_at"],
-                "buyer": _masked(o.get("full_name") or ""),
-                "items": lines, "total": _lines_total(lines),
-                "last_text": last.get("text"), "last_at": last.get("created_at"),
-            })
+        cur.execute("SELECT id FROM coop_products WHERE seller_id = %s", (sup["id"],))
+        mine = {r["id"] for r in cur.fetchall()}
+    out = []
+    for o in orders:
+        lines = [i for i in _items(o["items"]) if str(i.get("id", "")).isdigit() and int(i["id"]) in mine]
+        confirmation = ({"state": o["st_state"], "delivery_eta": o["st_eta"], "delivery_note": o["st_note"]}
+                        if o.get("st_state") else {})
+        out.append({
+            "id": o["id"], "status": o["status"], "created_at": o["created_at"],
+            "buyer": _masked(o.get("full_name") or ""),
+            "items": lines, "total": _lines_total(lines),
+            "last_text": o.get("last_text"), "last_at": o.get("last_at"),
+            "supplier_confirmation": confirmation,
+        })
     return jsonify(out)
 
 
@@ -330,11 +347,80 @@ def supplier_order_messages(oid):
         order = _supplier_order(cur, sup["id"], oid)
         if not order:
             return jsonify({"error": "Заказ не найден"}), 404
-        cur.execute("SELECT * FROM coop_order_messages WHERE order_id = %s ORDER BY created_at ASC", (oid,))
-        msgs = _mask_buyers(_rows_to_list(cur.fetchall()))
+        from .order_chat import enriched_order_messages
+        msgs = _mask_buyers(enriched_order_messages(cur, oid))
         history = order_status_history(cur, oid)
         lines = _own_lines(cur, sup["id"], order["items"])
-    return jsonify({"messages": msgs, "status": order["status"], "history": history, "items": lines, "can_write": True})
+        cur.execute(
+            "SELECT state, delivery_eta, delivery_note, updated_at FROM ref_order_supplier_steps WHERE order_id = %s AND supplier_id = %s",
+            (oid, sup["id"]),
+        )
+        confirmation = _row_to_dict(cur.fetchone()) or {}
+    return jsonify({"messages": msgs, "status": order["status"], "history": history, "items": lines,
+                    "supplier_confirmation": confirmation, "can_write": True})
+
+
+@bp.route("/api/supplier/orders/<int:oid>/confirmation", methods=["POST"])
+def supplier_confirm_order_part(oid):
+    """Confirm this supplier's inventory and delivery estimate, not the order."""
+    if rate_limited():
+        return jsonify({"error": "Слишком много запросов. Попробуйте позже."}), 429
+    sup, err = _require_supplier()
+    if err:
+        return err
+    d = request.json or {}
+    decision = d.get("decision")
+    if decision not in ("approve", "unavailable"):
+        return jsonify({"error": "Укажите решение по наличию товара"}), 400
+    note = sanitize_string(d.get("delivery_note") or "", 500).strip()
+    eta_raw = str(d.get("delivery_eta") or "").strip()
+    eta = None
+    # The cabinet sends the time with its offset. A bare "2026-11-20T15:00"
+    # is read as Moscow time, the site's own, not as UTC.
+    msk = timezone(timedelta(hours=3))
+    if eta_raw:
+        try:
+            eta = datetime.fromisoformat(eta_raw.replace("Z", "+00:00"))
+        except ValueError:
+            return jsonify({"error": "Проверьте дату доставки"}), 400
+        if eta.tzinfo is None:
+            eta = eta.replace(tzinfo=msk)
+    state = "approved" if decision == "approve" else "unavailable"
+    with get_db() as cur:
+        order = _supplier_order(cur, sup["id"], oid)
+        if not order:
+            return jsonify({"error": "Заказ не найден"}), 404
+        if order["status"] != "new":
+            return jsonify({"error": "Подтверждение доступно, пока заказ ожидает согласования"}), 409
+        cur.execute(
+            """INSERT INTO ref_order_supplier_steps
+                   (order_id, supplier_id, state, delivery_eta, delivery_note, updated_at)
+               VALUES (%s, %s, %s, %s, %s, NOW())
+               ON CONFLICT (order_id, supplier_id) DO UPDATE SET
+                   state = EXCLUDED.state, delivery_eta = EXCLUDED.delivery_eta,
+                   delivery_note = EXCLUDED.delivery_note, updated_at = NOW()
+               RETURNING state, delivery_eta, delivery_note, updated_at""",
+            (oid, sup["id"], state, eta, note),
+        )
+        confirmation = _row_to_dict(cur.fetchone())
+        text = ("Подтверждаю наличие своих товаров." if state == "approved"
+                else "Не могу подтвердить наличие своих товаров — площадка уточнит замену или отмену.")
+        if eta:
+            text += f" Ориентировочная доставка: {eta.astimezone(msk).strftime('%d.%m.%Y %H:%M')} (МСК)."
+        if note:
+            text += f" {note}"
+        cur.execute(
+            "INSERT INTO coop_order_messages (order_id, sender_type, sender_name, text, images, sender_user_id) "
+            "VALUES (%s, 'supplier', %s, %s, '[]', %s) RETURNING *",
+            (oid, sup["full_name"], text, sup["id"]),
+        )
+        msg = _row_to_dict(cur.fetchone())
+    notify_user(
+        order.get("user_id"), key=f"order:{oid}",
+        title=f"Поставщик обновил заказ №{oid}", body=snippet(text, "[]"),
+        url=f"/orders?order={oid}", email_subject=f"Обновление по заказу №{oid}",
+    )
+    return jsonify({"confirmation": confirmation, "message": msg})
 
 
 @bp.route("/api/supplier/orders/<int:oid>/messages", methods=["POST"])
@@ -356,9 +442,9 @@ def supplier_post_message(oid):
         if order["status"] in ("done", "cancelled"):
             return jsonify({"error": "Заказ завершён — чат закрыт"}), 409
         cur.execute(
-            "INSERT INTO coop_order_messages (order_id, sender_type, sender_name, text, images) "
-            "VALUES (%s, 'supplier', %s, %s, %s) RETURNING *",
-            (oid, sup["full_name"], text, images),
+            "INSERT INTO coop_order_messages (order_id, sender_type, sender_name, text, images, sender_user_id) "
+            "VALUES (%s, 'supplier', %s, %s, %s, %s) RETURNING *",
+            (oid, sup["full_name"], text, images, sup["id"]),
         )
         msg = _row_to_dict(cur.fetchone())
     notify_user(

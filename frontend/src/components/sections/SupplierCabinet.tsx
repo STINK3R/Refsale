@@ -12,13 +12,15 @@ import { useAppStore, useAuthStore, useNotificationStore } from '../../store';
 import { useSupportStore } from '../../store/support';
 import {
   fetchSupplierOverview, fetchSupplierProducts, saveSupplierProduct, deleteSupplierProduct,
-  fetchSupplierOrders, fetchSupplierOrderMessages, sendSupplierOrderMessage,
+  fetchSupplierOrders, fetchSupplierOrderMessages, sendSupplierOrderMessage, fetchPartnerConversations,
+  confirmSupplierOrderPart,
 } from '../../api/client';
-import type { SupplierOverview, SupplierProduct, SupplierProductForm, SupplierOrder, Moderation } from '../../api/client';
+import type { SupplierOverview, SupplierProduct, SupplierProductForm, SupplierOrder, SupplierOrderConfirmation, Moderation } from '../../api/client';
 import type { OrderChatMessage } from '../../types';
 import { formatPrice, formatDate } from '../../utils/format';
 import { Bubble, ItemsList, STATUS_LABEL, StatusTrack, statusStripe, statusTone } from './OrdersPage';
 import { Drawer, LeaderComposer, Stat } from './LeaderCabinet';
+import PartnerChatPanel from './PartnerChatPanel';
 
 const plate = 'bg-card border-2 border-ink rounded-[22px] max-sm:rounded-[18px] shadow-[0_4px_0_#111]';
 
@@ -42,7 +44,8 @@ export default function SupplierCabinet() {
   const [error, setError] = useState('');
   const [products, setProducts] = useState<SupplierProduct[]>([]);
   const [orders, setOrders] = useState<SupplierOrder[]>([]);
-  const [tab, setTab] = useState<'products' | 'orders'>(params.get('order') ? 'orders' : 'products');
+  const [tab, setTab] = useState<'products' | 'orders' | 'partners'>(() => params.get('partner_chat') ? 'partners' : params.get('order') ? 'orders' : 'products');
+  const [partnerUnread, setPartnerUnread] = useState(0);
   const [editing, setEditing] = useState<SupplierProduct | 'new' | null>(null);
   // A notification's link (/supplier?order=12) opens that order
   const [openId, setOpenId] = useState<number | null>(() => Number(params.get('order')) || null);
@@ -66,6 +69,15 @@ export default function SupplierCabinet() {
     const t = setInterval(load, 30000);
     return () => clearInterval(t);
   }, [user, load]);
+
+  useEffect(() => {
+    if (!user) return;
+    const check = () => void fetchPartnerConversations().then((items) => setPartnerUnread(items.filter((x) => x.unread).length));
+    check();
+    const t = setInterval(check, 20000);
+    window.addEventListener('refsale:partner-chat-read', check);
+    return () => { clearInterval(t); window.removeEventListener('refsale:partner-chat-read', check); };
+  }, [user]);
 
   if (!user) {
     return (
@@ -119,18 +131,18 @@ export default function SupplierCabinet() {
         </div>
 
         <div className="mt-8 flex gap-2 flex-wrap" role="tablist" aria-label="Раздел кабинета">
-          {([['products', `Товары ${products.length}`], ['orders', `Заказы ${orders.length}`]] as const).map(([id, label]) => (
+          {([['products', `Товары ${products.length}`], ['orders', `Заказы ${orders.length}`], ['partners', 'Участники']] as const).map(([id, label]) => (
             <button
               key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
               className={`h-11 px-5 rounded-[14px] border-2 border-ink font-display text-[20px] cursor-pointer transition-colors ${tab === id ? 'bg-ink text-sun' : 'bg-card text-ink hover:bg-sun'}`}
-            >{label}</button>
+            >{label}{id === 'partners' && partnerUnread > 0 && <span className="ml-2 inline-grid min-w-5 h-5 px-1 place-items-center rounded-full bg-danger text-white text-[11px] font-bold">{partnerUnread}</span>}</button>
           ))}
         </div>
 
         <div className="mt-5">
-          {tab === 'products'
-            ? <ProductsList products={products} onEdit={setEditing} onChanged={load} />
-            : <OrdersList orders={orders} onOpen={(o) => setOpenId(o.id)} />}
+          {tab === 'products' ? <ProductsList products={products} onEdit={setEditing} onChanged={load} />
+            : tab === 'orders' ? <OrdersList orders={orders} onOpen={(o) => setOpenId(o.id)} />
+              : <PartnerChatPanel embedded />}
         </div>
 
         <AnimatePresence>
@@ -240,7 +252,7 @@ function OrdersList({ orders, onOpen }: { orders: SupplierOrder[]; onOpen: (o: S
           <span className="text-muted">{formatDate(o.created_at)}</span>
           <span className="text-ink font-semibold tabular-nums">{formatPrice(o.total)}</span>
           <span className="text-muted truncate max-md:col-span-2">{o.last_text || '—'}</span>
-          <span><span className={`text-[11px] font-bold uppercase tracking-[0.06em] px-2.5 py-1 border ${statusTone(o.status)}`}>{STATUS_LABEL[o.status]}</span></span>
+          <span className="flex flex-col items-start gap-1"><span className={`text-[11px] font-bold uppercase tracking-[0.06em] px-2.5 py-1 border ${statusTone(o.status)}`}>{STATUS_LABEL[o.status]}</span>{o.status === 'new' && o.supplier_confirmation?.state === 'pending' && <span className="text-[10px] font-bold text-[#8A5A00]">Подтвердите наличие</span>}</span>
         </button>
       ))}
     </div>
@@ -366,11 +378,26 @@ function OrderDrawer({ order, onClose }: { order: SupplierOrder; onClose: () => 
   const [text, setText] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
+  const [confirmation, setConfirmation] = useState<SupplierOrderConfirmation>(order.supplier_confirmation || { state: 'pending' });
+  const [deliveryEta, setDeliveryEta] = useState(() => {
+    const date = order.supplier_confirmation?.delivery_eta ? new Date(order.supplier_confirmation.delivery_eta) : null;
+    return date && !Number.isNaN(date.getTime()) ? new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
+  });
+  const [deliveryNote, setDeliveryNote] = useState(order.supplier_confirmation?.delivery_note || '');
+  const [confirming, setConfirming] = useState(false);
 
   const load = useCallback(() => fetchSupplierOrderMessages(order.id).then((res) => {
     setMessages(res.messages);
     if (res.status) setStatus(res.status);
     if (res.history) setHistory(res.history);
+    if (res.supplier_confirmation) {
+      setConfirmation(res.supplier_confirmation);
+      setDeliveryNote(res.supplier_confirmation.delivery_note || '');
+      if (res.supplier_confirmation.delivery_eta) {
+        const date = new Date(res.supplier_confirmation.delivery_eta);
+        if (!Number.isNaN(date.getTime())) setDeliveryEta(new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+      }
+    }
     setLoading(false);
   }), [order.id]);
 
@@ -390,6 +417,18 @@ function OrderDrawer({ order, onClose }: { order: SupplierOrder; onClose: () => 
       setImages([]);
     } catch (e) { show((e as Error).message, 'error'); }
     setSending(false);
+  };
+
+  const submitConfirmation = async (decision: 'approve' | 'unavailable') => {
+    setConfirming(true);
+    const result = await confirmSupplierOrderPart(order.id, {
+      decision, delivery_eta: deliveryEta ? new Date(deliveryEta).toISOString() : undefined, delivery_note: deliveryNote.trim(),
+    });
+    setConfirming(false);
+    if (result.error) { show(result.error, 'error'); return; }
+    if (result.confirmation) setConfirmation(result.confirmation);
+    if (result.message) setMessages((all) => [...all, result.message!]);
+    show(decision === 'approve' ? 'Наличие и сроки переданы площадке' : 'Отказ отправлен площадке');
   };
 
   const closed = status === 'done' || status === 'cancelled';
@@ -412,6 +451,26 @@ function OrderDrawer({ order, onClose }: { order: SupplierOrder; onClose: () => 
           <span className={`text-[11px] font-bold uppercase tracking-[0.06em] px-2.5 py-1 border ${statusTone(status)}`}>{STATUS_LABEL[status]}</span>
           <span className="ml-auto text-[11.5px] text-muted text-right leading-snug max-w-[240px]">Статусы ведёт площадка, вы отвечаете покупателю о товаре</span>
         </div>
+        {status === 'new' && (
+          <div className={`rounded-2xl border p-4 ${confirmation.state === 'approved' ? 'border-emerald-200 bg-emerald-50' : confirmation.state === 'unavailable' ? 'border-red-200 bg-red-50' : 'border-[#E8D9B3] bg-[#FFF9E9]'}`}>
+            <div className="font-bold text-[13px] text-ink">Подтверждение вашей части заказа</div>
+            {confirmation.state === 'approved' ? (
+              <div className="mt-1 text-[12px] leading-relaxed text-emerald-800">Наличие подтверждено. Площадка соберёт ответы всех участников и затем подтвердит общий заказ.{confirmation.delivery_eta ? ` Доставка ориентировочно ${formatDate(confirmation.delivery_eta)}.` : ''}{confirmation.delivery_note ? ` ${confirmation.delivery_note}` : ''}</div>
+            ) : (
+              <>
+                <p className="mt-1 text-[12px] leading-relaxed text-muted">Общий статус останется «Ожидает подтверждения», пока все поставщики не ответят и площадка не согласует заказ.</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <label className="text-[11px] font-bold text-ink">Ориентировочная доставка<input type="datetime-local" value={deliveryEta} onChange={(e) => setDeliveryEta(e.target.value)} className="field mt-1 !h-10 !text-[12px]" /></label>
+                  <label className="text-[11px] font-bold text-ink">Уточнение для площадки<textarea value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} rows={2} maxLength={500} placeholder="Например, манго будет готово к отправке в пятницу" className="field mt-1 !min-h-[40px] !py-2 !text-[12px]" /></label>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button disabled={confirming} onClick={() => void submitConfirmation('approve')} className="btn-primary h-10 px-4 text-[12px]">{confirming ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Подтвердить наличие</button>
+                  <button disabled={confirming} onClick={() => void submitConfirmation('unavailable')} className="btn-outline h-10 px-4 text-[12px] text-danger">Не могу подтвердить</button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
         {/* Before confirmation the track speaks to the buyer («оплатите заказ») */}
         {status === 'new'
           ? <p className="text-[12.5px] text-muted leading-snug">Менеджер подтверждает заказ с покупателем: наличие, сроки, оплата. На вопросы о товаре можете ответить сами — здесь, в чате.</p>

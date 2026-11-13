@@ -44,7 +44,6 @@ export default function Header() {
   const promoCode = usePromoStore((s) => s.code);
   const promoMore = usePromoStore((s) => s.codes.length - 1);
   const openSupport = useSupportStore((s) => s.open);
-  const supportOpen = useSupportStore((s) => s.isOpen);
   const show = useNotificationStore((s) => s.show);
   const contacts = useContacts();
   const favCount = useFavoritesStore((s) => s.ids.length);
@@ -87,18 +86,23 @@ export default function Header() {
     const check = () => { fetchOrderChatsUnread(user.id).then(setOrderUnread).catch(() => {}); };
     check();
     const t = setInterval(check, 20000);
-    return () => clearInterval(t);
+    window.addEventListener('refsale:order-chat-read', check);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener('refsale:order-chat-read', check);
+    };
   }, [user]);
 
   // The platform's replies: there is no floating chat button any more (as on
   // marketplaces, the chat lives in the menu), so the menu carries the count
   useEffect(() => {
-    if (!user?.id || supportOpen) { setSupportUnread(0); return; }
+    if (!user?.id) { setSupportUnread(0); return; }
     const check = () => { fetchSupportUnreadCount(user.id).then(setSupportUnread).catch(() => {}); };
     check();
     const t = setInterval(check, 15000);
-    return () => clearInterval(t);
-  }, [user, supportOpen]);
+    window.addEventListener('refsale:support-read', check);
+    return () => { clearInterval(t); window.removeEventListener('refsale:support-read', check); };
+  }, [user]);
 
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 

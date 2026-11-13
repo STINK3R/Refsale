@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, useCallback, memo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { m, AnimatePresence } from 'framer-motion';
-import { Search, X, ChevronLeft, ChevronRight, MessageCircle, Plus, Minus, Trash2, Check, Maximize2, Heart } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, MessageCircle, Plus, Minus, Trash2, Check, Maximize2, Heart, Gift } from 'lucide-react';
 import {
-  useAppStore, useCartStore, useNotificationStore, usePromoStore, useFavoritesStore, useActiveCategory,
+  useAppStore, useCartStore, useNotificationStore, usePromoStore, useFavoritesStore, useActiveCategory, useAuthStore,
   priceFor, promoKey, cartKey, codesForCategory,
 } from '../../store';
 import { formatPrice } from '../../utils/format';
@@ -30,9 +30,12 @@ const BADGES: Record<string, string> = {
 
 export default function StoreCatalog() {
   const { products, subcategories, loading } = useAppStore();
+  const user = useAuthStore((s) => s.user);
   const category = useActiveCategory();
   const prices = usePromoStore((s) => s.prices);
   const promoCodes = usePromoStore((s) => s.codes);
+  const firstPurchaseCoupon = usePromoStore((s) => s.firstPurchaseCoupon);
+  const welcomeOffer = usePromoStore((s) => s.firstPurchaseOffer);
   const [subcategory, setSubcategory] = useState<number | null>(null);
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -41,6 +44,7 @@ export default function StoreCatalog() {
   const [selected, setSelected] = useState<Product | null>(null);
   const [variantFor, setVariantFor] = useState<Product | null>(null);
   const categoryId = category?.id ?? null;
+  const welcomeCoupon = firstPurchaseCoupon?.userId === user?.id ? firstPurchaseCoupon : null;
 
   // From the main page: ?product=12 opens that product in its category. The
   // window opens as the page renders; the effect then puts its category in
@@ -162,6 +166,38 @@ export default function StoreCatalog() {
             />
           </label>
         </div>
+
+        {welcomeCoupon && (
+          <m.div
+            initial={{ opacity: 0, y: 12, scale: 0.99 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.4, ease: EASE }}
+            className="mb-5 flex items-center gap-4 rounded-[22px] border-2 border-ink bg-accent-strong p-4 shadow-[0_4px_0_#111] max-sm:items-start max-sm:gap-3 max-sm:rounded-[18px] max-sm:p-3.5"
+          >
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[15px] border-2 border-ink bg-card text-primary max-sm:h-10 max-sm:w-10"><Gift size={22} strokeWidth={2.3} /></span>
+            <div className="min-w-0 flex-1">
+              <div className="font-display text-[20px] leading-tight text-ink max-sm:text-[17px]">Подарок к первой покупке</div>
+              <p className="mt-1 text-[13px] font-semibold leading-snug text-ink/75 max-sm:text-[12px]">Промокод <span className="font-extrabold tracking-[0.06em]">{welcomeCoupon.code}</span> закреплён за вами и применится автоматически{welcomeCoupon.expiresAt ? ` · действует до ${new Date(welcomeCoupon.expiresAt).toLocaleDateString('ru-RU')}` : ''}.</p>
+            </div>
+            <span className="shrink-0 rounded-full border-2 border-ink bg-card px-3.5 py-2 text-[14px] font-extrabold text-primary max-sm:px-2.5 max-sm:py-1.5 max-sm:text-[12px]">−{formatPrice(welcomeCoupon.discountAmount)}</span>
+          </m.div>
+        )}
+
+        {!user && welcomeOffer > 0 && (
+          <m.button
+            type="button"
+            onClick={() => useAuthStore.getState().openAuth('register', `Создайте аккаунт — и −${formatPrice(welcomeOffer)} на первую покупку применятся сами.`)}
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: EASE }}
+            className="mb-5 flex w-full items-center gap-4 rounded-[22px] border-2 border-ink bg-accent-strong p-4 text-left shadow-[0_4px_0_#111] max-sm:gap-3 max-sm:rounded-[18px] max-sm:p-3.5"
+          >
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[15px] border-2 border-ink bg-card text-primary max-sm:h-10 max-sm:w-10"><Gift size={22} strokeWidth={2.3} /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-[20px] leading-tight text-ink max-sm:text-[17px]">Дарим −{formatPrice(welcomeOffer)} на первую покупку</span>
+              <span className="mt-1 block text-[13px] font-semibold leading-snug text-ink/75 max-sm:text-[12px]">Зарегистрируйтесь — промокод выдадим сразу, он применится сам.</span>
+            </span>
+            <span className="shrink-0 rounded-full border-2 border-ink bg-card px-3.5 py-2 text-[13px] font-extrabold text-ink max-sm:hidden">Получить</span>
+          </m.button>
+        )}
 
         {category && <FindPlate text={requestText} onAsk={() => askToFind(category.name)} className="mt-2 mb-2" />}
 

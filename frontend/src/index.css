@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+.admin-top-btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:36px; padding:0 12px; border:2px solid rgba(17,17,17,.72); border-radius:12px; background:rgba(255,255,255,.58); color:#111; font:700 11px 'Golos Text',sans-serif; text-decoration:none; cursor:pointer; white-space:nowrap; }
+.admin-top-btn:hover { background:#fff; }
+.admin-tab { display:inline-flex; align-items:center; gap:8px; min-height:34px; padding:0 14px; border:1.5px solid rgba(17,17,17,.16); border-radius:999px; background:rgba(255,255,255,.64); color:#28251d; font:700 11px 'Golos Text',sans-serif; cursor:pointer; white-space:nowrap; }
+.admin-tab:hover { border-color:#111; }
+.admin-tab-active { background:#111; color:#FFD60A; border-color:#111; }
+
 /* RefSale design system — a bright landing, not a quiet shop.
    Warm white page, sunny yellow for buttons and plates (the "Скидка по коду"
    logo), black type, and a hot pink kept for discounts and the promo code.

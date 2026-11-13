@@ -217,7 +217,7 @@
         <div class="section-group-title">RefSale</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:520px;margin:0 auto">
             <button onclick="enterSection('store')" class="section-card" style="position:relative;grid-column:1/-1;border-color:#D9B866;background:linear-gradient(135deg,#FFFDF7,#F7EED8)">
-                <span class="section-badge" id="storeSectionBadge" style="display:none;position:absolute;top:10px;right:10px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#e74c3c;color:white;font-size:11px;font-weight:700;line-height:20px;text-align:center">0</span>
+                <span class="section-badge" id="storeSectionBadge" title="Новые заказы и сообщения без ответа" style="display:none;position:absolute;top:10px;right:10px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#e74c3c;color:white;font-size:11px;font-weight:700;line-height:20px;text-align:center">0</span>
                 <div class="section-icon" style="background:rgba(169,133,58,.14);color:#8A6A2F"><i class="fas fa-gem"></i></div>
                 <div class="section-title">Магазин RefSale</div>
                 <div class="section-desc">Заказы и чаты, «Подтверждено», промокоды лидеров, лидеры мнений, цены, контакты</div>
@@ -246,7 +246,7 @@
             <a href="/kokonkoop/admin" target="_blank" rel="noopener" class="section-card" style="text-decoration:none;border-color:#9DC3F0;background:linear-gradient(135deg,#F7FBFF,#E6F1FF)">
                 <div class="section-icon" style="background:rgba(107,165,215,.18);color:#27436B"><i class="fas fa-people-roof"></i></div>
                 <div class="section-title">Админка кооператива</div>
-                <div class="section-desc">Участники и заявки, товары, заказы, VIP, форумы, покер — отдельный вход администратора кооператива</div>
+                <div class="section-desc">Участники и заявки, товары, заказы, VIP, форумы и покер. Вход подтверждается вашей текущей сессией RefSale</div>
             </a>
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;background:white;border:1.5px solid #E5E7EB;border-radius:14px;text-align:left">
                 <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:#1A1A2E;cursor:pointer">
@@ -294,7 +294,7 @@
 <div class="alert" id="adminAlert"></div>
 <!-- STORE section tabs -->
 <div class="tabs section-tabs" data-section="store" style="display:none">
-    <button class="tab-btn active" data-tab="store-orders"><i class="fas fa-bag-shopping"></i> Заказы и чаты <span class="badge-count" id="storeOrdersBadge" style="display:none">0</span></button>
+    <button class="tab-btn active" data-tab="store-orders"><i class="fas fa-bag-shopping"></i> Заказы <span class="badge-count" id="storeOrdersBadge" style="display:none">0</span></button>
     <button class="tab-btn" data-tab="store-promos"><i class="fas fa-ticket"></i> Промокоды лидеров</button>
     <button class="tab-btn" data-tab="store-leaders"><i class="fas fa-crown"></i> Лидеры мнений</button>
     <button class="tab-btn" data-tab="store-prices"><i class="fas fa-tags"></i> Цены</button>
@@ -312,7 +312,6 @@
 <!-- Support section tabs -->
 <div class="tabs section-tabs" data-section="support" style="display:none">
     <button class="tab-btn active" data-tab="support"><i class="fas fa-headset"></i> Обращения <span class="badge-count" id="supportBadge" style="display:none">0</span></button>
-    <button class="tab-btn" data-tab="order-chats"><i class="fas fa-comments-dollar"></i> Чаты заказов <span class="badge-count" id="orderChatsBadge" style="display:none">0</span></button>
 </div>
 <!-- Forums section tabs -->
 <div class="tabs section-tabs" data-section="forums" style="display:none">
@@ -352,6 +351,19 @@
             <span id="spEnabledText">Промокоды включены</span>
         </label>
         <div style="font-size:12px;color:#6B7280;margin-top:6px">Если выключить — поле ввода промокода перестанет принимать коды, а цены вернутся к обычным.</div>
+    </div>
+    <div class="card">
+        <div class="card-title"><i class="fas fa-gift"></i> Подарок на первую покупку</div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;font-size:14px">
+            <input type="checkbox" id="firstPurchasePromoEnabled" style="width:18px;height:18px;accent-color:var(--p)">
+            <span>Выдавать покупателям персональный промокод</span>
+        </label>
+        <div class="form-row" style="margin-top:12px">
+            <div class="form-group"><label>Скидка, ₽</label><input type="number" id="firstPurchasePromoAmount" min="1" max="100000000" step="1" value="500"></div>
+            <div class="form-group"><label>Срок действия, дней</label><input type="number" id="firstPurchasePromoDays" min="1" max="90" step="1" value="30"></div>
+        </div>
+        <button class="btn btn-primary" onclick="saveFirstPurchasePromo()"><i class="fas fa-save"></i> Сохранить подарок</button>
+        <div style="font-size:12px;color:#6B7280;margin-top:8px">Код выдаётся один раз авторизованному покупателю без заказов, автоматически учитывается в корзине и работает однократно. Уже выданные коды сохраняют прежний размер скидки.</div>
     </div>
     <div class="card">
         <div class="card-title"><i class="fas fa-plus"></i> <span id="spFormTitle">Новый промокод</span></div>
@@ -498,9 +510,13 @@
             <div style="padding:18px 20px;border-right:1px solid var(--bd);overflow-y:auto;max-height:72vh" id="soModalInfo"></div>
             <div style="display:flex;flex-direction:column;max-height:72vh">
                 <div id="soChat" style="flex:1;overflow-y:auto;padding:16px;background:#FAFAF7;display:flex;flex-direction:column;gap:8px"></div>
-                <div id="soChatInput" style="padding:12px;border-top:1px solid var(--bd);display:flex;gap:8px">
-                    <textarea id="soReply" rows="2" placeholder="Ответ покупателю… (Ctrl+Enter — отправить)" style="flex:1;padding:10px 12px;border:1.5px solid var(--bd);border-radius:8px;font-family:inherit;font-size:14px;resize:none" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();sendStoreReply();}"></textarea>
-                    <button class="btn btn-primary" onclick="sendStoreReply()"><i class="fas fa-paper-plane"></i></button>
+                <div id="soChatInput" style="padding:12px;border-top:1px solid var(--bd);display:flex;flex-direction:column;gap:7px">
+                    <div id="soReplyFiles" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+                    <div style="display:flex;gap:8px;align-items:flex-end">
+                        <label class="btn btn-secondary btn-sm" title="Прикрепить фото или видео" style="cursor:pointer;flex-shrink:0;height:42px;display:flex;align-items:center"><i class="fas fa-paperclip"></i><input type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime" multiple style="display:none" onchange="attachStoreFiles(this)"></label>
+                        <textarea id="soReply" rows="2" placeholder="Ответ покупателю… (Ctrl+Enter — отправить)" style="flex:1;min-width:0;padding:10px 12px;border:1.5px solid var(--bd);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical" onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();sendStoreReply();}"></textarea>
+                        <button class="btn btn-primary" onclick="sendStoreReply()" style="height:42px"><i class="fas fa-paper-plane"></i></button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -700,46 +716,6 @@
         <div style="display:flex;gap:8px;margin-top:10px;">
             <button class="btn btn-secondary btn-sm" onclick="changeTicketStatus('closed')" style="color:#e74c3c"><i class="fas fa-check-circle"></i> Закрыть</button>
             <button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="closeModal('supportTicketModal')"><i class="fas fa-times"></i> Закрыть окно</button>
-        </div>
-    </div>
-</div>
-<!-- ORDER CHATS TAB — messenger-style UI matching the buyer's /orders page -->
-<div id="tab-order-chats" class="tab-content">
-    <div class="card" style="padding:0;overflow:hidden">
-        <div id="ocWrap" class="oc-wrap" style="display:flex;height:calc(100vh - 320px);min-height:460px">
-            <!-- Chat list -->
-            <div class="oc-list" style="width:320px;min-width:280px;border-right:1px solid #E5E7EB;display:flex;flex-direction:column">
-                <div style="padding:12px 16px;border-bottom:1px solid #E5E7EB;background:#FAFAFA;display:flex;align-items:center;justify-content:space-between">
-                    <span style="font-size:12px;font-weight:800;color:#6B7280;text-transform:uppercase;letter-spacing:.5px">Чаты заказов</span>
-                    <button class="btn btn-secondary btn-sm" onclick="refreshOrderChats()" title="Обновить"><i class="fas fa-sync-alt"></i></button>
-                </div>
-                <div id="orderChatsList" style="flex:1;overflow-y:auto"></div>
-            </div>
-            <!-- Thread -->
-            <div class="oc-thread" style="flex:1;min-width:0;display:flex;flex-direction:column">
-                <div id="orderChatEmpty" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#9CA3AF">
-                    <i class="fas fa-comments" style="font-size:36px;margin-bottom:10px;opacity:.4"></i>
-                    <div style="font-size:14px;font-weight:600">Выберите чат слева</div>
-                    <div style="font-size:12px">чтобы открыть переписку по заказу</div>
-                </div>
-                <div id="orderChatPane" style="display:none;flex:1;flex-direction:column;min-height:0">
-                    <div style="padding:12px 16px;background:linear-gradient(135deg,var(--p),#8A6A2F);color:#fff;display:flex;align-items:center;gap:12px">
-                        <button class="oc-back" onclick="document.getElementById('ocWrap').classList.remove('has-chat')" aria-label="К списку чатов" style="width:36px;height:36px;border-radius:10px;border:none;background:rgba(255,255,255,.18);color:#fff;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0"><i class="fas fa-arrow-left"></i></button>
-                        <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-box"></i></div>
-                        <div style="flex:1;min-width:0">
-                            <div style="font-weight:800;font-size:15px">Заказ #<span id="orderChatId"></span></div>
-                            <div style="font-size:11px;opacity:.85"><span id="orderChatUser"></span></div>
-                        </div>
-                        <span id="orderChatStatusBadge"></span>
-                    </div>
-                    <div id="orderChatMessages" style="flex:1;min-height:0;overflow-y:auto;padding:14px;background:#FAFAFA"></div>
-                    <div id="orderChatReplyArea" style="display:flex;gap:8px;padding:12px 14px;border-top:1px solid #E5E7EB;background:#fff">
-                        <input type="text" id="orderChatReplyText" placeholder="Ответ администрации..." style="flex:1;padding:10px 16px;border:1.5px solid #E5E7EB;border-radius:999px;font-size:13px;background:#FAFAFA" onkeypress="if(event.key==='Enter')sendOrderChatReply()">
-                        <button class="btn btn-primary" onclick="sendOrderChatReply()" style="border-radius:999px;width:42px;height:42px;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-paper-plane"></i></button>
-                    </div>
-                    <div id="orderChatClosedNote" style="display:none;padding:14px;border-top:1px solid #E5E7EB;background:#F3F4F6;text-align:center;font-size:12px;font-weight:700;color:#6B7280">Заказ завершён — чат закрыт</div>
-                </div>
-            </div>
         </div>
     </div>
 </div>
@@ -1122,6 +1098,22 @@ async function loadKokonkoopFlag(){
     // (defined further down the page; by now, after the request, it exists)
     if(typeof updateSupplierModBadge==='function')updateSupplierModBadge(null);
 }
+let _storeSectionBadgeTimer=null;
+async function updateStoreSectionBadge(){
+    const badge=document.getElementById('storeSectionBadge');
+    try{
+        const result=await _api('/api/admin/store/orders/unread-count');
+        const unread=Number(result?.pending_count)||0;
+        const pending=Number(result?.pending_count)||0;
+        if(badge){badge.textContent=unread>99?'99+':String(unread);badge.style.display=unread?'block':'none';}
+        const inSection=document.getElementById('storeOrdersBadge');
+        if(inSection){inSection.textContent=pending>99?'99+':String(pending);inSection.style.display=pending?'inline-grid':'none';}
+    }catch(e){}
+}
+function startStoreSectionBadgePolling(){
+    updateStoreSectionBadge();
+    if(!_storeSectionBadgeTimer)_storeSectionBadgeTimer=setInterval(updateStoreSectionBadge,20000);
+}
 async function toggleKokonkoop(el){
     try{await _patch('/api/admin/settings',{kokonkoop_enabled:el.checked?'true':'false'});showAlert(el.checked?'Раздел кооператива открыт':'Раздел кооператива закрыт');}
     catch(e){el.checked=!el.checked;showAlert('Не удалось сохранить','error');}
@@ -1134,8 +1126,10 @@ function grantAdminAccess(btn){
     // Show section chooser instead of directly loading admin
     document.getElementById('sectionChooser').style.display='block';
     loadKokonkoopFlag();
+    startStoreSectionBadgePolling();
 }
 function adminLogout(){
+    if(_storeSectionBadgeTimer){clearInterval(_storeSectionBadgeTimer);_storeSectionBadgeTimer=null;}
     localStorage.removeItem('admin_session');_adminToken='';
     document.getElementById('sectionChooser').style.display='none';
     document.getElementById('adminContent').style.display='none';
@@ -1182,6 +1176,7 @@ function backToChooser(){
     document.getElementById('adminContent').style.display='none';
     document.getElementById('sectionChooser').style.display='block';
     loadKokonkoopFlag();
+    updateStoreSectionBadge();
 }
 function failAdminAccess(btn,err){
     btn.disabled=false; btn.innerHTML='<i class="fas fa-sign-in-alt" style="margin-right:6px"></i>Войти';
@@ -1270,16 +1265,13 @@ async function initAdmin(){
     renderReviewsTable();
     renderAdminsTable();
     try{await loadSupportTickets();}catch(e){}
-    try{await loadOrderChats();}catch(e){}
     try{await loadSupplierProducts();}catch(e){}
     // Periodic polling for support badge updates (every 20s)
     setInterval(()=>{
         _api('/api/admin/support/tickets').then(tickets=>{
-            if(Array.isArray(tickets)){adminSupportTickets=tickets;updateSupportBadge();}
+            if(Array.isArray(tickets)){adminSupportTickets=tickets;updateSupportBadge();filterSupportTickets();}
         }).catch(()=>{});
-        _api('/api/admin/order-chats').then(chats=>{
-            if(Array.isArray(chats)){adminOrderChats=chats;renderOrderChatsList();updateOrderChatsBadge();}
-        }).catch(()=>{});
+        loadStoreOrders();
     },20000);
     initTabs();
     if(overlay) overlay.classList.add('hidden');
@@ -2356,7 +2348,7 @@ async function loadSupportTickets(){
 }
 function refreshSupportTickets(){loadSupportTickets();showAlert('Обращения обновлены');}
 function updateSupportBadge(){
-    const openCount=adminSupportTickets.filter(t=>t.status==='open').length;
+    const openCount=adminSupportTickets.filter(t=>t.admin_unread).length;
     const badge=document.getElementById('supportBadge');
     if(badge){
         if(openCount>0){badge.textContent=openCount;badge.style.display='inline-grid';}
@@ -2379,11 +2371,12 @@ function renderSupportTicketsTable(filtered){
     tbody.innerHTML=list.map(t=>{
         const st=TICKET_STATUS_MAP[t.status]||t.status;
         const sc=TICKET_STATUS_COLORS[t.status]||'#9CA3AF';
-        return `<tr>
+        const unread=!!t.admin_unread;
+        return `<tr style="${unread?'background:#FFF4F3;font-weight:600':''}">
             <td style="color:#9CA3AF;font-size:12px">#${t.id}</td>
-            <td><strong>${t.user_name||'Аноним'}</strong></td>
-            <td>${t.subject||''}</td>
-            <td><span style="color:${sc};font-weight:700;font-size:12px">${st}</span></td>
+            <td><strong>${_se(t.user_name||'Аноним')}</strong></td>
+            <td>${unread?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#E5484D;margin-right:7px;vertical-align:middle" title="Новое сообщение"></span>':''}${_se(t.subject||'')}</td>
+            <td><span style="color:${sc};font-weight:700;font-size:12px">${_se(st)}</span></td>
             <td style="font-size:12px">${t.updated_at?new Date(t.updated_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}</td>
             <td><button class="btn btn-secondary btn-sm" onclick="openSupportTicket(${t.id})"><i class="fas fa-comments"></i> Открыть</button></td>
         </tr>`;
@@ -2508,135 +2501,6 @@ async function changeTicketStatus(status){
         closeModal('supportTicketModal');
         showAlert(status==='closed'?'Обращение закрыто':'Статус обновлён');
     }catch(e){showAlert('Ошибка','error');}
-}
-
-// ══════════════════════════════════════════════════
-// ORDER CHATS (buyer↔admin, anchored on the order)
-// ══════════════════════════════════════════════════
-let adminOrderChats=[];
-let _currentOrderChatId=null;
-const ORDER_STATUS_MAP={new:'Новый',processing:'В обработке',collecting:'Сборка',ready:'Готов к выдаче',done:'Выполнен',cancelled:'Отменён'};
-const ORDER_STATUS_COLORS={new:'#3B82F6',processing:'#EAB308',collecting:'#8B5CF6',ready:'#0D9488',done:'#22C55E',cancelled:'#EF4444'};
-const ORDER_CHAT_CLOSED=['done','cancelled'];
-async function loadOrderChats(){
-    try{adminOrderChats=await _api('/api/admin/order-chats');}catch(e){adminOrderChats=[];}
-    if(!Array.isArray(adminOrderChats)) adminOrderChats=[];
-    renderOrderChatsList();
-    updateOrderChatsBadge();
-}
-function refreshOrderChats(){loadOrderChats();showAlert('Чаты заказов обновлены');}
-function updateOrderChatsBadge(){
-    const cnt=adminOrderChats.filter(c=>c.needs_reply).length;
-    const badge=document.getElementById('orderChatsBadge');
-    if(badge){
-        if(cnt>0){badge.textContent=cnt;badge.style.display='inline-grid';}
-        else{badge.style.display='none';}
-    }
-}
-function _chatTime(iso){
-    if(!iso) return '';
-    const d=new Date(iso), now=new Date();
-    if(d.toDateString()===now.toDateString()) return d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
-    return d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit'});
-}
-function renderOrderChatsList(){
-    const list=document.getElementById('orderChatsList');
-    if(!list) return;
-    if(!adminOrderChats.length){list.innerHTML='<div style="text-align:center;color:#9CA3AF;padding:40px 20px;font-size:13px"><i class="fas fa-inbox" style="font-size:28px;display:block;margin-bottom:8px;opacity:.4"></i>Нет чатов по заказам</div>';return;}
-    list.innerHTML=adminOrderChats.map(c=>{
-        const st=ORDER_STATUS_MAP[c.status]||c.status;
-        const sc=ORDER_STATUS_COLORS[c.status]||'#9CA3AF';
-        const last=(c.last_text||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const lastLabel=c.last_sender==='admin'?'<span style="color:#9CA3AF">Вы: </span>':'';
-        const active=c.order_id===_currentOrderChatId;
-        const dot=c.needs_reply?'<span style="position:absolute;top:-3px;right:-3px;width:10px;height:10px;border-radius:50%;background:#EF4444;border:2px solid #fff"></span>':'';
-        return `<div onclick="openOrderChat(${c.order_id})" style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #F3F4F6;cursor:pointer;transition:background .12s;${active?'background:rgba(169,133,58,.1)':''}" onmouseenter="if(${!active})this.style.background='#FAFAFA'" onmouseleave="this.style.background='${active?'rgba(169,133,58,.1)':''}'">
-            <div style="position:relative;width:38px;height:38px;border-radius:10px;background:${active?'var(--p)':'rgba(169,133,58,.12)'};color:${active?'#fff':'var(--p)'};display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-box" style="font-size:14px"></i>${dot}</div>
-            <div style="flex:1;min-width:0">
-                <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
-                    <span style="font-size:13px;font-weight:800;color:#1F2937">Заказ #${c.order_id}</span>
-                    <span style="font-size:10.5px;color:#9CA3AF;flex-shrink:0">${_chatTime(c.last_at)}</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:2px">
-                    <span style="font-size:11.5px;color:${c.needs_reply?'#1F2937':'#9CA3AF'};font-weight:${c.needs_reply?'700':'400'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lastLabel}${last||'Нет сообщений'}</span>
-                    <span style="font-size:9.5px;font-weight:800;color:${sc};background:${sc}15;padding:2px 7px;border-radius:99px;flex-shrink:0">${st}</span>
-                </div>
-                <div style="font-size:10.5px;color:#9CA3AF;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px">${(c.full_name||'').replace(/</g,'&lt;')}</div>
-            </div>
-        </div>`;
-    }).join('');
-}
-async function openOrderChat(orderId){
-    _currentOrderChatId=orderId;
-    document.getElementById('ocWrap')?.classList.add('has-chat');
-    renderOrderChatsList();
-    document.getElementById('orderChatEmpty').style.display='none';
-    const pane=document.getElementById('orderChatPane');
-    pane.style.display='flex';
-    document.getElementById('orderChatId').textContent=orderId;
-    const msgDiv=document.getElementById('orderChatMessages');
-    msgDiv.innerHTML='<div style="text-align:center;color:#9CA3AF;padding:20px">Загрузка...</div>';
-    document.getElementById('orderChatUser').textContent='';
-    document.getElementById('orderChatStatusBadge').innerHTML='';
-    try{
-        const data=await _api('/api/admin/orders/'+orderId+'/messages');
-        if(_currentOrderChatId!==orderId) return; // switched to another chat meanwhile
-        const msgs=data.messages||[];
-        document.getElementById('orderChatUser').textContent=data.full_name||'';
-        const status=data.status||'new';
-        const st=ORDER_STATUS_MAP[status]||status;
-        document.getElementById('orderChatStatusBadge').innerHTML=`<span style="padding:3px 12px;border-radius:99px;font-size:11px;font-weight:800;background:rgba(255,255,255,.2);color:#fff">${st}</span>`;
-        if(!msgs.length){msgDiv.innerHTML='<div style="text-align:center;color:#9CA3AF;padding:20px">Нет сообщений</div>';}
-        else{
-            msgDiv.innerHTML=msgs.map(m=>{
-                const isAdmin=m.sender_type==='admin';
-                const safeText=(m.text||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-                const role=m.sender_type==='supplier'?' · поставщик':m.sender_type==='leader'?' · лидер мнений':'';
-                const senderLabel=!isAdmin?'<div style="font-size:10px;font-weight:700;opacity:0.7;margin-bottom:2px">'+(m.sender_name||'').replace(/</g,'&lt;')+role+'</div>':'';
-                return `<div class="sm-row" style="display:flex;align-items:center;gap:6px;${isAdmin?'justify-content:flex-end':'justify-content:flex-start'};margin-bottom:8px">
-                    ${isAdmin?`<button onclick="deleteOrderMessage(${m.id})" title="Удалить сообщение" style="order:1;background:none;border:none;color:#e74c3c;cursor:pointer;opacity:.35;padding:4px;border-radius:6px" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.35'"><i class="fas fa-trash" style="font-size:11px"></i></button>`:''}
-                    <div style="order:${isAdmin?2:1};max-width:72%;padding:8px 12px;border-radius:14px;font-size:13px;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,.05);${isAdmin?'background:linear-gradient(135deg,var(--p),#8A6A2F);color:white;border-bottom-right-radius:4px':'background:#fff;border:1px solid #E5E7EB;color:#374151;border-bottom-left-radius:4px'}">
-                        ${senderLabel}
-                        ${safeText}
-                        <div style="font-size:9px;opacity:0.6;margin-top:4px;text-align:right">${new Date(m.created_at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
-                    </div>
-                    ${!isAdmin?`<button onclick="deleteOrderMessage(${m.id})" title="Удалить сообщение" style="order:2;background:none;border:none;color:#e74c3c;cursor:pointer;opacity:.35;padding:4px;border-radius:6px" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.35'"><i class="fas fa-trash" style="font-size:11px"></i></button>`:''}
-                </div>`;
-            }).join('');
-            msgDiv.scrollTop=msgDiv.scrollHeight;
-        }
-        // Terminal orders: swap reply box for a closed note
-        const isClosed=ORDER_CHAT_CLOSED.includes(status);
-        const replyArea=document.getElementById('orderChatReplyArea');
-        const closedNote=document.getElementById('orderChatClosedNote');
-        if(replyArea) replyArea.style.display=isClosed?'none':'flex';
-        if(closedNote) closedNote.style.display=isClosed?'block':'none';
-        if(!isClosed) document.getElementById('orderChatReplyText')?.focus();
-    }catch(e){msgDiv.innerHTML='<div style="text-align:center;color:#e74c3c;padding:20px">Ошибка загрузки</div>';}
-}
-async function deleteOrderMessage(mid){
-    if(!_currentOrderChatId) return;
-    if(!confirm('Удалить это сообщение из переписки?')) return;
-    try{
-        await _del('/api/admin/order-messages/'+mid);
-        openOrderChat(_currentOrderChatId);
-        showAlert('Сообщение удалено');
-    }catch(e){showAlert('Ошибка удаления','error');}
-}
-async function sendOrderChatReply(){
-    const text=document.getElementById('orderChatReplyText')?.value?.trim();
-    if(!text||!_currentOrderChatId) return;
-    try{
-        const sess=JSON.parse(localStorage.getItem('admin_session')||'{}');
-        const adminName=sess.user?.display_name||sess.user?.username||'Администрация';
-        const msg=await _post('/api/admin/orders/'+_currentOrderChatId+'/messages',{sender_name:adminName,text});
-        if(msg){
-            document.getElementById('orderChatReplyText').value='';
-            openOrderChat(_currentOrderChatId);
-            loadOrderChats();
-            showAlert('Ответ отправлен');
-        }
-    }catch(e){showAlert('Ошибка отправки','error');}
 }
 
 // ══════════════════════════════════════════════════
@@ -2785,9 +2649,7 @@ async function loadStoreOrders(){
     const st=document.getElementById('soStatusFilter')?.value||'';
     try{storeOrders=await _api('/api/admin/store/orders'+(st?'?status='+st:''));}catch(e){storeOrders=[];}
     renderStoreOrders();
-    const waiting=storeOrders.filter(o=>o.status==='new'||o.needs_reply).length;
-    const b=document.getElementById('storeOrdersBadge');
-    if(b){b.textContent=waiting;b.style.display=waiting?'inline-grid':'none';}
+    updateStoreSectionBadge();
 }
 function renderStoreOrders(){
     const tb=document.getElementById('soTableBody');if(!tb)return;
@@ -2797,7 +2659,7 @@ function renderStoreOrders(){
     tb.innerHTML=list.map(o=>{
         const its=_items(o.items);
         const cnt=its.reduce((s,i)=>s+(Number(i.qty)||1),0);
-        const reply=o.needs_reply?'<div style="font-size:11px;color:#C0392B;font-weight:700;margin-top:3px"><i class="fas fa-circle" style="font-size:7px"></i> ждёт ответа</div>':'';
+        const reply=o.needs_reply?'<div style="font-size:11px;color:#C0392B;font-weight:700;margin-top:3px"><i class="fas fa-circle" style="font-size:7px"></i> новое сообщение</div>':Number(o.supplier_steps_pending)>0?'<div style="font-size:11px;color:#8A5A00;font-weight:700;margin-top:3px"><i class="fas fa-clock" style="font-size:10px"></i> ждём поставщиков</div>':'';
         return `<tr style="cursor:pointer" onclick="openStoreOrder(${o.id})">
             <td><b>#${o.id}</b></td>
             <td style="white-space:nowrap;font-size:12px;color:#6B7280">${_dt(o.created_at)}</td>
@@ -2812,18 +2674,23 @@ function renderStoreOrders(){
 }
 async function openStoreOrder(id){
     _soOpenId=id;
+    _storeReplyFiles=[];
+    _renderStoreReplyFiles();
     // #adminContent is animated with a transform, which would trap a fixed
     // overlay inside it — the modal has to live directly under <body>.
     const m=document.getElementById('storeOrderModal');
     if(m&&m.parentElement!==document.body)document.body.appendChild(m);
     openModal('storeOrderModal');
     renderStoreOrderInfo();
+    await loadStoreSupplierSteps(id);
     await loadStoreChat();
     clearInterval(_soTimer);
     _soTimer=setInterval(()=>{if(_soOpenId)loadStoreChat(true);},15000);
 }
 function closeStoreOrder(){
     _soOpenId=null;clearInterval(_soTimer);
+    _storeReplyFiles=[];
+    _renderStoreReplyFiles();
     closeModal('storeOrderModal');
     loadStoreOrders();
 }
@@ -2841,8 +2708,9 @@ function renderStoreOrderInfo(){
     const closed=o.status==='done'||o.status==='cancelled';
     const statusOpts=Object.entries(SO_LABELS).map(([k,v])=>`<option value="${k}" ${k===o.status?'selected':''}>${v}</option>`).join('');
     box.innerHTML=`
-        ${o.status==='new'?`<button class="so-confirm" onclick="confirmStoreOrder(${o.id})"><i class="fas fa-check-circle"></i> Подтверждено — оплата получена</button>
+        ${o.status==='new'?`<button id="soConfirmBtn" class="so-confirm" onclick="confirmStoreOrder(${o.id})"><i class="fas fa-check-circle"></i> Подтверждено — оплата получена</button>
         <div style="font-size:11.5px;color:#6B7280;margin-bottom:12px">Покупателю уйдёт письмо, в чате появится сообщение, а заказ получит статус «Принят».</div>`:''}
+        <div id="soSupplierSteps"></div>
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
             <select id="soStatusSelect" class="filter-select" style="flex:1">${statusOpts}</select>
             <button class="btn btn-secondary btn-sm" onclick="setStoreOrderStatus(${o.id})"><i class="fas fa-save"></i> Сменить статус</button>
@@ -2856,6 +2724,7 @@ function renderStoreOrderInfo(){
             <b>Адрес</b><span>${_se(o.address||'—')}</span>
             ${o.comment?`<b>Комментарий</b><span>${_se(o.comment)}</span>`:''}
             <b>Промокод</b><span>${o.promo_code?`<b style="color:#8A6A2F">${_se(o.promo_code)}</b> · ${_se(o.leader_name||'без лидера')}`:'—'}</span>
+            ${o.first_purchase_coupon_code?`<b>Подарок первой покупки</b><span><b style="color:#8A6A2F">${_se(o.first_purchase_coupon_code)}</b></span>`:''}
             ${(()=>{let all=[];try{all=JSON.parse(o.promo_codes||'[]');}catch(e){}return all.length>1?`<b>Все промокоды</b><span>${all.map(_se).join(', ')} <span style="color:#6B7280">— у каждой позиции свой, вознаграждение — лидеру ${_se(o.promo_code)}</span></span>`:'';})()}
             ${o.leader_id?`<b>Лидеру</b><span>${formatPrice(o.leader_reward)} ${o.status==='done'?'(начислено)':'(после выдачи)'}</span>`:''}
             <b>Создан</b><span>${_dt(o.created_at)}</span>
@@ -2864,8 +2733,24 @@ function renderStoreOrderInfo(){
         <div style="font-weight:700;font-size:13px;margin:14px 0 4px">Состав</div>
         ${rows}
         <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:15px"><span>Итого</span><b>${formatPrice(o.total)}</b></div>
-        ${Number(o.discount_amount)>0?`<div style="text-align:right;font-size:12px;color:#8A6A2F">в т.ч. скидка по промокоду ${formatPrice(o.discount_amount)}</div>`:''}`;
+        ${Number(o.discount_amount)>0?`<div style="text-align:right;font-size:12px;color:#8A6A2F">общая скидка ${formatPrice(o.discount_amount)}</div>`:''}`;
     document.getElementById('soChatInput').style.display=closed?'none':'flex';
+}
+async function loadStoreSupplierSteps(orderId){
+    const box=document.getElementById('soSupplierSteps');
+    if(!box)return;
+    try{
+        const steps=await _api('/api/admin/store/orders/'+orderId+'/supplier-steps');
+        if(_soOpenId!==orderId)return;
+        if(!Array.isArray(steps)||!steps.length){box.innerHTML='';return;}
+        const pending=steps.filter(s=>s.state!=='approved').length;
+        box.innerHTML=`<div style="margin:12px 0;padding:12px;border:1px solid ${pending?'#F0CF72':'#9ED6B0'};border-radius:10px;background:${pending?'#FFF9E9':'#F0FBF3'}">
+            <div style="font-size:12px;font-weight:800;margin-bottom:8px">Подтверждения поставщиков · ${steps.length-pending}/${steps.length}</div>
+            ${steps.map(s=>`<div style="display:grid;grid-template-columns:1fr auto;gap:3px 10px;padding:7px 0;border-top:1px solid rgba(0,0,0,.06)"><b style="font-size:12px">${_se(s.supplier_name)}</b><span style="font-size:11px;font-weight:800;color:${s.state==='approved'?'#13723A':s.state==='unavailable'?'#B4232A':'#8A5A00'}">${s.state==='approved'?'Подтвердил':s.state==='unavailable'?'Нет в наличии':'Ожидаем ответ'}</span>${s.delivery_eta?`<span style="font-size:11px;color:#6B7280">Доставка: ${_dt(s.delivery_eta)}</span>`:''}${s.delivery_note?`<span style="grid-column:1/-1;font-size:11px;color:#4B5563">${_se(s.delivery_note)}</span>`:''}</div>`).join('')}
+            ${pending?'<div style="font-size:11px;color:#8A5A00;margin-top:8px">Общий статус заказа можно подтвердить после ответов всех поставщиков.</div>':''}</div>`;
+        const confirm=document.getElementById('soConfirmBtn');
+        if(confirm){confirm.disabled=pending>0;confirm.title=pending?'Сначала дождитесь подтверждений всех поставщиков':'';}
+    }catch(e){box.innerHTML='<div style="font-size:11px;color:#B4232A;margin:8px 0">Не удалось загрузить ответы поставщиков.</div>';}
 }
 async function loadStoreChat(silent){
     const box=document.getElementById('soChat');if(!box||!_soOpenId)return;
@@ -2876,8 +2761,8 @@ async function loadStoreChat(silent){
         const atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40;
         box.innerHTML=msgs.length?msgs.map(m=>{
             const who=m.sender_type==='admin'?(m.sender_name||'Администратор'):m.sender_type==='leader'?(_se(m.sender_name)+' · лидер мнений'):m.sender_type==='supplier'?(_se(m.sender_name)+' · поставщик'):(_se(m.sender_name)||'Покупатель');
-            const imgs=(()=>{try{const a=typeof m.images==='string'?JSON.parse(m.images||'[]'):(m.images||[]);return a.map(u=>`<a href="${_se(u)}" target="_blank"><img src="${_se(u)}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;margin:4px 4px 0 0"></a>`).join('');}catch(e){return'';}})();
-            return `<div class="so-msg ${m.sender_type}"><div class="who">${who}</div>${_se(m.text)}${imgs?'<div>'+imgs+'</div>':''}<div class="when">${_dt(m.created_at)}</div></div>`;
+            const media=_mediaHtml(m.images);
+            return `<div class="so-msg ${m.sender_type}"><div class="who">${who}</div>${_se(m.text)}${media}<div class="when">${_dt(m.created_at)}</div></div>`;
         }).join(''):'<div style="text-align:center;color:#9CA3AF;padding:30px">Сообщений пока нет</div>';
         if(!silent||atBottom)box.scrollTop=box.scrollHeight;
         if(d.status){
@@ -2888,9 +2773,28 @@ async function loadStoreChat(silent){
 }
 async function sendStoreReply(){
     const ta=document.getElementById('soReply');const text=ta.value.trim();
-    if(!text||!_soOpenId)return;
-    try{await _post('/api/admin/orders/'+_soOpenId+'/messages',{text,sender_name:'Менеджер'});ta.value='';await loadStoreChat();}
+    if((!text&&!_storeReplyFiles.length)||!_soOpenId)return;
+    try{await _post('/api/admin/orders/'+_soOpenId+'/messages',{text,sender_name:'Менеджер',images:_storeReplyFiles});ta.value='';_storeReplyFiles=[];_renderStoreReplyFiles();await loadStoreChat();}
     catch(e){showAlert(e.message||'Не удалось отправить','error');}
+}
+let _storeReplyFiles=[];
+function _renderStoreReplyFiles(){
+    const box=document.getElementById('soReplyFiles');
+    if(!box)return;
+    box.innerHTML=_storeReplyFiles.map((u,i)=>`<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:8px;background:#F3F4F6;font-size:12px">${/\.(mp4|webm|mov)$/i.test(u)?'🎬 видео':'🖼 фото'} <button type="button" onclick="_storeReplyFiles.splice(${i},1);_renderStoreReplyFiles()" style="border:none;background:none;cursor:pointer;color:#e74c3c">✕</button></span>`).join('');
+}
+async function attachStoreFiles(input){
+    const files=Array.from(input.files||[]).slice(0,Math.max(0,4-_storeReplyFiles.length));
+    input.value='';
+    for(const f of files){
+        const isVid=f.type.startsWith('video/');
+        if(f.size>(isVid?50:10)*1024*1024){showAlert(isVid?'Видео больше 50 МБ':'Фото больше 10 МБ','error');continue;}
+        _showUploadProgress('Загрузка: '+f.name,0);
+        const url=await _uploadFileWithProgress(f,'order_chat');
+        _hideUploadProgress();
+        if(url)_storeReplyFiles.push(url);else showAlert('Не удалось загрузить '+f.name,'error');
+    }
+    _renderStoreReplyFiles();
 }
 async function confirmStoreOrder(id){
     if(!confirm('Подтвердить заказ #'+id+'? Предоплата получена?'))return;
@@ -2898,7 +2802,7 @@ async function confirmStoreOrder(id){
         const upd=await _post('/api/admin/store/orders/'+id+'/confirm',{});
         const i=storeOrders.findIndex(x=>x.id===id);if(i>=0)storeOrders[i]={...storeOrders[i],...upd};
         showAlert('Заказ #'+id+' подтверждён, покупатель уведомлён');
-        renderStoreOrderInfo();renderStoreOrders();await loadStoreChat();
+        renderStoreOrderInfo();renderStoreOrders();await loadStoreSupplierSteps(id);await loadStoreChat();
     }catch(e){showAlert(e.message||'Ошибка','error');}
 }
 async function setStoreOrderStatus(id){
@@ -2907,7 +2811,7 @@ async function setStoreOrderStatus(id){
         const upd=await _post('/api/admin/store/orders/'+id+'/status',{status:st});
         const i=storeOrders.findIndex(x=>x.id===id);if(i>=0)storeOrders[i]={...storeOrders[i],...upd};
         showAlert('Статус: '+SO_LABELS[st]);
-        renderStoreOrderInfo();renderStoreOrders();await loadStoreChat();
+        renderStoreOrderInfo();renderStoreOrders();await loadStoreSupplierSteps(id);await loadStoreChat();
     }catch(e){showAlert(e.message||'Ошибка','error');}
 }
 
@@ -2918,6 +2822,25 @@ async function loadStorePromos(){
         const t=document.getElementById('spEnabledText');if(t)t.textContent=d.enabled!==false?'Промокоды включены':'Промокоды выключены';
     }catch(e){storePromos=[];}
     renderStorePromos();
+    await loadFirstPurchasePromo();
+}
+async function loadFirstPurchasePromo(){
+    try{
+        const d=await _api('/api/admin/store/first-purchase-promo');
+        const enabled=document.getElementById('firstPurchasePromoEnabled');if(enabled)enabled.checked=!!d.enabled;
+        const amount=document.getElementById('firstPurchasePromoAmount');if(amount)amount.value=Number(d.discount_amount)||500;
+        const days=document.getElementById('firstPurchasePromoDays');if(days)days.value=Number(d.validity_days)||30;
+    }catch(e){showAlert('Не удалось загрузить настройку подарка за первую покупку','error');}
+}
+async function saveFirstPurchasePromo(){
+    const enabled=document.getElementById('firstPurchasePromoEnabled').checked;
+    const discount_amount=Number(document.getElementById('firstPurchasePromoAmount').value);
+    const validity_days=Number(document.getElementById('firstPurchasePromoDays').value);
+    if(!Number.isFinite(discount_amount)||discount_amount<1||!Number.isInteger(validity_days)||validity_days<1||validity_days>90){showAlert('Укажите скидку от 1 ₽ и срок от 1 до 90 дней','error');return;}
+    try{
+        await _patch('/api/admin/store/first-purchase-promo',{enabled,discount_amount,validity_days});
+        showAlert(enabled?'Подарок первой покупки включён':'Настройки подарка сохранены');
+    }catch(e){showAlert(e.message||'Не удалось сохранить','error');}
 }
 function fillLeaderSelect(){
     const sel=document.getElementById('spLeader');if(!sel)return;const cur=sel.value;

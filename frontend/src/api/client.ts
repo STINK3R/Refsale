@@ -187,7 +187,11 @@ export async function fetchUserOrderChats(userId: number): Promise<import('../ty
 }
 
 export async function fetchOrderMessages(orderId: number, userId: number): Promise<{ messages: import('../types').OrderChatMessage[]; status: string | null; history?: Record<string, string> }> {
-  try { return await _api(`/api/orders/${orderId}/messages?user_id=${userId}`); } catch { return { messages: [], status: null }; }
+  try {
+    const result = await _api<{ messages: import('../types').OrderChatMessage[]; status: string | null; history?: Record<string, string> }>(`/api/orders/${orderId}/messages?user_id=${userId}`);
+    window.dispatchEvent(new Event('refsale:order-chat-read'));
+    return result;
+  } catch { return { messages: [], status: null }; }
 }
 
 export async function sendOrderMessage(orderId: number, data: { user_id: number; sender_name: string; text: string; images?: string[] }): Promise<import('../types').OrderChatMessage> {
@@ -196,6 +200,31 @@ export async function sendOrderMessage(orderId: number, data: { user_id: number;
 
 export async function fetchOrderChatsUnread(userId: number): Promise<number> {
   try { const d = await _api<{ count: number }>(`/api/user/${userId}/order-chats/unread-count`); return d.count || 0; } catch { return 0; }
+}
+
+// ==================== PARTNER CHAT ====================
+export async function fetchPartnerContacts(q = ''): Promise<import('../types').PartnerChatParticipant[]> {
+  try { return await _api(`/api/partner-chat/contacts${q ? `?q=${encodeURIComponent(q)}` : ''}`); } catch { return []; }
+}
+
+export async function fetchPartnerConversations(): Promise<import('../types').PartnerConversation[]> {
+  try { return await _api('/api/partner-chat/conversations'); } catch { return []; }
+}
+
+export async function openPartnerConversation(userId: number): Promise<{ id?: number; other?: import('../types').PartnerChatParticipant; error?: string }> {
+  try { return await _post('/api/partner-chat/conversations', { user_id: userId }); }
+  catch (e) { return { error: (e as Error).message }; }
+}
+
+export async function fetchPartnerMessages(conversationId: number): Promise<import('../types').PartnerChatMessage[]> {
+  try {
+    const d = await _api<{ messages: import('../types').PartnerChatMessage[] }>(`/api/partner-chat/conversations/${conversationId}/messages`);
+    return d.messages || [];
+  } catch { return []; }
+}
+
+export async function sendPartnerMessage(conversationId: number, text: string, images: string[] = []): Promise<import('../types').PartnerChatMessage> {
+  return _post(`/api/partner-chat/conversations/${conversationId}/messages`, { text, images });
 }
 
 // ==================== STOREFRONT ====================
@@ -244,6 +273,29 @@ export async function validateStorePromo(code: string): Promise<PromoResult> {
   }
 }
 
+export interface FirstPurchaseCouponResult {
+  eligible?: boolean;
+  code?: string;
+  discount_amount?: number;
+  expires_at?: string | null;
+  error?: string;
+}
+
+/** The API issues a single-use coupon only for this authenticated account. */
+/** Public: the welcome gift's size, shown to guests as a reason to sign up. */
+export async function fetchFirstPurchaseOffer(): Promise<{ enabled: boolean; discount_amount: number }> {
+  try {
+    const res = await fetch(API_BASE + '/api/store/first-purchase-offer');
+    const body = await res.json();
+    return { enabled: !!body.enabled, discount_amount: Number(body.discount_amount) || 0 };
+  } catch { return { enabled: false, discount_amount: 0 }; }
+}
+
+export async function fetchFirstPurchaseCoupon(): Promise<FirstPurchaseCouponResult> {
+  try { return await _api<FirstPurchaseCouponResult>('/api/store/first-purchase-coupon'); }
+  catch (e: unknown) { return { eligible: false, error: (e as Error).message }; }
+}
+
 export async function storeRegister(data: { full_name: string; email: string; password: string; phone?: string; consent_pd: boolean; consent_marketing: boolean }): Promise<{ user?: User; error?: string; exists?: boolean }> {
   const res = await fetch(API_BASE + '/api/store/register', {
     method: 'POST',
@@ -265,17 +317,18 @@ export interface StoreOrderPayload {
   promo_code?: string | null;
   /** Every code on: one per category at most */
   promo_codes?: string[];
+  first_purchase_coupon_code?: string;
   items: { id: number; qty: number; variant_id?: number | null; variant_comment?: string }[];
 }
 
-export async function createStoreOrder(data: StoreOrderPayload): Promise<{ order?: Order; error?: string; promo_invalid?: boolean; promo_code?: string }> {
+export async function createStoreOrder(data: StoreOrderPayload): Promise<{ order?: Order; error?: string; promo_invalid?: boolean; promo_code?: string; first_purchase_coupon_invalid?: boolean }> {
   const res = await fetch(API_BASE + '/api/store/orders', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
   const body = await res.json().catch(() => ({ error: 'Ошибка сервера' }));
-  if (!res.ok) return { error: body.error || 'Не удалось оформить заказ', promo_invalid: !!body.promo_invalid, promo_code: body.promo_code };
+  if (!res.ok) return { error: body.error || 'Не удалось оформить заказ', promo_invalid: !!body.promo_invalid, promo_code: body.promo_code, first_purchase_coupon_invalid: !!body.first_purchase_coupon_invalid };
   return { order: body as Order };
 }
 
@@ -399,6 +452,14 @@ export interface SupplierOrder {
   total: number;
   last_text: string | null;
   last_at: string | null;
+  supplier_confirmation?: SupplierOrderConfirmation;
+}
+
+export interface SupplierOrderConfirmation {
+  state?: 'pending' | 'approved' | 'unavailable';
+  delivery_eta?: string | null;
+  delivery_note?: string;
+  updated_at?: string;
 }
 
 export async function fetchSupplierOverview(): Promise<{ data?: SupplierOverview; error?: string }> {
@@ -427,11 +488,16 @@ export async function fetchSupplierOrders(): Promise<SupplierOrder[]> {
   try { return await _api('/api/supplier/orders'); } catch { return []; }
 }
 
-export async function fetchSupplierOrderMessages(orderId: number): Promise<{ messages: import('../types').OrderChatMessage[]; status: string | null; history?: Record<string, string> }> {
+export async function fetchSupplierOrderMessages(orderId: number): Promise<{ messages: import('../types').OrderChatMessage[]; status: string | null; history?: Record<string, string>; supplier_confirmation?: SupplierOrderConfirmation }> {
   try { return await _api(`/api/supplier/orders/${orderId}/messages`); }
   catch { return { messages: [], status: null }; }
 }
 
 export async function sendSupplierOrderMessage(orderId: number, text: string, images: string[] = []): Promise<import('../types').OrderChatMessage> {
   return _post(`/api/supplier/orders/${orderId}/messages`, { text, images });
+}
+
+export async function confirmSupplierOrderPart(orderId: number, data: { decision: 'approve' | 'unavailable'; delivery_eta?: string; delivery_note?: string }): Promise<{ confirmation?: SupplierOrderConfirmation; message?: import('../types').OrderChatMessage; error?: string }> {
+  try { return await _post(`/api/supplier/orders/${orderId}/confirmation`, data); }
+  catch (e: unknown) { return { error: (e as Error).message }; }
 }

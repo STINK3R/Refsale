@@ -109,6 +109,8 @@ export default function SupportChatModal() {
     try {
       const msgs = await fetchTicketMessages(ticket.id);
       setMessages(msgs);
+      setTickets((all) => all.map((item) => item.id === ticket.id ? { ...item, unread: false } : item));
+      window.dispatchEvent(new Event('refsale:support-read'));
     } catch { setMessages([]); }
     setLoading(false);
   };
@@ -497,7 +499,7 @@ export default function SupportChatModal() {
                             >
                               <span className={`absolute left-0 inset-y-0 w-1.5 ${st.stripe}`} aria-hidden="true" />
                               <div className="flex items-center justify-between gap-2 mb-1">
-                                <span className="text-[14px] font-bold text-ink truncate">{unescapeHtml(t.subject)}</span>
+                                <span className="flex min-w-0 items-center gap-2 text-[14px] font-bold text-ink truncate">{t.unread && <i className="h-2.5 w-2.5 shrink-0 rounded-full bg-danger" aria-label="Новое сообщение" />}<span className="truncate">{unescapeHtml(t.subject)}</span></span>
                                 <span className={`text-[10px] font-bold uppercase tracking-[0.06em] px-2 py-0.5 rounded-full border shrink-0 ${st.color}`}>{st.text}</span>
                               </div>
                               <div className="text-[11px] text-muted">

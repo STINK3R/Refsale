@@ -50,8 +50,8 @@ services:
       SERVER_SECRET: '${SERVER_SECRET:?set SERVER_SECRET in .env, see .env.example}'
       WEBSITE_URL: ${WEBSITE_URL:-http://localhost}
       SITE_DOMAIN: ${SITE_DOMAIN:-http://localhost}
-      CORS_ORIGINS: ${CORS_ORIGINS:-*}
-      # First boot only: empty means a random one is printed to the log.
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://refsale.ru,https://www.refsale.ru}
+      # New database only: set this in .env; the value is never logged.
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     volumes:
       - uploads:/app/uploads

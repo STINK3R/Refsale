@@ -38,7 +38,7 @@ ADMIN_NOTIFY_EMAIL = os.environ.get("ADMIN_NOTIFY_EMAIL", "")
 SITE_DOMAIN = os.environ.get("SITE_DOMAIN", "http://localhost:5000")
 
 # ── CORS (comma-separated origins, or "*" for dev) ──
-_cors_raw = os.environ.get("CORS_ORIGINS", "*")
+_cors_raw = os.environ.get("CORS_ORIGINS", "https://refsale.ru,https://www.refsale.ru")
 CORS_ORIGINS = _cors_raw if _cors_raw == "*" else [o.strip() for o in _cors_raw.split(",") if o.strip()]
 
 # ── Paths ──

@@ -156,6 +156,13 @@ export interface PromoEntry {
   scopeText: string;
 }
 
+export interface FirstPurchaseCoupon {
+  code: string;
+  discountAmount: number;
+  expiresAt: string | null;
+  userId: number;
+}
+
 interface PromoState {
   /** Every code on, oldest first: one per category, so a perfume code and a
    *  food code work side by side. */
@@ -168,7 +175,13 @@ interface PromoState {
   scopeText: string;
   /** All codes' promo prices together, the lowest where two overlap */
   prices: Record<string, number>;
+  /** Server-issued account-bound first-order offer. */
+  firstPurchaseCoupon: FirstPurchaseCoupon | null;
+  /** For a guest: the welcome gift's size when it is on, else 0. */
+  firstPurchaseOffer: number;
+  setFirstPurchaseOffer: (amount: number) => void;
   checking: boolean;
+  setFirstPurchaseCoupon: (coupon: FirstPurchaseCoupon | null) => void;
   apply: (code: string) => Promise<{ ok: boolean; error?: string; replaced?: string }>;
   revalidate: () => Promise<void>;
   remove: (code: string) => void;
@@ -243,7 +256,11 @@ const savedCodes: PromoEntry[] = (() => {
 
 export const usePromoStore = create<PromoState>((set, get) => ({
   ...derive(savedCodes),
+  firstPurchaseCoupon: null,
+  firstPurchaseOffer: 0,
+  setFirstPurchaseOffer: (amount) => set({ firstPurchaseOffer: amount }),
   checking: false,
+  setFirstPurchaseCoupon: (coupon) => set({ firstPurchaseCoupon: coupon }),
   apply: async (raw) => {
     const code = raw.trim().toUpperCase();
     if (!code) return { ok: false, error: 'Введите промокод' };

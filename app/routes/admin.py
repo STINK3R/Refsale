@@ -8,7 +8,7 @@ import re
 import time
 import hmac
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 
 from ..db import get_db, _row_to_dict, _rows_to_list
 from ..utils import rate_limited_auth, check_brute_force, record_login_fail, record_login_success, hash_password, verify_password, safe_update, safe_insert, sanitize_string, validate_upload
@@ -17,6 +17,25 @@ from ..email_service import email_user_blocked
 from ..config import UPLOAD_DIR
 
 bp = Blueprint('admin', __name__)
+
+
+@bp.route("/api/admin/sso/me")
+def api_admin_sso_me():
+    """Return the verified RefSale admin identity to the cooperative backend.
+
+    The app-level admin guard has already validated the bearer token before
+    this handler runs. The cooperative uses this endpoint for a server-to-
+    server exchange, so no RefSale admin token is trusted from the browser.
+    """
+    payload = getattr(g, "admin_payload", None)
+    if not payload:
+        return jsonify({"error": "Unauthorized"}), 401
+    username = str(payload.get("u") or "admin")[:100]
+    return jsonify({"admin": {
+        "id": int(payload.get("id") or 0),
+        "username": username,
+        "display_name": str(payload.get("display_name") or username)[:255],
+    }})
 
 # Auth guard is app-level in app/__init__.py — protects all /api/admin/* across all blueprints
 
