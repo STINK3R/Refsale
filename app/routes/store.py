@@ -298,6 +298,7 @@ def store_catalog():
                 subcats = []
             cur.execute("""
                 SELECT id, name, description, price, promo_price, compare_price_1, compare_price_2,
+                       compare_shop_1, compare_shop_2, compare_url_1, compare_url_2,
                        category_id, subcategory_id, badge, image_url, is_available, requires_variant, created_at
                 FROM coop_products WHERE COALESCE(moderation, 'approved') = 'approved'
                 ORDER BY created_at DESC
@@ -543,10 +544,16 @@ def store_news():
             reviews = cur.fetchone()
             cur.execute("SELECT COALESCE(MAX(id), 0) AS m FROM coop_products WHERE COALESCE(moderation, 'approved') = 'approved'")
             products = cur.fetchone()
+            try:
+                cur.execute("SELECT COALESCE(MAX(id), 0) AS m FROM ref_news_posts WHERE feed = 'buyers'")
+                news = cur.fetchone()
+            except Exception:
+                news = {"m": 0}
         return jsonify({
             "forum_max": forum["m"], "forum_new": forum["n"],
             "reviews_max": reviews["m"], "reviews_new": reviews["n"],
             "products_max": products["m"],
+            "news_max": news["m"],
         })
     except Exception as e:
         print(f"[/api/store/news] {e}")

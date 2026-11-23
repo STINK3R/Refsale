@@ -141,6 +141,104 @@ _TABLES = [
         used_at TIMESTAMPTZ DEFAULT NULL,
         used_order_id INTEGER DEFAULT NULL
     )""",
+    # ── News in the catalog ─────────────────────────────
+    # Two feeds: 'buyers' (everyone reads it) and 'partners' (opinion leaders
+    # and suppliers only). Admins, leaders and suppliers post; signed-in
+    # readers of a feed like and comment. media is a JSON array of
+    # {"url": "/uploads/...", "type": "image"|"video"}; tags a JSON array.
+    """CREATE TABLE IF NOT EXISTS ref_news_posts (
+        id SERIAL PRIMARY KEY,
+        feed VARCHAR(20) NOT NULL DEFAULT 'buyers',
+        title VARCHAR(300) NOT NULL,
+        body TEXT NOT NULL DEFAULT '',
+        tags TEXT NOT NULL DEFAULT '[]',
+        media TEXT NOT NULL DEFAULT '[]',
+        author_user_id INTEGER DEFAULT NULL REFERENCES coop_users(id) ON DELETE SET NULL,
+        author_role VARCHAR(20) NOT NULL DEFAULT 'admin',
+        author_name VARCHAR(255) NOT NULL DEFAULT '',
+        is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """CREATE TABLE IF NOT EXISTS ref_news_likes (
+        post_id INTEGER NOT NULL REFERENCES ref_news_posts(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES coop_users(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (post_id, user_id)
+    )""",
+    """CREATE TABLE IF NOT EXISTS ref_news_comments (
+        id SERIAL PRIMARY KEY,
+        post_id INTEGER NOT NULL REFERENCES ref_news_posts(id) ON DELETE CASCADE,
+        user_id INTEGER DEFAULT NULL REFERENCES coop_users(id) ON DELETE SET NULL,
+        author_name VARCHAR(255) NOT NULL DEFAULT '',
+        author_role VARCHAR(20) NOT NULL DEFAULT 'buyer',
+        text TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    # ── What every admin did (the owner's register) ─────
+    # One row per changing request to the admin API: who, what, the request
+    # body (passwords masked) and, for edits and deletions, the row as it was
+    # before — so a deleted review or chat message can be read back later.
+    """CREATE TABLE IF NOT EXISTS ref_admin_audit (
+        id BIGSERIAL PRIMARY KEY,
+        admin_id INTEGER NOT NULL DEFAULT 0,
+        admin_username VARCHAR(100) NOT NULL DEFAULT '',
+        admin_name VARCHAR(255) NOT NULL DEFAULT '',
+        action VARCHAR(60) NOT NULL DEFAULT '',
+        action_label VARCHAR(255) NOT NULL DEFAULT '',
+        entity VARCHAR(60) NOT NULL DEFAULT '',
+        entity_id VARCHAR(60) NOT NULL DEFAULT '',
+        method VARCHAR(10) NOT NULL DEFAULT '',
+        path TEXT NOT NULL DEFAULT '',
+        status_code INTEGER NOT NULL DEFAULT 0,
+        details TEXT NOT NULL DEFAULT '{}',
+        snapshot TEXT DEFAULT NULL,
+        ip VARCHAR(64) NOT NULL DEFAULT '',
+        user_agent TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    # ── Shops prices are compared with ──────────────────
+    # The names the admin picks from in the product window («ВкусВилл»), each
+    # with the shop's site; the product keeps its own link to the item there.
+    """CREATE TABLE IF NOT EXISTS ref_compare_shops (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL UNIQUE,
+        site_url TEXT NOT NULL DEFAULT '',
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    # ── Vote for new products ───────────────────────────
+    # A supplier's price list (Excel / Word) becomes a list members scroll and
+    # mark what should be brought in. Our price = the supplier's price + the
+    # category's markup, unless the admin set a price by hand.
+    """CREATE TABLE IF NOT EXISTS ref_vote_categories (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        markup_percent NUMERIC(7,2) DEFAULT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """CREATE TABLE IF NOT EXISTS ref_vote_items (
+        id SERIAL PRIMARY KEY,
+        category_id INTEGER REFERENCES ref_vote_categories(id) ON DELETE CASCADE,
+        name VARCHAR(500) NOT NULL,
+        brand VARCHAR(255) NOT NULL DEFAULT '',
+        box_weight VARCHAR(100) NOT NULL DEFAULT '',
+        packing VARCHAR(100) NOT NULL DEFAULT '',
+        price_cashless NUMERIC(12,2) DEFAULT NULL,
+        price_cash NUMERIC(12,2) DEFAULT NULL,
+        price_note VARCHAR(100) NOT NULL DEFAULT '',
+        price_override NUMERIC(12,2) DEFAULT NULL,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """CREATE TABLE IF NOT EXISTS ref_vote_votes (
+        item_id INTEGER NOT NULL REFERENCES ref_vote_items(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES coop_users(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (item_id, user_id)
+    )""",
 ]
 
 # (table, column, definition) — added after the tables above exist.
@@ -239,6 +337,12 @@ _COLUMNS = [
     ("coop_support_tickets", "buyer_seen_message_id", "BIGINT DEFAULT 0"),
     ("coop_order_chat_seen", "seen_message_id", "BIGINT DEFAULT 0"),
     ("coop_order_messages", "sender_user_id", "INTEGER DEFAULT NULL REFERENCES coop_users(id) ON DELETE SET NULL"),
+    # The shop each comparison price is from (a name from ref_compare_shops;
+    # empty means the category's own) and a link to the item on its site
+    ("coop_products", "compare_shop_1", "VARCHAR(100) DEFAULT ''"),
+    ("coop_products", "compare_shop_2", "VARCHAR(100) DEFAULT ''"),
+    ("coop_products", "compare_url_1", "TEXT DEFAULT ''"),
+    ("coop_products", "compare_url_2", "TEXT DEFAULT ''"),
 ]
 
 _INDEXES = [
@@ -258,6 +362,12 @@ _INDEXES = [
     # "Latest message of a thread" lookups (unread badges, admin queues)
     "CREATE INDEX IF NOT EXISTS idx_order_messages_order_id ON coop_order_messages(order_id, id DESC)",
     "CREATE INDEX IF NOT EXISTS idx_support_messages_ticket_id ON coop_support_messages(ticket_id, id DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_news_posts_feed ON ref_news_posts(feed, created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_news_comments_post ON ref_news_comments(post_id, id)",
+    "CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON ref_admin_audit(created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_admin_audit_admin ON ref_admin_audit(admin_id, admin_username, created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_vote_items_category ON ref_vote_items(category_id, sort_order)",
+    "CREATE INDEX IF NOT EXISTS idx_vote_votes_user ON ref_vote_votes(user_id)",
 ]
 
 # Data fixes, idempotent. Photos added to a product's gallery used to arrive
@@ -340,6 +450,17 @@ _ONCE = [
         FROM (SELECT ticket_id, MAX(id) AS mid FROM coop_support_messages GROUP BY ticket_id) x
         WHERE x.ticket_id = t.id AND t.status = 'closed'
           AND x.mid > COALESCE(t.buyer_seen_message_id, 0)"""),
+    # The shops categories already compare with become names to pick from,
+    # plus the one the brief names as an example.
+    ("compare_shops_seed_v1",
+     """INSERT INTO ref_compare_shops (name, sort_order)
+        SELECT DISTINCT TRIM(x.name), 0 FROM (
+            SELECT compare_label_1 AS name FROM coop_categories
+            UNION SELECT compare_label_2 FROM coop_categories
+            UNION SELECT 'Золотое Яблоко' UNION SELECT 'Рандеву' UNION SELECT 'ВкусВилл'
+        ) x
+        WHERE COALESCE(TRIM(x.name), '') <> ''
+        ON CONFLICT (name) DO NOTHING"""),
 ]
 
 # The storefront has one forum: /forums opens the one with this key.

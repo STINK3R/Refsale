@@ -1,4 +1,5 @@
-import { BadgeCheck } from 'lucide-react';
+import { BadgeCheck, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import AttachedImages from '../ui/AttachedImages';
 import Avatar from '../ui/Avatar';
 import Stars from './Stars';
@@ -10,10 +11,20 @@ import type { Review } from '../../types';
  * it is about, «купил на RefSale», the text and the photos. `compact` clamps
  * the text for the row of latest reviews; the full list shows it whole.
  */
-export default function ReviewCard({ review, compact = false, onOpen, onViewerChange, showProduct = true, className = '' }: {
-  review: Review; compact?: boolean; onOpen?: () => void; onViewerChange?: (open: boolean) => void; showProduct?: boolean; className?: string;
+export default function ReviewCard({ review, compact = false, onOpen, onViewerChange, onProductOpen, showProduct = true, className = '' }: {
+  review: Review; compact?: boolean; onOpen?: () => void; onViewerChange?: (open: boolean) => void;
+  /** Called before the product opens: a list in a window closes itself first */
+  onProductOpen?: () => void;
+  showProduct?: boolean; className?: string;
 }) {
+  const navigate = useNavigate();
   const name = unescapeHtml(review.user_name);
+  // The product plate opens that product's window in the catalog
+  const openProduct = () => {
+    if (!review.product_id) return;
+    onProductOpen?.();
+    navigate(`/catalog?product=${review.product_id}`);
+  };
   const long = review.text.length > 220;
   return (
     <article className={`bg-card border-2 border-ink rounded-[22px] max-sm:rounded-[18px] p-5 max-sm:p-4 flex flex-col ${className}`}>
@@ -32,12 +43,24 @@ export default function ReviewCard({ review, compact = false, onOpen, onViewerCh
               <BadgeCheck size={13} strokeWidth={2.4} /> Купил на RefSale
             </span>
           )}
-          {showProduct && review.product_name && (
+          {showProduct && review.product_name && (review.product_id ? (
+            <a
+              href={`/catalog?product=${review.product_id}`}
+              data-own-nav
+              onClick={(e) => { e.preventDefault(); openProduct(); }}
+              title="Открыть товар"
+              className="group inline-flex items-center gap-1.5 h-6 max-w-full pl-0.5 pr-1.5 rounded-full bg-surface border border-ink/10 text-[11.5px] font-semibold text-ink/80 hover:border-ink hover:bg-sun hover:text-ink transition-colors cursor-pointer"
+            >
+              {review.product_image && <img src={review.product_image} alt="" className="w-5 h-5 rounded-full object-contain bg-white" />}
+              <span className="truncate">{review.product_name}</span>
+              <ChevronRight size={12} strokeWidth={2.6} className="shrink-0 opacity-50 group-hover:opacity-100" />
+            </a>
+          ) : (
             <span className="inline-flex items-center gap-1.5 h-6 max-w-full pl-0.5 pr-2 rounded-full bg-surface border border-ink/10 text-[11.5px] font-semibold text-ink/80">
               {review.product_image && <img src={review.product_image} alt="" className="w-5 h-5 rounded-full object-contain bg-white" />}
               <span className="truncate">{review.product_name}</span>
             </span>
-          )}
+          ))}
         </div>
       )}
       <p className={`mt-3 text-[14px] leading-[1.6] text-ink/80 whitespace-pre-line break-words ${compact ? 'line-clamp-4' : ''}`}>

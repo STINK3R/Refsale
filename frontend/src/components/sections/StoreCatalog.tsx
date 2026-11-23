@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback, memo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { m, AnimatePresence } from 'framer-motion';
-import { Search, X, ChevronLeft, ChevronRight, MessageCircle, Plus, Minus, Trash2, Check, Maximize2, Heart, Gift } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, MessageCircle, Plus, Minus, Trash2, Check, Maximize2, Heart, Gift, ExternalLink } from 'lucide-react';
 import {
   useAppStore, useCartStore, useNotificationStore, usePromoStore, useFavoritesStore, useActiveCategory, useAuthStore,
   priceFor, promoKey, cartKey, codesForCategory,
@@ -53,6 +53,9 @@ export default function StoreCatalog() {
   const handoffProduct = Number(params.get('product')) || 0;
   const ready = !loading && products.length > 0;
   const [handled, setHandled] = useState(0);
+  // Once the address lets go of the product, the same one can be asked again
+  // (a review's product plate clicked twice)
+  if (!handoffProduct && handled) setHandled(0);
   if (ready && handoffProduct && handoffProduct !== handled) {
     setHandled(handoffProduct);
     const p = products.find((x) => x.id === handoffProduct);
@@ -427,20 +430,30 @@ export function PriceTag({ info, size = 'md' }: { info: PriceInfo; size?: 'md' |
   );
 }
 
-/** "Золотое Яблоко 16 500 ₽ · Рандеву 17 200 ₽" — only the shops that have a price. */
-export function ComparePrices({ info, category, size = 'md' }: { info: PriceInfo; category?: Category; size?: 'md' | 'lg' }) {
+/** "Золотое Яблоко 16 500 ₽ · Рандеву 17 200 ₽" — only the shops that have a price.
+ *  A shop the admin linked to the item on its site is a link: the name opens
+ *  that page in a new tab, so the buyer can check the price there. */
+export function ComparePrices({ info, category, product, size = 'md' }: { info: PriceInfo; category?: Category; product?: Product; size?: 'md' | 'lg' }) {
   const rows = [
-    { label: category?.compare_label_1 || 'Золотое Яблоко', price: info.compare1 },
-    { label: category?.compare_label_2 || 'Рандеву', price: info.compare2 },
+    { label: product?.compare_shop_1?.trim() || category?.compare_label_1 || 'Золотое Яблоко', price: info.compare1, url: safeShopUrl(product?.compare_url_1) },
+    { label: product?.compare_shop_2?.trim() || category?.compare_label_2 || 'Рандеву', price: info.compare2, url: safeShopUrl(product?.compare_url_2) },
   ].filter((r) => r.price != null && Number(r.price) > 0);
   if (!rows.length) return null;
+  const name = (r: (typeof rows)[number], cls: string) => r.url
+    ? (
+      <a href={r.url} target="_blank" rel="noopener noreferrer nofollow" data-own-nav title={`Открыть товар на сайте «${r.label}»`}
+        className={`${cls} inline-flex items-center gap-1 underline decoration-1 underline-offset-2 decoration-ink/30 hover:text-ink hover:decoration-ink`}>
+        {r.label}<ExternalLink size={size === 'lg' ? 12 : 10} strokeWidth={2.4} className="shrink-0" />
+      </a>
+    )
+    : <span className={cls}>{r.label}</span>;
   if (size === 'lg') {
     return (
       <div className="mt-5 grid gap-1.5 p-4 rounded-2xl bg-surface">
         <div className="label !text-[10px]">В других магазинах</div>
         {rows.map((r) => (
           <div key={r.label} className="flex justify-between gap-4 text-[14px]">
-            <span className="text-muted">{r.label}{info.volume && <span className="text-light">, {info.volume}</span>}</span>
+            <span className="text-muted">{name(r, '')}{info.volume && <span className="text-light">, {info.volume}</span>}</span>
             <span className="text-light line-through tabular-nums">{formatPrice(Number(r.price))}</span>
           </div>
         ))}
@@ -451,12 +464,18 @@ export function ComparePrices({ info, category, size = 'md' }: { info: PriceInfo
     <div className="mt-1.5 grid gap-0.5 text-[11px] leading-snug text-muted">
       {rows.map((r) => (
         <div key={r.label} className="flex justify-between gap-2 min-w-0">
-          <span className="truncate min-w-0">{r.label}</span>
+          {name(r, 'truncate min-w-0')}
           <span className="line-through tabular-nums shrink-0">{formatPrice(Number(r.price))}</span>
         </div>
       ))}
     </div>
   );
+}
+
+/** Only web pages: a stored link is never a javascript: or data: address. */
+function safeShopUrl(url?: string | null): string | null {
+  const v = (url || '').trim();
+  return /^https?:\/\/[^\s<>"']+$/i.test(v) ? v : null;
 }
 
 // ── Cart and favourites ─────────────────────────────
@@ -605,7 +624,7 @@ export const ProductCard = memo(function ProductCard({ product, index, onOpen, o
         <div className="mt-2">
           <PriceTag info={info} />
         </div>
-        <ComparePrices info={info} category={category} />
+        <ComparePrices info={info} category={category} product={product} />
         <div className="mt-auto pt-3 flex gap-1.5">
           {!unavailable && !hasVariants && line ? (
             <CartStepper line={line} className="flex-1 min-w-0" />
@@ -750,7 +769,7 @@ function ProductModal({ product, onClose, onNeedVariant }: { product: Product; o
                   </div>
                 </div>
               )}
-              <ComparePrices info={info} category={category} size="lg" />
+              <ComparePrices info={info} category={category} product={product} size="lg" />
               <p className="mt-6 text-[12px] text-light leading-relaxed">
                 Оплачивать сразу не нужно: после оформления менеджер подтвердит наличие в чате заказа и пришлёт реквизиты для предоплаты.
               </p>

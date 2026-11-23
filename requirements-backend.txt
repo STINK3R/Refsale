@@ -5,3 +5,10 @@ psycopg2-binary==2.9.13
 python-dotenv==1.2.2
 bcrypt==4.2.1
 pywebpush==2.5.0
+# Product photos on a transparent background (app/imaging.py)
+pillow==11.3.0
+onnxruntime==1.22.1
+rembg==2.0.67
+# Price lists for the product vote: Excel and Word (app/routes/vote.py)
+openpyxl==3.1.5
+python-docx==1.2.0

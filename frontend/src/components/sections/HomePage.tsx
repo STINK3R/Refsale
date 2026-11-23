@@ -208,8 +208,8 @@ export default function HomePage() {
                   <span className="font-display text-[26px] max-sm:text-[22px] text-primary-dark leading-none">{formatPrice(best.info.now)}</span>
                 </span>
                 {[
-                  [categoryOf(best.p)?.compare_label_1 || 'Золотое Яблоко', best.info.compare1],
-                  [categoryOf(best.p)?.compare_label_2 || 'Рандеву', best.info.compare2],
+                  [best.p.compare_shop_1?.trim() || categoryOf(best.p)?.compare_label_1 || 'Золотое Яблоко', best.info.compare1],
+                  [best.p.compare_shop_2?.trim() || categoryOf(best.p)?.compare_label_2 || 'Рандеву', best.info.compare2],
                 ].filter(([, v]) => v).map(([label, v]) => (
                   <span key={String(label)} className="mt-1.5 flex justify-between gap-3 text-[13px] text-muted">
                     <span>{label}</span><span className="line-through tabular-nums">{formatPrice(Number(v))}</span>

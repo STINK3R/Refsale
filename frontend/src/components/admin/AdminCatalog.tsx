@@ -1,8 +1,8 @@
 /* eslint-disable react-hooks/set-state-in-effect -- These effects start async API reads; state changes follow awaited responses. */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
-import { ImagePlus, LoaderCircle, Plus, Save, ShieldCheck, Trash2, UserRound, X } from 'lucide-react';
-import { adminRequest, adminUpload } from '../../api/adminClient';
+import { Download, ExternalLink, ImagePlus, LoaderCircle, Plus, Save, ShieldCheck, Store, Trash2, UserRound, X } from 'lucide-react';
+import { adminDownload, adminRequest, adminUpload } from '../../api/adminClient';
 import type { AdminNotice } from './AdminApp';
 import { adminCard, adminDanger, adminInput, adminArea, adminPrimary, adminSecondary, AdminBadge, AdminEmpty, AdminTitle, dateLabel, priceLabel, useAdminTab, useEscape } from './AdminUi';
 import type { Category, Product, ProductImage, ProductVariant, Review, Subcategory, User } from '../../types';
@@ -54,59 +54,157 @@ function ProductsPanel({ notify }: { notify: AdminNotice }) {
   </>;
 }
 
+type CompareShop = { id: number; name: string; site_url?: string };
+type PendingPhoto = { file: File; preview: string };
+
 function ProductEditor({ product, categories, subcategories, onClose, onSaved, notify }: { product: ProductRow | null; categories: Category[]; subcategories: Subcategory[]; onClose: () => void; onSaved: () => void; notify: AdminNotice }) {
-  const [form, setForm] = useState({ name: product?.name || '', description: product?.description || '', price: String(product?.price ?? ''), promo_price: String(product?.promo_price ?? ''), compare_price_1: String(product?.compare_price_1 ?? ''), compare_price_2: String(product?.compare_price_2 ?? ''), category_id: String(product?.category_id || ''), subcategory_id: String(product?.subcategory_id || ''), image_url: product?.image_url || '', badge: product?.badge || '', is_available: product?.is_available !== false, is_adult: !!product?.is_adult, requires_variant: !!product?.requires_variant });
-  const [file, setFile] = useState<File | null>(null);
+  const [form, setForm] = useState({
+    name: product?.name || '', description: product?.description || '', price: String(product?.price ?? ''), promo_price: String(product?.promo_price ?? ''),
+    compare_price_1: String(product?.compare_price_1 ?? ''), compare_price_2: String(product?.compare_price_2 ?? ''),
+    compare_shop_1: product?.compare_shop_1 || '', compare_shop_2: product?.compare_shop_2 || '',
+    compare_url_1: product?.compare_url_1 || '', compare_url_2: product?.compare_url_2 || '',
+    category_id: String(product?.category_id || ''), subcategory_id: String(product?.subcategory_id || ''),
+    badge: product?.badge || '', is_available: product?.is_available !== false, is_adult: !!product?.is_adult, requires_variant: !!product?.requires_variant,
+  });
+  // A new product has no id yet: its photos wait here and go up once it is saved
+  const [pending, setPending] = useState<PendingPhoto[]>([]);
+  const [removeBg, setRemoveBg] = useState(true);
+  const [shops, setShops] = useState<CompareShop[]>([]);
   const [busy, setBusy] = useState(false);
   const update = (key: keyof typeof form, value: string | boolean) => setForm((f) => ({ ...f, [key]: value }));
+  const loadShops = useCallback(async () => { try { setShops(await adminRequest<CompareShop[]>('/api/compare-shops')); } catch { /* the names can still be typed */ } }, []);
+  useEffect(() => { void loadShops(); }, [loadShops]);
+  const addShop = async (slot: 1 | 2) => {
+    const name = window.prompt('Название магазина для сравнения, например «ВкусВилл»')?.trim();
+    if (!name) return;
+    try { await adminRequest('/api/admin/compare-shops', { method: 'POST', body: JSON.stringify({ name }) }); await loadShops(); update(`compare_shop_${slot}`, name); notify(`Магазин «${name}» добавлен`); }
+    catch (e) { notify((e as Error).message, 'error'); }
+  };
   const save = async (e: FormEvent) => {
     e.preventDefault(); setBusy(true);
     try {
-      let image_url = form.image_url;
-      if (file) image_url = (await adminUpload(file, 'product')).url;
-      const body = { ...form, image_url, price: form.price ? Number(form.price) : null, promo_price: form.promo_price ? Number(form.promo_price) : null, compare_price_1: form.compare_price_1 ? Number(form.compare_price_1) : null, compare_price_2: form.compare_price_2 ? Number(form.compare_price_2) : null, category_id: form.category_id ? Number(form.category_id) : null, subcategory_id: form.subcategory_id ? Number(form.subcategory_id) : null };
-      if (product) await adminRequest(`/api/admin/products/${product.id}`, { method: 'PATCH', body: JSON.stringify(body) });
-      else await adminRequest('/api/admin/products', { method: 'POST', body: JSON.stringify(body) });
+      const num = (v: string) => (v ? Number(v) : null);
+      const body = { ...form, price: num(form.price), promo_price: num(form.promo_price), compare_price_1: num(form.compare_price_1), compare_price_2: num(form.compare_price_2), category_id: num(form.category_id), subcategory_id: num(form.subcategory_id) };
+      let saved: ProductRow;
+      if (product) saved = await adminRequest<ProductRow>(`/api/admin/products/${product.id}`, { method: 'PATCH', body: JSON.stringify(body) });
+      else saved = await adminRequest<ProductRow>('/api/admin/products', { method: 'POST', body: JSON.stringify(body) });
+      if (pending.length) {
+        const failed = await uploadProductPhotos(saved.id, pending.map((p) => p.file), removeBg, 0);
+        pending.forEach((p) => URL.revokeObjectURL(p.preview));
+        if (failed) notify(`Не загрузилось фото: ${failed}`, 'error');
+      }
       notify(product ? 'Товар обновлён' : 'Товар создан'); onSaved();
     } catch (err) { notify((err as Error).message, 'error'); }
     setBusy(false);
   };
-  const cats = categories;
   const subs = subcategories.filter((s) => String(s.category_id) === form.category_id);
+  const category = categories.find((c) => String(c.id) === form.category_id);
   return <Modal title={product ? 'Редактирование товара' : 'Новый товар'} onClose={onClose}>
     <form onSubmit={save} className="space-y-3">
       <label className="block text-[10px] font-bold">Название<input required value={form.name} onChange={(e) => update('name', e.target.value)} className={`${adminInput} mt-1`} /></label>
       <label className="block text-[10px] font-bold">Описание<textarea rows={4} value={form.description} onChange={(e) => update('description', e.target.value)} className={`${adminArea} mt-1`} /></label>
-      <div className="grid sm:grid-cols-2 gap-3"><label className="text-[10px] font-bold">Категория<select value={form.category_id} onChange={(e) => { update('category_id', e.target.value); update('subcategory_id', ''); }} className={`${adminInput} mt-1`}><option value="">Без категории</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label className="text-[10px] font-bold">Подкатегория<select value={form.subcategory_id} onChange={(e) => update('subcategory_id', e.target.value)} className={`${adminInput} mt-1`}><option value="">Без подкатегории</option>{subs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label></div>
-      <div className="grid sm:grid-cols-3 gap-3">{[['price','Цена'],['promo_price','По промокоду'],['compare_price_1','Сравнение']].map(([k, label]) => <label key={k} className="text-[10px] font-bold">{label}<input type="number" min="0" step="0.01" value={form[k as keyof typeof form] as string} onChange={(e) => update(k as keyof typeof form, e.target.value)} className={`${adminInput} mt-1`} /></label>)}</div>
-      <div className="grid sm:grid-cols-2 gap-3"><label className="text-[10px] font-bold">Изображение (URL)<input value={form.image_url} onChange={(e) => update('image_url', e.target.value)} className={`${adminInput} mt-1`} /></label><label className="text-[10px] font-bold">Загрузить файл<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(e) => setFile(e.target.files?.[0] || null)} className={`${adminInput} mt-1 !py-2`} /></label></div>
+      <div className="grid sm:grid-cols-2 gap-3"><label className="text-[10px] font-bold">Категория<select value={form.category_id} onChange={(e) => { update('category_id', e.target.value); update('subcategory_id', ''); }} className={`${adminInput} mt-1`}><option value="">Без категории</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label className="text-[10px] font-bold">Подкатегория<select value={form.subcategory_id} onChange={(e) => update('subcategory_id', e.target.value)} className={`${adminInput} mt-1`}><option value="">Без подкатегории</option>{subs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label></div>
+      <div className="grid sm:grid-cols-2 gap-3">{[['price', 'Цена, ₽'], ['promo_price', 'По промокоду, ₽']].map(([k, label]) => <label key={k} className="text-[10px] font-bold">{label}<input type="number" min="0" step="0.01" value={form[k as keyof typeof form] as string} onChange={(e) => update(k as keyof typeof form, e.target.value)} className={`${adminInput} mt-1`} /></label>)}</div>
+
+      {/* One line for photos: pick files, the background goes, the result can be downloaded */}
+      <PhotoRow productId={product?.id ?? null} pending={pending} setPending={setPending} removeBg={removeBg} setRemoveBg={setRemoveBg} notify={notify} />
+
+      <section className="rounded-ctl-md bg-surface/55 p-3 space-y-2">
+        <div className="flex items-baseline gap-2 flex-wrap"><b className="text-[11px]">Цены в других магазинах</b><span className="text-[10px] text-muted">название магазина на сайте станет ссылкой на товар</span></div>
+        {([1, 2] as const).map((slot) => {
+          const shopKey = `compare_shop_${slot}` as const; const urlKey = `compare_url_${slot}` as const; const priceKey = `compare_price_${slot}` as const;
+          const fallback = (slot === 1 ? category?.compare_label_1 : category?.compare_label_2) || (slot === 1 ? 'Золотое Яблоко' : 'Рандеву');
+          const known = shops.some((x) => x.name === form[shopKey]);
+          return <div key={slot} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_96px] max-sm:grid-cols-[minmax(0,1fr)_96px] gap-2 items-end">
+            <label className="text-[10px] font-bold min-w-0">Магазин {slot}
+              <select value={form[shopKey]} onChange={(e) => { if (e.target.value === '__new') { void addShop(slot); return; } update(shopKey, e.target.value); }} className={`${adminInput} mt-1 !h-10`}>
+                <option value="">Как в категории · {fallback}</option>
+                {shops.map((x) => <option key={x.id} value={x.name}>{x.name}</option>)}
+                {!known && form[shopKey] && <option value={form[shopKey]}>{form[shopKey]}</option>}
+                <option value="__new">+ Новый магазин…</option>
+              </select>
+            </label>
+            <label className="text-[10px] font-bold min-w-0 max-sm:col-span-2 max-sm:order-3">Ссылка на товар в магазине
+              <input type="url" inputMode="url" value={form[urlKey]} onChange={(e) => update(urlKey, e.target.value)} placeholder="https://vkusvill.ru/goods/…" className={`${adminInput} mt-1 !h-10`} />
+            </label>
+            <label className="text-[10px] font-bold">Цена, ₽<input type="number" min="0" step="0.01" value={form[priceKey]} onChange={(e) => update(priceKey, e.target.value)} className={`${adminInput} mt-1 !h-10`} /></label>
+          </div>;
+        })}
+      </section>
+
       <label className="block text-[10px] font-bold">Плашка<input value={form.badge} onChange={(e) => update('badge', e.target.value)} className={`${adminInput} mt-1`} placeholder="Например, Хит" /></label>
       <div className="flex flex-wrap gap-4 text-[11px] font-bold"><label className="flex items-center gap-2"><input type="checkbox" checked={form.is_available} onChange={(e) => update('is_available', e.target.checked)} className="accent-primary" />В наличии</label><label className="flex items-center gap-2"><input type="checkbox" checked={form.is_adult} onChange={(e) => update('is_adult', e.target.checked)} className="accent-primary" />18+</label><label className="flex items-center gap-2"><input type="checkbox" checked={form.requires_variant} onChange={(e) => update('requires_variant', e.target.checked)} className="accent-primary" />Обязателен вариант</label></div>
-      {product && <ProductGallery productId={product.id} notify={notify} />}
       {product && <ProductVariants productId={product.id} notify={notify} />}
       <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={onClose} className={adminSecondary}>Отмена</button><button disabled={busy} className={adminPrimary}>{busy ? <LoaderCircle className="animate-spin" size={15} /> : <Save size={15} />}Сохранить</button></div>
     </form>
   </Modal>;
 }
 
-function ProductGallery({ productId, notify }: { productId: number; notify: AdminNotice }) {
+/** Uploads photos into a product; returns the names that failed, if any. */
+async function uploadProductPhotos(productId: number, files: File[], removeBg: boolean, already: number): Promise<string> {
+  const failed: string[] = [];
+  for (const file of files.slice(0, Math.max(0, 7 - already))) {
+    try {
+      const { url } = await adminUpload(file, 'product', { removeBg });
+      await adminRequest(`/api/admin/products/${productId}/images`, { method: 'POST', body: JSON.stringify({ url }) });
+    } catch { failed.push(file.name); }
+  }
+  return failed.join(', ');
+}
+
+const PHOTO_TYPES = 'image/jpeg,image/png,image/webp';
+
+function PhotoRow({ productId, pending, setPending, removeBg, setRemoveBg, notify }: {
+  productId: number | null; pending: PendingPhoto[]; setPending: (f: (p: PendingPhoto[]) => PendingPhoto[]) => void;
+  removeBg: boolean; setRemoveBg: (v: boolean) => void; notify: AdminNotice;
+}) {
   const [images, setImages] = useState<ProductImage[]>([]);
   const [busy, setBusy] = useState(false);
-  const load = useCallback(async () => { try { setImages(await adminRequest<ProductImage[]>(`/api/admin/products/${productId}/images`)); } catch (e) { notify((e as Error).message, 'error'); } }, [productId, notify]);
+  const load = useCallback(async () => { if (!productId) return; try { setImages(await adminRequest<ProductImage[]>(`/api/admin/products/${productId}/images`)); } catch (e) { notify((e as Error).message, 'error'); } }, [productId, notify]);
   useEffect(() => { void load(); }, [load]);
-  const upload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(e.target.files || []).slice(0, Math.max(0, 7 - images.length)); e.target.value = '';
-    if (!picked.length) return;
+  const count = images.length + pending.length;
+  const pick = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []).slice(0, Math.max(0, 7 - count)); e.target.value = '';
+    if (!files.length) return;
+    if (!productId) { setPending((p) => [...p, ...files.map((file) => ({ file, preview: URL.createObjectURL(file) }))]); return; }
     setBusy(true);
-    for (const file of picked) {
-      try { const { url } = await adminUpload(file, 'product'); await adminRequest(`/api/admin/products/${productId}/images`, { method: 'POST', body: JSON.stringify({ url, is_main: images.length === 0 }) }); }
-      catch (err) { notify((err as Error).message, 'error'); }
-    }
+    const failed = await uploadProductPhotos(productId, files, removeBg, images.length);
+    if (failed) notify(`Не загрузилось: ${failed}`, 'error'); else notify(removeBg ? 'Фото загружены, фон убран' : 'Фото загружены');
     await load(); setBusy(false);
   };
   const setMain = async (image: ProductImage) => { try { await adminRequest(`/api/admin/product-images/${image.id}/set-main`, { method: 'POST', body: '{}' }); await load(); } catch (e) { notify((e as Error).message, 'error'); } };
   const remove = async (image: ProductImage) => { if (!window.confirm('Удалить фотографию товара?')) return; try { await adminRequest(`/api/admin/product-images/${image.id}`, { method: 'DELETE' }); await load(); } catch (e) { notify((e as Error).message, 'error'); } };
-  return <section className="rounded-ctl-md bg-surface/55 p-3"><div className="flex items-center gap-3 mb-2"><b className="text-[11px]">Галерея · {images.length}/7</b><label className={`${adminSecondary} ml-auto !min-h-8 !py-1 cursor-pointer`}>{busy ? <LoaderCircle size={13} className="animate-spin" /> : <ImagePlus size={13} />}Добавить фото<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={upload} className="hidden" disabled={busy || images.length >= 7} /></label></div><div className="flex flex-wrap gap-2">{images.map((image) => <div key={image.id} className="relative w-16 h-16 bg-white rounded-ctl-xs border border-ink/15 overflow-hidden"><img src={image.url} alt="" className="w-full h-full object-contain" /><button type="button" onClick={() => void setMain(image)} className={`absolute left-1 bottom-1 px-1 rounded text-[9px] font-bold ${image.is_main ? 'bg-sun text-ink' : 'bg-white/90 text-ink'}`} title="Сделать обложкой">{image.is_main ? '★' : '☆'}</button><button type="button" onClick={() => void remove(image)} className="absolute right-0.5 top-0.5 w-4 h-4 rounded-full bg-ink/65 text-white grid place-items-center" aria-label="Удалить фото"><X size={10} /></button></div>)}</div></section>;
+  const zip = async () => { try { await adminDownload(`/api/admin/products/${productId}/images.zip`, `product_${productId}_photos.zip`); } catch (e) { notify((e as Error).message, 'error'); } };
+  const unqueue = (p: PendingPhoto) => { URL.revokeObjectURL(p.preview); setPending((all) => all.filter((x) => x !== p)); };
+  return <section className="rounded-ctl-md bg-surface/55 p-3">
+    <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
+      <b className="text-[11px]">Фото товара · {count}/7</b>
+      <label className="flex items-center gap-1.5 text-[11px] font-bold cursor-pointer" title="Фон вырезается автоматически, фото сохраняется в PNG на прозрачном фоне">
+        <input type="checkbox" checked={removeBg} onChange={(e) => setRemoveBg(e.target.checked)} className="accent-primary" />Убрать фон (PNG)
+      </label>
+      <div className="ml-auto flex gap-2">
+        {productId && images.length > 0 && <button type="button" onClick={() => void zip()} className={`${adminSecondary} !min-h-8 !py-1`} title="Скачать все фото одним архивом"><Download size={13} />Все (ZIP)</button>}
+        <label className={`${adminPrimary} !min-h-8 !py-1 cursor-pointer ${busy || count >= 7 ? 'opacity-50 pointer-events-none' : ''}`}>
+          {busy ? <LoaderCircle size={13} className="animate-spin" /> : <ImagePlus size={13} />}{busy ? (removeBg ? 'Убираем фон…' : 'Загрузка…') : 'Загрузить фото'}
+          <input type="file" accept={PHOTO_TYPES} multiple onChange={(e) => void pick(e)} className="hidden" disabled={busy || count >= 7} />
+        </label>
+      </div>
+    </div>
+    {count === 0 ? <p className="text-[10px] text-muted mt-2">Можно выбрать несколько файлов сразу. Первое фото станет обложкой — звёздочкой её можно сменить.</p> : <div className="flex flex-wrap gap-2 mt-2">
+      {images.map((image) => <div key={image.id} className="relative w-[72px] h-[72px] rounded-ctl-xs border border-ink/15 overflow-hidden admin-checker">
+        <img src={image.url} alt="" className="w-full h-full object-contain" />
+        <button type="button" onClick={() => void setMain(image)} className={`absolute left-1 bottom-1 px-1 rounded text-[9px] font-bold ${image.is_main ? 'bg-sun text-ink' : 'bg-white/90 text-ink'}`} title={image.is_main ? 'Обложка' : 'Сделать обложкой'}>{image.is_main ? '★' : '☆'}</button>
+        <a href={image.url} download className="absolute right-1 bottom-1 w-5 h-5 rounded-full bg-white/90 text-ink grid place-items-center" title="Скачать фото" aria-label="Скачать фото"><Download size={11} /></a>
+        <button type="button" onClick={() => void remove(image)} className="absolute right-0.5 top-0.5 w-4 h-4 rounded-full bg-ink/65 text-white grid place-items-center" aria-label="Удалить фото"><X size={10} /></button>
+      </div>)}
+      {pending.map((p, i) => <div key={p.preview} className="relative w-[72px] h-[72px] rounded-ctl-xs border border-dashed border-ink/30 overflow-hidden bg-white">
+        <img src={p.preview} alt="" className="w-full h-full object-contain opacity-80" />
+        <span className="absolute left-1 bottom-1 px-1 rounded bg-white/90 text-[8.5px] font-bold">{i === 0 && images.length === 0 ? 'обложка' : 'ждёт'}</span>
+        <button type="button" onClick={() => unqueue(p)} className="absolute right-0.5 top-0.5 w-4 h-4 rounded-full bg-ink/65 text-white grid place-items-center" aria-label="Убрать фото"><X size={10} /></button>
+      </div>)}
+    </div>}
+    {!productId && pending.length > 0 && <p className="text-[10px] text-muted mt-2">Фото загрузятся{removeBg ? ' и очистятся от фона' : ''} после сохранения товара.</p>}
+  </section>;
 }
 
 function ProductVariants({ productId, notify }: { productId: number; notify: AdminNotice }) {
@@ -156,9 +254,35 @@ function CategoriesPanel({ notify }: { notify: AdminNotice }) {
       <div className="mt-4 space-y-2">{subs.filter((s) => s.category_id === c.id).map((s) => <div key={s.id} className="flex gap-2 items-center rounded-ctl-sm bg-surface/55 px-3 py-2 min-w-0">{s.image && <img src={s.image} alt="" className="w-8 h-8 object-contain rounded-full bg-white" />}<div className="flex-1 min-w-0"><b className="text-[12px]">{s.name}</b><div className="text-[10px] text-muted truncate">{s.is_brand ? 'Бренд' : 'Подкатегория'} · {s.description || s.slogan || 'без описания'}</div></div><button onClick={() => { setSubForm({ id: s.id, category_id: String(s.category_id), name: s.name, description: s.description || '', image: s.image || '', accent_color: s.accent_color || '', slogan: s.slogan || '', is_brand: !!s.is_brand }); setCreatingSub(true); }} className={adminSecondary}>Изменить</button><button onClick={() => void deleteSub(s.id)} className={`${adminDanger} !px-2`} aria-label="Удалить"><Trash2 size={13} /></button></div>)}</div>
       <button onClick={() => { setSubForm({ id: 0, category_id: String(c.id), name: '', description: '', image: '', accent_color: '', slogan: '', is_brand: false }); setCreatingSub(true); }} className={`${adminSecondary} mt-3`}><Plus size={13} />Подкатегория</button>
     </div>)}</div>
+    <CompareShopsPanel notify={notify} />
     {editing !== false && <CategoryEditor category={editing} onClose={() => setEditing(false)} onSaved={async () => { setEditing(false); await load(); }} notify={notify} />}
     {creatingSub && <Modal title={subForm.id ? 'Подкатегория' : 'Новая подкатегория'} onClose={() => setCreatingSub(false)}><form onSubmit={saveSub} className="space-y-3"><label className="block text-[10px] font-bold">Категория<select required value={subForm.category_id} onChange={(e) => setSubForm({ ...subForm, category_id: e.target.value })} className={`${adminInput} mt-1`}>{data.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label className="block text-[10px] font-bold">Название<input required value={subForm.name} onChange={(e) => setSubForm({ ...subForm, name: e.target.value })} className={`${adminInput} mt-1`} /></label><label className="block text-[10px] font-bold">Описание<textarea rows={3} value={subForm.description} onChange={(e) => setSubForm({ ...subForm, description: e.target.value })} className={`${adminArea} mt-1`} /></label><label className="block text-[10px] font-bold">Слоган<input value={subForm.slogan} onChange={(e) => setSubForm({ ...subForm, slogan: e.target.value })} className={`${adminInput} mt-1`} /></label><label className="block text-[10px] font-bold">Логотип / изображение<input value={subForm.image} onChange={(e) => setSubForm({ ...subForm, image: e.target.value })} className={`${adminInput} mt-1`} /></label><label className="block text-[10px] font-bold">Цвет акцента<input type="color" value={/^#[0-9a-f]{6}$/i.test(subForm.accent_color) ? subForm.accent_color : '#FFD60A'} onChange={(e) => setSubForm({ ...subForm, accent_color: e.target.value })} className="mt-1 h-10 w-full rounded-ctl-sm border border-ink/15" /></label><label className="flex items-center gap-2 text-[11px] font-bold"><input type="checkbox" checked={subForm.is_brand} onChange={(e) => setSubForm({ ...subForm, is_brand: e.target.checked })} className="accent-primary" />Показывать как бренд в бегущей ленте</label><button className={adminPrimary}><Save size={14} />Сохранить</button></form></Modal>}
   </>;
+}
+
+/** The shops prices are compared with: names to pick in a product window. */
+function CompareShopsPanel({ notify }: { notify: AdminNotice }) {
+  const [shops, setShops] = useState<CompareShop[]>([]);
+  const [form, setForm] = useState({ name: '', site_url: '' });
+  const load = useCallback(async () => { try { setShops(await adminRequest<CompareShop[]>('/api/compare-shops')); } catch (e) { notify((e as Error).message, 'error'); } }, [notify]);
+  useEffect(() => { void load(); }, [load]);
+  const add = async (e: FormEvent) => { e.preventDefault(); try { await adminRequest('/api/admin/compare-shops', { method: 'POST', body: JSON.stringify(form) }); setForm({ name: '', site_url: '' }); notify('Магазин добавлен'); await load(); } catch (err) { notify((err as Error).message, 'error'); } };
+  const rename = async (shop: CompareShop) => {
+    const name = window.prompt('Название магазина', shop.name)?.trim(); if (name === undefined || name === '') return;
+    const site_url = window.prompt('Сайт магазина (необязательно)', shop.site_url || '')?.trim() ?? shop.site_url ?? '';
+    try { await adminRequest(`/api/admin/compare-shops/${shop.id}`, { method: 'PATCH', body: JSON.stringify({ name, site_url }) }); await load(); } catch (err) { notify((err as Error).message, 'error'); }
+  };
+  const remove = async (shop: CompareShop) => { if (!window.confirm(`Убрать «${shop.name}» из списка? У товаров название останется.`)) return; try { await adminRequest(`/api/admin/compare-shops/${shop.id}`, { method: 'DELETE' }); await load(); } catch (err) { notify((err as Error).message, 'error'); } };
+  return <section className={`${adminCard} p-4 mt-6`}>
+    <div className="flex items-center gap-2 mb-1"><Store size={17} /><h2 className="font-display text-[17px]">Магазины для сравнения цен</h2></div>
+    <p className="text-[11px] text-muted mb-3">Из этого списка выбирается магазин в окне товара. Ссылку на конкретный товар в магазине указывают там же — на сайте название магазина станет ссылкой.</p>
+    <div className="flex flex-wrap gap-2 mb-3">{shops.map((x) => <span key={x.id} className="inline-flex items-center gap-1.5 rounded-full border border-ink/15 bg-surface pl-3 pr-1 h-8 text-[12px] font-bold">
+      <button type="button" onClick={() => void rename(x)} className="cursor-pointer hover:underline" title="Переименовать">{x.name}</button>
+      {x.site_url && <a href={x.site_url} target="_blank" rel="noreferrer" className="text-muted hover:text-ink" title={x.site_url}><ExternalLink size={12} /></a>}
+      <button type="button" onClick={() => void remove(x)} className="w-6 h-6 rounded-full grid place-items-center hover:bg-[#FDE2E2]" aria-label={`Удалить ${x.name}`}><X size={12} /></button>
+    </span>)}</div>
+    <form onSubmit={add} className="grid sm:grid-cols-[1fr_1.3fr_auto] gap-2"><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Название, например ВкусВилл" className={adminInput} /><input value={form.site_url} onChange={(e) => setForm({ ...form, site_url: e.target.value })} placeholder="https://vkusvill.ru (необязательно)" className={adminInput} /><button className={adminPrimary}><Plus size={14} />Добавить</button></form>
+  </section>;
 }
 
 function CategoryEditor({ category, onClose, onSaved, notify }: { category: Category | null; onClose: () => void; onSaved: () => void; notify: AdminNotice }) {

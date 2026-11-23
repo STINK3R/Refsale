@@ -59,6 +59,12 @@ export interface Product {
   has_promo_price?: boolean;
   compare_price_1?: number | null;
   compare_price_2?: number | null;
+  /** The shop of each comparison price (empty: the category's) and a link
+   *  to the item on its site */
+  compare_shop_1?: string | null;
+  compare_shop_2?: string | null;
+  compare_url_1?: string | null;
+  compare_url_2?: string | null;
   /** When present, the buyer picks one and its price applies. */
   variants?: ProductVariant[];
   is_adult?: boolean;

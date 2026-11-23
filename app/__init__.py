@@ -96,6 +96,17 @@ def create_app():
             if not _verify_admin_token():
                 return jsonify({"error": "Unauthorized"}), 401
 
+    # ── Register of admin actions (after the guard: it needs the admin) ──
+    from . import audit as _audit
+
+    @app.before_request
+    def _audit_before():
+        _audit.before_request()
+
+    @app.after_request
+    def _audit_after(response):
+        return _audit.after_request(response)
+
     # ── Static file routes ─────────────────────────
     @app.route("/")
     def serve_index():
@@ -103,7 +114,7 @@ def create_app():
 
     # Client-side routes of the SPA. Anything else that is not a real file or
     # an API call stays a 404 instead of silently rendering the storefront.
-    _SPA_ROOTS = {"forums", "orders", "cabinet", "supplier", "favorites", "home", "catalog"}
+    _SPA_ROOTS = {"forums", "orders", "cabinet", "supplier", "favorites", "home", "catalog", "news", "vote"}
 
     @app.route("/<path:spa_path>")
     def serve_spa(spa_path):
@@ -148,6 +159,10 @@ def create_app():
     from .routes.kokonkoop import bp as kokonkoop_bp
     from .routes.supplier import bp as supplier_bp
     from .routes.partner_chat import bp as partner_chat_bp
+    from .routes.audit_log import bp as audit_log_bp
+    from .routes.news import bp as news_bp
+    from .routes.vote import bp as vote_bp
+    from .routes.compare_shops import bp as compare_shops_bp
     from .schema import ensure_schema
 
     app.register_blueprint(public_bp)
@@ -161,6 +176,10 @@ def create_app():
     app.register_blueprint(kokonkoop_bp)
     app.register_blueprint(supplier_bp)
     app.register_blueprint(partner_chat_bp)
+    app.register_blueprint(audit_log_bp)
+    app.register_blueprint(news_bp)
+    app.register_blueprint(vote_bp)
+    app.register_blueprint(compare_shops_bp)
 
     ensure_schema()
     _bootstrap_admin_password()

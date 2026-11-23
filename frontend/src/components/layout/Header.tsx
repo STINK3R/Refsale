@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, m } from 'framer-motion';
-import { X, ShoppingBag, User, Package, Heart } from 'lucide-react';
+import { X, ShoppingBag, User, Package, Heart, Newspaper, Vote, Users } from 'lucide-react';
 import { useAppStore, useAuthStore, useCartStore, useFavoritesStore, useNotificationStore, usePromoStore } from '../../store';
 import { useNewsStore } from '../../store/news';
 import { useSupportStore } from '../../store/support';
@@ -47,7 +47,9 @@ export default function Header() {
   const show = useNotificationStore((s) => s.show);
   const contacts = useContacts();
   const favCount = useFavoritesStore((s) => s.ids.length);
-  const { categories, activeCategoryId, loading: catalogLoading } = useAppStore();
+  const { categories, activeCategoryId, loading: catalogLoading, settings } = useAppStore();
+  const coopOpen = settings.kokonkoop_enabled === 'true';
+  const voteOpen = settings.vote_enabled !== 'false';
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [orderUnread, setOrderUnread] = useState(0);
@@ -56,7 +58,8 @@ export default function Header() {
   const navigate = useNavigate();
   // The shop lives at /catalog with its category tabs; on the main page (/,
   // /home) the bar sits transparent too, without the tabs.
-  const isCatalog = location.pathname === '/catalog';
+  // News and the product vote sit in the catalog's row of tabs too
+  const isCatalog = location.pathname === '/catalog' || location.pathname === '/news' || location.pathname === '/vote';
   const onMain = location.pathname === '/' || location.pathname === '/home';
   const isHome = isCatalog || onMain;
   useScrollLock(menuOpen);
@@ -107,13 +110,13 @@ export default function Header() {
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
   // What is new on the forum, in reviews and in the catalog: counters in the menu
-  const { forumNew, reviewsNew, catalogNew, refresh: refreshNews } = useNewsStore();
+  const { forumNew, reviewsNew, catalogNew, newsNew, refresh: refreshNews } = useNewsStore();
   useEffect(() => {
     void refreshNews();
     const t = setInterval(refreshNews, 60000);
     return () => clearInterval(t);
   }, [refreshNews]);
-  const anyNews = orderUnread > 0 || supportUnread > 0 || forumNew > 0 || reviewsNew > 0 || catalogNew;
+  const anyNews = orderUnread > 0 || supportUnread > 0 || forumNew > 0 || reviewsNew > 0 || catalogNew || newsNew;
 
   const goToSection = useCallback((hash: string) => {
     setMenuOpen(false);
@@ -150,7 +153,7 @@ export default function Header() {
   // colours, picture, products — fades in once it is at the top.
   const [pendingCategory, setPendingCategory] = useState<number | null>(null);
   const pickCategory = (id: number) => {
-    if (!isCatalog || activeCategoryId === null) { navigate(`/catalog?c=${id}`); window.scrollTo(0, 0); return; }
+    if (location.pathname !== '/catalog' || activeCategoryId === null) { navigate(`/catalog?c=${id}`); window.scrollTo(0, 0); return; }
     setPendingCategory(id);
     glidePageToTop(() => { navigate(`/catalog?c=${id}`); setPendingCategory(null); });
   };
@@ -251,11 +254,21 @@ export default function Header() {
               </div>
             </div>
           )}
-          {isCatalog && categories.length > 1 && (
+          {isCatalog && (categories.length > 0 || !catalogLoading) && (
             <div className="max-w-[1440px] mx-auto px-8 max-sm:px-4 pb-3 flex overflow-x-auto scrollbar-hide">
               <div className="sm:mx-auto shrink-0 flex gap-2">
+              {/* News first, as a section of the catalog of its own */}
+              <Link
+                to="/news"
+                aria-current={location.pathname === '/news' ? 'page' : undefined}
+                className={`relative shrink-0 h-9 pl-3 pr-4 inline-flex items-center gap-1.5 rounded-ctl-sm border-2 text-[12.5px] font-bold whitespace-nowrap cursor-pointer transition-[color,border-color] ${location.pathname === '/news' ? 'bg-ink border-ink text-sun' : 'bg-sun/60 border-ink text-ink hover:bg-sun'}`}
+              >
+                <Newspaper size={14} strokeWidth={2.4} />Новости
+                {newsNew && location.pathname !== '/news' && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary border-2 border-bg" aria-label="есть новое" />}
+              </Link>
+              <span aria-hidden="true" className="shrink-0 w-px my-1.5 bg-ink/15" />
               {categories.map((c) => {
-                const active = isCatalog && (c.id === (pendingCategory ?? activeCategoryId));
+                const active = location.pathname === '/catalog' && (c.id === (pendingCategory ?? activeCategoryId));
                 return (
                   <a
                     key={c.id}
@@ -269,6 +282,22 @@ export default function Header() {
                   </a>
                 );
               })}
+              {(voteOpen || coopOpen) && <span aria-hidden="true" className="shrink-0 w-px my-1.5 bg-ink/15" />}
+              {voteOpen && (
+                <Link
+                  to="/vote"
+                  aria-current={location.pathname === '/vote' ? 'page' : undefined}
+                  className={`shrink-0 h-9 pl-3 pr-4 inline-flex items-center gap-1.5 rounded-ctl-sm border-2 text-[12.5px] font-bold whitespace-nowrap transition-[color,border-color] ${location.pathname === '/vote' ? 'bg-accent-strong border-ink text-ink' : 'bg-card border-line text-muted hover:border-ink hover:text-ink'}`}
+                >
+                  <Vote size={14} strokeWidth={2.4} />Голосование
+                </Link>
+              )}
+              {coopOpen && (
+                // The cooperative is a site of its own: a full page load
+                <a href="/kokonkoop" data-own-nav className="shrink-0 h-9 pl-3 pr-4 inline-flex items-center gap-1.5 rounded-ctl-sm border-2 border-[#9DC3F0] bg-[#EAF3FF] text-[12.5px] font-bold text-[#1B5BB0] whitespace-nowrap hover:border-[#1B5BB0]">
+                  <Users size={14} strokeWidth={2.4} />Кооператив
+                </a>
+              )}
               </div>
             </div>
           )}
@@ -298,16 +327,24 @@ export default function Header() {
 
               <div className="flex-1 overflow-y-auto modal-scroll px-8 max-sm:px-6 py-8">
                 <nav className="flex flex-col">
-                  <MenuItem n="01" to="/home">Главная</MenuItem>
-                  <MenuItem n="02" onClick={openCatalog} badge={catalogNew}>Каталог</MenuItem>
-                  <MenuItem n="03" to="/orders" badge={orderUnread}>Сообщения и заказы</MenuItem>
-                  <MenuItem n="04" to="/favorites">Избранное{favCount > 0 && <sup className="ml-1.5 text-[13px] text-primary">{favCount}</sup>}</MenuItem>
-                  <MenuItem n="05" to="/forums" badge={forumNew}>Форум</MenuItem>
-                  <MenuItem n="06" onClick={() => goToSection('#reviews')} badge={reviewsNew}>Отзывы</MenuItem>
-                  <MenuItem n="07" onClick={goToAbout}>О нас</MenuItem>
-                  <MenuItem n="08" onClick={openChats} badge={supportUnread || undefined}>Вопрос площадке</MenuItem>
-                  {user?.is_leader && <MenuItem n="09" to="/cabinet">Кабинет лидера мнений</MenuItem>}
-                  {user?.is_supplier && <MenuItem n={user.is_leader ? '10' : '09'} to="/supplier">Кабинет поставщика</MenuItem>}
+                  {[
+                    <MenuItem key="home" to="/home">Главная</MenuItem>,
+                    <MenuItem key="news" to="/news" badge={newsNew}>Новости</MenuItem>,
+                    <MenuItem key="catalog" onClick={openCatalog} badge={catalogNew}>Каталог</MenuItem>,
+                    <MenuItem key="orders" to="/orders" badge={orderUnread}>Сообщения и заказы</MenuItem>,
+                    <MenuItem key="fav" to="/favorites">Избранное{favCount > 0 && <sup className="ml-1.5 text-[13px] text-primary">{favCount}</sup>}</MenuItem>,
+                    voteOpen && <MenuItem key="vote" to="/vote">Голосование за товары</MenuItem>,
+                    <MenuItem key="forum" to="/forums" badge={forumNew}>Форум</MenuItem>,
+                    <MenuItem key="reviews" onClick={() => goToSection('#reviews')} badge={reviewsNew}>Отзывы</MenuItem>,
+                    <MenuItem key="about" onClick={goToAbout}>О нас</MenuItem>,
+                    <MenuItem key="ask" onClick={openChats} badge={supportUnread || undefined}>Вопрос площадке</MenuItem>,
+                    coopOpen && <MenuItem key="coop" href="/kokonkoop">Кооператив «Кокон»</MenuItem>,
+                    user?.is_leader && <MenuItem key="leader" to="/cabinet">Кабинет лидера мнений</MenuItem>,
+                    user?.is_supplier && <MenuItem key="supplier" to="/supplier">Кабинет поставщика</MenuItem>,
+                  ].filter(Boolean).map((item, i) => (
+                    // Numbered in order, whatever is shown
+                    <MenuNumber key={(item as React.ReactElement).key} n={String(i + 1).padStart(2, '0')}>{item as React.ReactElement}</MenuNumber>
+                  ))}
                 </nav>
 
                 <div className="mt-10 flex flex-col gap-3">
@@ -375,7 +412,14 @@ function NavItem({ to, onClick, children, badge }: { to?: string; onClick?: () =
   return <button onClick={onClick} className={cls}>{inner}</button>;
 }
 
-function MenuItem({ n, to, onClick, children, badge }: { n: string; to?: string; onClick?: () => void; children: React.ReactNode; badge?: number | boolean }) {
+/** Hands its position number to the menu item inside. */
+function MenuNumber({ n, children }: { n: string; children: React.ReactNode }) {
+  return <MenuNumberContext.Provider value={n}>{children}</MenuNumberContext.Provider>;
+}
+const MenuNumberContext = createContext('');
+
+function MenuItem({ to, href, onClick, children, badge }: { to?: string; href?: string; onClick?: () => void; children: React.ReactNode; badge?: number | boolean }) {
+  const n = useContext(MenuNumberContext);
   const inner = (
     <>
       <span className="text-[11px] text-muted tabular-nums w-7 pt-3">{n}</span>
@@ -384,6 +428,8 @@ function MenuItem({ n, to, onClick, children, badge }: { n: string; to?: string;
     </>
   );
   const cls = 'group flex items-start py-2.5 border-b border-line/60 text-left cursor-pointer';
+  // Another site on this address (the cooperative): a real page load
+  if (href) return <a href={href} data-own-nav className={cls}>{inner}</a>;
   if (to) return <Link to={to} className={cls}>{inner}</Link>;
   return <button onClick={onClick} className={cls}>{inner}</button>;
 }

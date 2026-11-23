@@ -116,7 +116,7 @@ export default function ReviewsModal({ title, categoryId, productId, initialStar
             ) : items.length === 0 ? (
               <div className="py-14 text-center text-[14px] text-muted">{filter === 'all' ? 'Отзывов пока нет — будьте первым.' : 'С таким фильтром отзывов нет.'}</div>
             ) : (
-              items.map((r) => <ReviewCard key={r.id} review={r} showProduct={!productId} />)
+              items.map((r) => <ReviewCard key={r.id} review={r} showProduct={!productId} onProductOpen={onClose} />)
             )}
           </div>
           {!loading && items.length < total && (

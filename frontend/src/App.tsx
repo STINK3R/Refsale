@@ -29,6 +29,8 @@ const LegalPage = lazy(() => import('./components/sections/LegalPage'));
 const ConsentGate = lazy(() => import('./components/profile/ConsentGate'));
 const SupportChatModal = lazy(() => import('./components/support/SupportChatModal'));
 const AdminApp = lazy(() => import('./components/admin/AdminApp'));
+const NewsPage = lazy(() => import('./components/news/NewsPage'));
+const VotePage = lazy(() => import('./components/vote/VotePage'));
 // The main page comes with the first load: it is where most visits start.
 // The shop is its own chunk, fetched in the background from the main page.
 import HomePage from './components/sections/HomePage';
@@ -167,6 +169,8 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/catalog" element={<Suspense fallback={<PageFallback />}><CatalogPage /></Suspense>} />
+        <Route path="/news" element={<Suspense fallback={<PageFallback />}><NewsPage /></Suspense>} />
+        <Route path="/vote" element={<Suspense fallback={<PageFallback />}><VotePage /></Suspense>} />
         <Route path="/forums" element={<Suspense fallback={<PageFallback />}><StoreForum /></Suspense>} />
         <Route path="/orders" element={<Suspense fallback={<PageFallback />}><OrdersPage /></Suspense>} />
         <Route path="/cabinet" element={<Suspense fallback={<PageFallback />}><LeaderCabinet /></Suspense>} />

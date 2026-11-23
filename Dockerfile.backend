@@ -4,9 +4,20 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# psycopg2-binary ships prebuilt — no gcc/libpq-dev needed
+# psycopg2-binary ships prebuilt — no gcc/libpq-dev needed.
+# libgomp1: OpenMP runtime the background-removal model runs on.
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 COPY requirements-backend.txt .
 RUN pip install --no-cache-dir -r requirements-backend.txt
+
+# The background-removal model (~180 MB) is baked into the image, so the
+# first product photo does not wait for a download and nothing is fetched
+# from the internet at run time. REMBG_MODEL=u2netp is a 5 MB alternative.
+ENV U2NET_HOME=/opt/rembg-models
+ARG REMBG_MODEL=isnet-general-use
+ENV REMBG_MODEL=${REMBG_MODEL}
+RUN python -c "import os; from rembg import new_session; new_session(os.environ['REMBG_MODEL'])"
 
 # Copy application code
 COPY server.py .

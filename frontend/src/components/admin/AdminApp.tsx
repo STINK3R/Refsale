@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { ArrowLeft, ArrowUpRight, Box, ChevronRight, Headset, LayoutGrid, LoaderCircle, LogOut, MessageCircle, Package, Shield, Store, UsersRound } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Box, ChevronRight, ClipboardList, Headset, LayoutGrid, LoaderCircle, LogOut, MessageCircle, Newspaper, Package, Shield, Store, UsersRound, Vote } from 'lucide-react';
 import { adminLogin, adminRequest, adminSession, clearAdminSession } from '../../api/adminClient';
 import AdminStore from './AdminStore';
 import AdminCatalog from './AdminCatalog';
 import AdminSupport from './AdminSupport';
 import AdminForums from './AdminForums';
+import AdminNews from './AdminNews';
+import AdminVote from './AdminVote';
+import AdminAudit from './AdminAudit';
 
-type Section = 'store' | 'catalog' | 'support' | 'forums';
+type Section = 'store' | 'catalog' | 'support' | 'forums' | 'news' | 'vote' | 'audit';
 export type AdminNotice = (message: string, type?: 'success' | 'error') => void;
 const plate = 'bg-card border-2 border-ink rounded-[22px] shadow-[0_5px_0_#111]';
 
@@ -24,6 +27,8 @@ export default function AdminApp() {
   const [badges, setBadges] = useState({ orders: 0, suppliers: 0, support: 0 });
   const [coopEnabled, setCoopEnabled] = useState(false);
   const [coopBusy, setCoopBusy] = useState(false);
+  // The register of admin actions is the owner's: the master «admin» login
+  const [isOwner, setIsOwner] = useState(false);
 
   const notify: AdminNotice = useCallback((text, type = 'success') => {
     setNotice({ text, type });
@@ -66,6 +71,7 @@ export default function AdminApp() {
   useEffect(() => {
     if (!session) return;
     const load = async () => {
+      try { setIsOwner(Boolean((await adminRequest<{ is_owner: boolean }>('/api/admin/whoami')).is_owner)); } catch { setIsOwner(false); }
       try {
         const settings = await adminRequest<Record<string, string>>('/api/settings');
         setCoopEnabled(settings.kokonkoop_enabled === 'true');
@@ -129,6 +135,9 @@ export default function AdminApp() {
     catalog: { title: 'Каталог', icon: Box, tabs: ['Товары', 'От поставщиков', 'Категории', 'Покупатели', 'Отзывы', 'Администраторы'] },
     support: { title: 'Поддержка', icon: Headset, tabs: ['Обращения', 'Чаты участников'] },
     forums: { title: 'Форумы', icon: MessageCircle, tabs: ['Модерация'] },
+    news: { title: 'Новости', icon: Newspaper, tabs: ['Покупателям', 'Лидерам и поставщикам'] },
+    vote: { title: 'Голосование за товары', icon: Vote, tabs: ['Список и цены'] },
+    audit: { title: 'Реестр действий админов', icon: ClipboardList, tabs: ['Все действия'] },
   };
   const selected = section ? tabs[section] : null;
   const Icon = selected?.icon || LayoutGrid;
@@ -156,7 +165,10 @@ export default function AdminApp() {
             <SectionCard icon={<Store />} title="Магазин RefSale" description="Заказы, чаты, промокоды, лидеры мнений и настройки сайта" badge={badges.orders} onClick={() => setSection('store')} featured />
             <SectionCard icon={<Package />} title="Каталог" description="Товары площадки, модерация поставщиков, категории и покупатели" badge={badges.suppliers} onClick={() => setSection('catalog')} />
             <SectionCard icon={<Headset />} title="Поддержка" description="Вопросы покупателей и личные чаты поставщиков и лидеров мнений" badge={badges.support} onClick={() => setSection('support')} />
+            <SectionCard icon={<Newspaper />} title="Новости" description="Две ленты: для покупателей и для лидеров мнений с поставщиками; фото, видео, комментарии" onClick={() => setSection('news')} />
+            <SectionCard icon={<Vote />} title="Голосование за товары" description="Прайс поставщика из Excel или Word, наценки по категориям, итоги голосования" onClick={() => setSection('vote')} />
             <SectionCard icon={<MessageCircle />} title="Форумы" description="Темы и сообщения участников" onClick={() => setSection('forums')} />
+            {isOwner && <SectionCard icon={<ClipboardList />} title="Реестр действий админов" description="Кто что удалил и изменил: отзывы, чаты, товары, входы. Только для владельца" onClick={() => setSection('audit')} />}
           </div>
           <section className={`${plate} mt-7 p-5 sm:p-6 flex items-center gap-4 flex-wrap`}>
             <div className="w-12 h-12 rounded-[15px] bg-[#DCEBFF] border-2 border-ink grid place-items-center text-[#1B5BB0]"><UsersRound size={22} /></div>
@@ -168,7 +180,10 @@ export default function AdminApp() {
         </> : section === 'store' ? <AdminStore notify={notify} />
           : section === 'catalog' ? <AdminCatalog notify={notify} />
             : section === 'support' ? <AdminSupport notify={notify} />
-              : <AdminForums notify={notify} />}
+              : section === 'news' ? <AdminNews notify={notify} />
+                : section === 'vote' ? <AdminVote notify={notify} />
+                  : section === 'audit' && isOwner ? <AdminAudit notify={notify} />
+                    : <AdminForums notify={notify} />}
       </main>
       {notice && <div role="status" className={`fixed z-[80] bottom-5 right-5 max-w-[min(92vw,440px)] rounded-[16px] border-2 border-ink shadow-[0_4px_0_#111] px-4 py-3 text-[13px] font-bold ${notice.type === 'error' ? 'bg-[#FDE2E2] text-[#8F1D24]' : 'bg-sun text-ink'}`}>{notice.text}</div>}
     </div>

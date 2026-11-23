@@ -425,3 +425,6 @@ button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
 .animate-bounce-in { animation: scale-in 0.3s var(--ease-luxe) both; }
 .animate-success-pulse { animation: none; }
 .transform-gpu { transform: translateZ(0); backface-visibility: hidden; }
+
+/* Admin: a transparent product photo shows on a checkerboard */
+.admin-checker { background-color:#fff; background-image:linear-gradient(45deg,#ececec 25%,transparent 25%),linear-gradient(-45deg,#ececec 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ececec 75%),linear-gradient(-45deg,transparent 75%,#ececec 75%); background-size:12px 12px; background-position:0 0,0 6px,6px -6px,-6px 0; }

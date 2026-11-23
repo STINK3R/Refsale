@@ -41,9 +41,26 @@ export async function adminLogin(username: string, password: string) {
   return data;
 }
 
-export async function adminUpload(file: File, prefix = 'admin') {
+export async function adminUpload(file: File, prefix = 'admin', options: { removeBg?: boolean } = {}) {
   const form = new FormData();
   form.append('file', file);
   form.append('prefix', prefix);
-  return adminRequest<{ url: string }>('/api/admin/upload', { method: 'POST', body: form });
+  // Product photos: the server cuts the background out and saves a transparent PNG
+  if (options.removeBg) form.append('remove_bg', '1');
+  return adminRequest<{ url: string; background_removed?: boolean; warning?: string }>('/api/admin/upload', { method: 'POST', body: form });
+}
+
+/** A file only an admin may fetch (it needs the token): saved through a blob. */
+export async function adminDownload(path: string, filename: string) {
+  const token = session()?.token;
+  const res = await fetch(path, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (res.status === 401) { clearAdminSession(); window.dispatchEvent(new Event('refsale:admin-expired')); }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Ошибка сервера (${res.status})`);
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

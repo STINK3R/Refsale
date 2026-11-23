@@ -15,6 +15,7 @@ from ..utils import rate_limited_auth, check_brute_force, record_login_fail, rec
 from ..auth import _create_admin_token, invalidate_user_tokens
 from ..email_service import email_user_blocked
 from ..config import UPLOAD_DIR
+from .. import audit
 
 bp = Blueprint('admin', __name__)
 
@@ -65,6 +66,9 @@ def api_admin_login():
                     info.pop("password", None)
                     token = _create_admin_token(info)
                     record_login_success()
+                    audit.record(admin_id=int(info.get("id") or 0), admin_username=username,
+                                 admin_name=info.get("display_name") or username,
+                                 action="auth.login", label="Вход в админку", entity="auth")
                     return jsonify({"admin": info, "token": token})
             if username == "admin":
                 # Master password kept in coop_settings. No hardcoded fallback:
@@ -85,11 +89,15 @@ def api_admin_login():
                             "UPDATE coop_settings SET value = %s WHERE key = 'admin_password'",
                             (hash_password(password),)
                         )
-                    info = {"id": 0, "username": "admin", "display_name": "Администратор"}
+                    info = {"id": 0, "username": "admin", "display_name": "Администратор", "is_owner": True}
                     token = _create_admin_token(info)
                     record_login_success()
+                    audit.record(admin_id=0, admin_username="admin", admin_name="Владелец",
+                                 action="auth.login", label="Вход в админку", entity="auth")
                     return jsonify({"admin": info, "token": token})
         record_login_fail()
+        audit.record(admin_id=0, admin_username=username, admin_name=username,
+                     action="auth.failed", label="Неудачная попытка входа", entity="auth", status=401)
         return jsonify({"error": "Неверный логин или пароль"}), 401
     except Exception as e:
         return jsonify({"error": "Ошибка входа"}), 500
@@ -233,7 +241,21 @@ def api_delete_subcategory(sid):
 # ── CRUD: products ─────────────────────────────
 _PRODUCT_COLS = {'name', 'price', 'promo_price', 'compare_price_1', 'compare_price_2', 'description',
                  'category_id', 'subcategory_id', 'badge', 'image_url', 'is_available', 'is_adult',
-                 'requires_variant'}
+                 'requires_variant', 'compare_shop_1', 'compare_shop_2', 'compare_url_1', 'compare_url_2'}
+
+
+def _clean_compare_fields(d: dict):
+    """Shop names as picked; links only to web pages (http/https)."""
+    for k in ("compare_shop_1", "compare_shop_2"):
+        if k in d:
+            d[k] = str(d.get(k) or "").strip()[:100]
+    for k in ("compare_url_1", "compare_url_2"):
+        if k in d:
+            url = str(d.get(k) or "").strip()[:1000]
+            if url and not re.match(r"^https?://[^\s<>\"']+$", url, re.I):
+                return f"Ссылка на магазин должна начинаться с http:// или https://"
+            d[k] = url
+    return None
 
 # Empty price fields mean "no such price", not zero.
 _OPTIONAL_PRICES = ('promo_price', 'compare_price_1', 'compare_price_2')
@@ -242,6 +264,9 @@ _OPTIONAL_PRICES = ('promo_price', 'compare_price_1', 'compare_price_2')
 @bp.route("/api/admin/products", methods=["POST"])
 def api_add_product():
     d = request.json or {}
+    bad = _clean_compare_fields(d)
+    if bad:
+        return jsonify({"error": bad}), 400
     for k in _OPTIONAL_PRICES:
         if k in d and d[k] in ('', 0, '0'):
             d[k] = None
@@ -258,6 +283,9 @@ def api_add_product():
 @bp.route("/api/admin/products/<int:pid>", methods=["PATCH"])
 def api_update_product(pid):
     d = request.json or {}
+    bad = _clean_compare_fields(d)
+    if bad:
+        return jsonify({"error": bad}), 400
     for k in _OPTIONAL_PRICES:
         if k in d and d[k] in ('', 0, '0'):
             d[k] = None
@@ -536,9 +564,25 @@ def api_upload():
     prefix = sanitize_string(request.form.get("prefix", "file"), 50)
     prefix = prefix.replace('/', '_').replace('\\', '_').replace('..', '_')
     old_url = request.form.get("old_url", "")
-    filename = f"{prefix}_{int(time.time() * 1000)}.{ext}"
-    filepath = os.path.join(UPLOAD_DIR, filename)
-    f.save(filepath)
+    stamp = int(time.time() * 1000)
+    # A product photo can be cut out of its background: a transparent PNG
+    remove_bg = request.form.get("remove_bg") in ("1", "true", "yes") and ext in ("jpg", "jpeg", "png", "webp")
+    processed = None
+    if remove_bg:
+        try:
+            from ..imaging import remove_background
+            processed = remove_background(f.read())
+        except Exception as e:
+            print(f"[admin upload] background removal failed: {e}")
+            f.seek(0)
+            processed = None
+    if processed is not None:
+        filename = f"{prefix}_{stamp}_nobg.png"
+        with open(os.path.join(UPLOAD_DIR, filename), "wb") as out:
+            out.write(processed)
+    else:
+        filename = f"{prefix}_{stamp}.{ext}"
+        f.save(os.path.join(UPLOAD_DIR, filename))
     public_url = f"/uploads/{filename}"
     if old_url and old_url.startswith("/uploads/") and '..' not in old_url:
         old_path = os.path.join(UPLOAD_DIR, os.path.basename(old_url.replace("/uploads/", "")))
@@ -547,7 +591,33 @@ def api_upload():
                 os.remove(old_path)
             except:
                 pass
-    return jsonify({"url": public_url})
+    return jsonify({"url": public_url, "background_removed": processed is not None,
+                    **({"warning": "Фон убрать не удалось — фото сохранено как есть"} if remove_bg and processed is None else {})})
+
+
+@bp.route("/api/admin/products/<int:pid>/images.zip")
+def api_product_images_zip(pid):
+    """Every photo of a product in one archive (the transparent PNGs)."""
+    import io
+    import zipfile
+    from flask import send_file
+    with get_db() as cur:
+        cur.execute("SELECT name FROM coop_products WHERE id = %s", (pid,))
+        prod = cur.fetchone()
+        if not prod:
+            return jsonify({"error": "Товар не найден"}), 404
+        cur.execute("SELECT url FROM coop_product_images WHERE product_id = %s ORDER BY sort_order, id", (pid,))
+        urls = [r["url"] for r in cur.fetchall()]
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for i, url in enumerate(urls, start=1):
+            if not url or not url.startswith("/uploads/") or ".." in url:
+                continue
+            path = os.path.join(UPLOAD_DIR, os.path.basename(url))
+            if os.path.exists(path):
+                z.write(path, f"{pid}_{i}{os.path.splitext(path)[1]}")
+    buf.seek(0)
+    return send_file(buf, mimetype="application/zip", as_attachment=True, download_name=f"product_{pid}_photos.zip")
 
 
 # ── Forum moderation ──────────────────────────
