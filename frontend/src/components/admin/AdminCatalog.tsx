@@ -89,9 +89,9 @@ function ProductEditor({ product, categories, subcategories, onClose, onSaved, n
       if (product) saved = await adminRequest<ProductRow>(`/api/admin/products/${product.id}`, { method: 'PATCH', body: JSON.stringify(body) });
       else saved = await adminRequest<ProductRow>('/api/admin/products', { method: 'POST', body: JSON.stringify(body) });
       if (pending.length) {
-        const failed = await uploadProductPhotos(saved.id, pending.map((p) => p.file), removeBg, 0);
+        const result = await uploadProductPhotos(saved.id, pending.map((p) => p.file), removeBg, 0);
         pending.forEach((p) => URL.revokeObjectURL(p.preview));
-        if (failed) notify(`Не загрузилось фото: ${failed}`, 'error');
+        if (result.failed || result.withBg) { reportUpload(notify, result, removeBg); onSaved(); setBusy(false); return; }
       }
       notify(product ? 'Товар обновлён' : 'Товар создан'); onSaved();
     } catch (err) { notify((err as Error).message, 'error'); }
@@ -140,16 +140,25 @@ function ProductEditor({ product, categories, subcategories, onClose, onSaved, n
   </Modal>;
 }
 
-/** Uploads photos into a product; returns the names that failed, if any. */
-async function uploadProductPhotos(productId: number, files: File[], removeBg: boolean, already: number): Promise<string> {
+/** Uploads photos into a product: which failed, and which kept their background. */
+async function uploadProductPhotos(productId: number, files: File[], removeBg: boolean, already: number): Promise<{ failed: string; withBg: string }> {
   const failed: string[] = [];
+  const withBg: string[] = [];
   for (const file of files.slice(0, Math.max(0, 7 - already))) {
     try {
-      const { url } = await adminUpload(file, 'product', { removeBg });
-      await adminRequest(`/api/admin/products/${productId}/images`, { method: 'POST', body: JSON.stringify({ url }) });
-    } catch { failed.push(file.name); }
+      const res = await adminUpload(file, 'product', { removeBg });
+      if (removeBg && !res.background_removed) withBg.push(file.name);
+      await adminRequest(`/api/admin/products/${productId}/images`, { method: 'POST', body: JSON.stringify({ url: res.url }) });
+    } catch (e) { failed.push(`${file.name} (${(e as Error).message})`); }
   }
-  return failed.join(', ');
+  return { failed: failed.join(', '), withBg: withBg.join(', ') };
+}
+
+/** One message for the result of an upload. */
+function reportUpload(notify: AdminNotice, r: { failed: string; withBg: string }, removeBg: boolean) {
+  if (r.failed) notify(`Не загрузилось: ${r.failed}`, 'error');
+  else if (r.withBg) notify(`Фото загружены, но фон убрать не удалось: ${r.withBg}`, 'error');
+  else notify(removeBg ? 'Фото загружены, фон убран' : 'Фото загружены');
 }
 
 const PHOTO_TYPES = 'image/jpeg,image/png,image/webp';
@@ -168,8 +177,7 @@ function PhotoRow({ productId, pending, setPending, removeBg, setRemoveBg, notif
     if (!files.length) return;
     if (!productId) { setPending((p) => [...p, ...files.map((file) => ({ file, preview: URL.createObjectURL(file) }))]); return; }
     setBusy(true);
-    const failed = await uploadProductPhotos(productId, files, removeBg, images.length);
-    if (failed) notify(`Не загрузилось: ${failed}`, 'error'); else notify(removeBg ? 'Фото загружены, фон убран' : 'Фото загружены');
+    reportUpload(notify, await uploadProductPhotos(productId, files, removeBg, images.length), removeBg);
     await load(); setBusy(false);
   };
   const setMain = async (image: ProductImage) => { try { await adminRequest(`/api/admin/product-images/${image.id}/set-main`, { method: 'POST', body: '{}' }); await load(); } catch (e) { notify((e as Error).message, 'error'); } };

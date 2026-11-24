@@ -7,6 +7,7 @@ import os
 import re
 import time
 import hmac
+import secrets
 
 from flask import Blueprint, request, jsonify, g
 
@@ -564,7 +565,8 @@ def api_upload():
     prefix = sanitize_string(request.form.get("prefix", "file"), 50)
     prefix = prefix.replace('/', '_').replace('\\', '_').replace('..', '_')
     old_url = request.form.get("old_url", "")
-    stamp = int(time.time() * 1000)
+    # Milliseconds alone collide when several photos go up at once
+    stamp = f"{int(time.time() * 1000)}{secrets.token_hex(3)}"
     # A product photo can be cut out of its background: a transparent PNG
     remove_bg = request.form.get("remove_bg") in ("1", "true", "yes") and ext in ("jpg", "jpeg", "png", "webp")
     processed = None
