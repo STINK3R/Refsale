@@ -4,23 +4,23 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# psycopg2-binary ships prebuilt — no gcc/libpq-dev needed; onnxruntime and
-# opencv-headless wheels bring their own libraries, so no apt packages either.
+# psycopg2-binary and onnxruntime ship prebuilt wheels with their own
+# libraries: no gcc, libpq-dev or other apt packages needed.
 COPY requirements-backend.txt .
 RUN pip install --no-cache-dir -r requirements-backend.txt
 
-# The background-removal model (~180 MB) is baked into the image, so the
-# first product photo does not wait for a download and nothing is fetched
-# from the internet at run time. REMBG_MODEL=u2netp is a 5 MB alternative.
-# The cut runs in a short-lived process per photo (app/imaging.py): about
-# 1 GB while it works, nothing kept afterwards.
+# The background-removal networks are baked into the image, so nothing is
+# fetched from the internet at run time: isnet-general-use (~180 MB, best
+# edges, ~800 MB of memory while it works) and u2netp (~5 MB, ~250 MB), used
+# when the server has little memory free (app/imaging.py picks per photo).
+# Not fatal: without them the site still builds and runs, and photos get a
+# simple cut-out of a plain background instead.
 ENV U2NET_HOME=/opt/rembg-models
 ARG REMBG_MODEL=isnet-general-use
 ENV REMBG_MODEL=${REMBG_MODEL}
-# Not fatal: without the model the site still builds and runs, and photos get
-# a simpler cut-out (a plain background around the item) until the next build.
-RUN python -c "import os; from rembg import new_session; new_session(os.environ['REMBG_MODEL'])" \
-    || echo "WARNING: background-removal model was not downloaded; the simple cut-out will be used"
+COPY scripts/fetch_bg_models.py /tmp/fetch_bg_models.py
+RUN python /tmp/fetch_bg_models.py \
+    || echo "WARNING: background-removal models were not downloaded; the simple cut-out will be used"
 
 # Copy application code
 COPY server.py .
