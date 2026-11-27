@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Loader2, Search, ThumbsUp, Vote } from 'lucide-react';
+import { Check, Flame, Loader2, Search, ThumbsUp, Vote } from 'lucide-react';
 import { API_BASE } from '../../api/client';
 import { runAfterAuth, useAuthStore, useNotificationStore } from '../../store';
 import { formatPrice, unescapeHtml } from '../../utils/format';
@@ -9,6 +9,9 @@ import Meerkat from '../mascot/Meerkat';
 
 interface VoteItem { id: number; name: string; brand: string; box_weight: string; packing: string; price: number | null; price_note: string; votes: number; voted: boolean }
 interface VoteCategory { id: number; name: string; items: VoteItem[] }
+type View = number | 'all' | 'top' | 'mine';
+/** In the «Топ товаров» list each item says which category it is from */
+type ShownItem = VoteItem & { category?: string };
 interface VoteData { enabled: boolean; title: string; intro: string; categories: VoteCategory[]; my_votes: number }
 
 /**
@@ -23,13 +26,23 @@ export default function VotePage() {
   const [data, setData] = useState<VoteData | null>(null);
   const [failed, setFailed] = useState(false);
   const [query, setQuery] = useState('');
-  const [active, setActive] = useState<number | 'all' | 'mine'>('all');
+  const [active, setActive] = useState<View>('all');
+  // The order is taken from the votes when the list is loaded or the view is
+  // switched, not on every tap: a row that jumped up under the finger right
+  // after «Хочу» would be lost. The next visit shows it in its new place.
+  const [rank, setRank] = useState<Record<number, number>>({});
+  const snapshot = (d: VoteData | null) => {
+    const r: Record<number, number> = {};
+    d?.categories.forEach((c) => c.items.forEach((it) => { r[it.id] = it.votes; }));
+    setRank(r);
+  };
+  const pick = (v: View) => { snapshot(data); setActive(v); };
   const [busy, setBusy] = useState<number | null>(null);
   usePageMeta('Голосование за новые товары | RefSale', 'Отметьте товары, которые стоит привезти: больше голосов — быстрее появятся в каталоге.', '/vote');
 
   useEffect(() => {
     let alive = true;
-    fetch(`${API_BASE}/api/vote`).then((r) => r.json()).then((d: VoteData) => { if (alive) { setData(d); setFailed(false); } })
+    fetch(`${API_BASE}/api/vote`).then((r) => r.json()).then((d: VoteData) => { if (alive) { setData(d); snapshot(d); setFailed(false); } })
       .catch(() => { if (alive) setFailed(true); });
     return () => { alive = false; };
   }, [user?.id]);
@@ -54,18 +67,25 @@ export default function VotePage() {
     setBusy(null);
   };
 
-  const shown = useMemo(() => {
+  const topCount = useMemo(() => Object.values(rank).filter((n) => n > 0).length, [rank]);
+  const shown = useMemo((): Array<{ id: number; name: string; items: ShownItem[] }> => {
     if (!data) return [];
     const q = query.trim().toLowerCase();
+    const match = (it: VoteItem) => !q || `${it.name} ${it.brand}`.toLowerCase().includes(q);
+    // Within a category: the most wanted first, the rest in the price list's order
+    const byVotes = <T extends VoteItem>(items: T[]) => [...items].sort((a, b) => (rank[b.id] ?? 0) - (rank[a.id] ?? 0));
+    if (active === 'top') {
+      // Everything that has at least one vote, from every category, by votes
+      const items = data.categories.flatMap((c) => c.items
+        .filter((it) => (rank[it.id] ?? 0) > 0 && match(it))
+        .map((it) => ({ ...it, category: c.name })));
+      return items.length ? [{ id: -1, name: 'Топ товаров', items: byVotes(items) }] : [];
+    }
     return data.categories
       .filter((c) => active === 'all' || active === 'mine' || c.id === active)
-      .map((c) => ({
-        ...c,
-        items: c.items.filter((it) => (active !== 'mine' || it.voted)
-          && (!q || `${it.name} ${it.brand}`.toLowerCase().includes(q))),
-      }))
+      .map((c) => ({ ...c, items: byVotes(c.items.filter((it) => (active !== 'mine' || it.voted) && match(it))) }))
       .filter((c) => c.items.length);
-  }, [data, query, active]);
+  }, [data, query, active, rank]);
 
   return (
     <main className="pt-[calc(var(--header-h,140px)+28px)] pb-28 max-md:pb-16 min-h-screen">
@@ -92,24 +112,29 @@ export default function VotePage() {
                 </span>
               </div>
               <div className="mt-2 flex gap-1.5 overflow-x-auto scrollbar-hide">
-                <Chip on={active === 'all'} onClick={() => setActive('all')}>Все</Chip>
-                {data.categories.map((c) => <Chip key={c.id} on={active === c.id} onClick={() => setActive(c.id)}>{unescapeHtml(c.name)}</Chip>)}
-                {data.my_votes > 0 && <Chip on={active === 'mine'} onClick={() => setActive('mine')}>Отмеченные мной</Chip>}
+                <Chip on={active === 'all'} onClick={() => pick('all')}>Все</Chip>
+                <Chip on={active === 'top'} onClick={() => pick('top')}><span className="inline-flex items-center gap-1"><Flame size={13} strokeWidth={2.4} />Топ товаров{topCount > 0 && <span className="opacity-60 tabular-nums">{topCount}</span>}</span></Chip>
+                {data.categories.map((c) => <Chip key={c.id} on={active === c.id} onClick={() => pick(c.id)}>{unescapeHtml(c.name)}</Chip>)}
+                {data.my_votes > 0 && <Chip on={active === 'mine'} onClick={() => pick('mine')}>Отмеченные мной</Chip>}
               </div>
             </div>
 
-            {shown.length === 0 ? <Empty text="Ничего не нашлось." /> : shown.map((c) => (
+            {shown.length === 0 ? <Empty text={active === 'top' && !query.trim() ? 'Пока никто не проголосовал — отметьте, что хотите видеть в каталоге.' : 'Ничего не нашлось.'} /> : shown.map((c) => (
               <section key={c.id} className="mt-8">
                 <h2 className="font-display text-[22px] max-sm:text-[19px] leading-tight mb-3">{unescapeHtml(c.name)} <span className="text-ink/35 text-[0.75em] tabular-nums">{c.items.length}</span></h2>
                 <div className="bg-card border-2 border-ink rounded-[22px] max-sm:rounded-[18px] shadow-[0_5px_0_#111] overflow-hidden">
                   <div className="grid grid-cols-[minmax(0,1fr)_120px_110px_150px] gap-3 px-5 py-2.5 bg-surface text-[10.5px] uppercase tracking-[0.1em] font-bold text-muted max-md:hidden">
                     <span>Наименование</span><span>Вес / фасовка</span><span className="text-right">Наша цена</span><span />
                   </div>
-                  {c.items.map((it) => (
+                  {c.items.map((it, place) => (
                     <div key={it.id} className={`grid grid-cols-[minmax(0,1fr)_120px_110px_150px] max-md:grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 px-5 max-sm:px-4 py-3.5 border-t border-ink/10 items-center ${it.voted ? 'bg-accent/40' : ''}`}>
                       <div className="min-w-0">
-                        <div className="text-[14.5px] max-sm:text-[14px] font-semibold leading-snug break-words">{unescapeHtml(it.name)}</div>
+                        <div className="text-[14.5px] max-sm:text-[14px] font-semibold leading-snug break-words">
+                          {active === 'top' && <span className="inline-grid place-items-center min-w-6 h-6 px-1 mr-2 rounded-full bg-sun border-2 border-ink text-[11px] font-extrabold tabular-nums align-[1px]">{place + 1}</span>}
+                          {unescapeHtml(it.name)}
+                        </div>
                         {it.brand && <div className="text-[12px] text-muted mt-0.5">{unescapeHtml(it.brand)}</div>}
+                        {it.category && <div className="text-[11.5px] text-light mt-0.5">{unescapeHtml(it.category)}</div>}
                       </div>
                       <div className="text-[12.5px] text-muted max-md:col-start-1 max-md:row-start-2">
                         {[it.box_weight && `коробка ${unescapeHtml(it.box_weight)}`, it.packing && (it.packing === 'вал' ? 'весовой' : `фасовка ${unescapeHtml(it.packing)}`)].filter(Boolean).join(' · ')}
